@@ -1,0 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;700&family=Poppins:wght@400;600;700&display=swap');
+
+body {
+  font-family: 'Poppins', 'Noto Sans Sinhala', sans-serif;
+}
+
+.circle-progress {
+  transition: stroke-dashoffset 0.5s ease-in-out;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}

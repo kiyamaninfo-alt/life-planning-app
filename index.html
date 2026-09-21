@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Life Planning & Daily Routine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-100 min-h-screen text-slate-800 pb-24">
+
+  <!-- Header & Live Score Ring -->
+  <header class="max-w-md mx-auto p-4 pt-6 text-center">
+    <div class="flex justify-between items-center mb-4">
+      <span class="text-xs font-bold uppercase tracking-wider bg-pink-200 text-pink-700 px-3 py-1 rounded-full">K-Pop & Ballet Routine</span>
+      <button onclick="openAdminModal()" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-gear text-lg"></i></button>
+    </div>
+
+    <div class="relative w-44 h-44 mx-auto flex items-center justify-center bg-white rounded-full shadow-lg p-2 border-4 border-pink-100">
+      <svg class="w-full h-full" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="42" stroke="#f1f5f9" stroke-width="8" fill="transparent" />
+        <circle id="progress-circle" cx="50" cy="50" r="42" stroke="url(#gradient)" stroke-width="8" fill="transparent" 
+                stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round" class="circle-progress" />
+        <defs>
+          <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ec4899" />
+            <stop offset="100%" stop-color="#8b5cf6" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div class="absolute flex flex-col items-center">
+        <span id="progress-percent" class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-pink-500 to-purple-600">0%</span>
+        <span id="score-text" class="text-xs font-semibold text-slate-400">0 / 0 ලකුණු</span>
+      </div>
+    </div>
+
+    <div id="badge-container" class="mt-3">
+      <span id="rank-badge" class="inline-block px-4 py-1.5 rounded-full text-xs font-bold bg-white text-purple-600 shadow-sm border border-purple-100">
+        🌟 Rising Star
+      </span>
+    </div>
+  </header>
+
+  <!-- Main Routine Form -->
+  <main class="max-w-md mx-auto px-4 space-y-4">
+    
+    <!-- 1. අවදි වූ වේලාව -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50">
+      <h2 class="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+        <i class="fa-regular fa-clock text-pink-500"></i> අද උදේ අවදි වූ වේලාව?
+      </h2>
+      <div class="grid grid-cols-3 gap-2">
+        <button onclick="setWakeTime('05:00 - 05:30')" class="wake-btn text-xs p-2 rounded-xl border border-slate-200 hover:border-pink-500 transition text-center" data-val="05:00 - 05:30">05:00 - 05:30</button>
+        <button onclick="setWakeTime('05:30 - 06:00')" class="wake-btn text-xs p-2 rounded-xl border border-slate-200 hover:border-pink-500 transition text-center" data-val="05:30 - 06:00">05:30 - 06:00</button>
+        <button onclick="setWakeTime('06:00 න් පසු')" class="wake-btn text-xs p-2 rounded-xl border border-slate-200 hover:border-pink-500 transition text-center" data-val="06:00 න් පසු">06:00 න් පසු</button>
+      </div>
+    </section>
+
+    <!-- 2. පාසල් පැමිණීම & Dynamic Subjects -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
+      <div class="flex justify-between items-center">
+        <span class="text-sm font-bold text-slate-700 flex items-center gap-2">
+          <i class="fa-solid fa-school text-indigo-500"></i> අද පාසල් ගියාද?
+        </span>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="school-toggle" onchange="toggleSchool(this.checked)" class="sr-only peer">
+          <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
+        </label>
+      </div>
+
+      <div id="subjects-container" class="hidden pt-3 border-t border-slate-100 space-y-3">
+        <p class="text-xs text-slate-500 font-semibold">අද ඉගැන්වූ විෂයන් තෝරන්න:</p>
+        <div id="subjects-grid" class="grid grid-cols-2 gap-2"></div>
+        <div id="homework-details" class="space-y-2 pt-2"></div>
+      </div>
+    </section>
+
+    <!-- 3. අධ්‍යයන කාර්යයන් (Study Tasks) -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
+      <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+        <i class="fa-solid fa-book-open text-purple-500"></i> අධ්‍යාපන කටයුතු (Study)
+      </h2>
+      <div class="space-y-2.5">
+        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+          <span class="text-xs font-semibold">දිනකට ගණන් 10ක් හැදුවාද?</span>
+          <input type="checkbox" onchange="toggleTask('maths_practice', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+        </label>
+        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold">ජෙමිනි සමඟ විනාඩි 10ක් ඉංග්‍රීසියෙන් කතා කළාද?</span>
+            <button type="button" onclick="startTimer(600, 'ජෙමිනි English Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 10 Timer එක දමන්න</button>
+          </div>
+          <input type="checkbox" onchange="toggleTask('gemini_english', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+        </label>
+        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+          <span class="text-xs font-semibold">අලුත් ඉංග්‍රීසි වචන 5ක් පාඩම් කළාද?</span>
+          <input type="checkbox" onchange="toggleTask('vocab_words', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+        </label>
+      </div>
+    </section>
+
+    <!-- 4. නැටුම් & ව්‍යායාම (Ballet & Fitness) -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
+      <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+        <i class="fa-solid fa-music text-pink-500"></i> නැටුම් සහ ව්‍යායාම (Ballet & Workout)
+      </h2>
+      <div class="space-y-2.5">
+        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold">සින්දුවක් දමාගෙන විනාඩි 10ක් නැටුවාද?</span>
+            <button type="button" onclick="startTimer(600, 'Dance & Ballet Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 10 Timer එක දමන්න</button>
+          </div>
+          <input type="checkbox" onchange="toggleTask('dance_workout', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+        </label>
+        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+          <div class="flex flex-col">
+            <span class="text-xs font-semibold">විනාඩි 20ක ව්‍යායාම / Gymnastics කළාද?</span>
+            <button type="button" onclick="startTimer(1200, 'Gymnastics Workout Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 20 Timer එක දමන්න</button>
+          </div>
+          <input type="checkbox" onchange="toggleTask('exercise_schedule', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+        </label>
+      </div>
+    </section>
+
+    <!-- 5. නිවසේ සහ පෞද්ගලික වැඩ (Chores & Habits) -->
+    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
+      <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
+        <i class="fa-solid fa-house text-emerald-500"></i> ගෙදර දොර සහ දෛනික පුරුදු
+      </h2>
+      <div class="space-y-2.5">
+        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කාමරය අස් කළාද?</span><input type="checkbox" onchange="toggleTask('clean_room', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">පැල වලට වතුර දැම්මාද?</span><input type="checkbox" onchange="toggleTask('water_plants', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">යට තට්ටුව අතු ගෑවාද?</span><input type="checkbox" onchange="toggleTask('sweep_floor', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කුණු බාල්දි හිස් කර බඳුන් වලට දැම්මාද?</span><input type="checkbox" onchange="toggleTask('dispose_garbage', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">උකුණෝ පීරුවාද?</span><input type="checkbox" onchange="toggleTask('hair_care', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer bg-purple-50/50"><span class="text-xs font-semibold">අල්මාරිය පිළිවෙල කළාද? (Weekly)</span><input type="checkbox" onchange="toggleTask('clean_wardrobe', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+      </div>
+    </section>
+  </main>
+
+  <!-- Timer Modal -->
+  <div id="timer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-xs text-center shadow-2xl space-y-4">
+      <h3 id="timer-title" class="font-bold text-slate-800 text-sm">Timer</h3>
+      <div id="timer-display" class="text-4xl font-extrabold text-pink-600 tracking-wider">10:00</div>
+      <div class="flex justify-center gap-3">
+        <button onclick="stopTimer()" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">නවත්වන්න</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Modal -->
+  <div id="admin-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">Admin Panel</h3>
+        <button onclick="closeAdminModal()" class="text-slate-400 hover:text-slate-600">&times;</button>
+      </div>
+      <div id="admin-pin-screen" class="space-y-3">
+        <p class="text-xs text-slate-500">කරුණාකර Admin PIN අංකය ඇතුළත් කරන්න:</p>
+        <input type="password" id="admin-pin" placeholder="Enter PIN" class="w-full text-center tracking-widest text-lg p-2.5 border rounded-xl">
+        <button onclick="checkAdminPin()" class="w-full bg-pink-500 text-white font-bold py-2.5 rounded-xl text-xs">පිවිසෙන්න</button>
+      </div>
+      <div id="admin-content" class="hidden space-y-3">
+        <p class="text-xs text-emerald-600 font-semibold">✓ සාර්ථකව සම්බන්ධ විය.</p>
+        <p class="text-xs text-slate-500">ප්‍රශ්න සහ ලකුණු වෙනස් කිරීම Supabase database එක හරහා සෘජුවම කළමනාකරණය කළ හැක.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts Modular Separation -->
+  <script src="js/audio.js"></script>
+  <script src="js/timer.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
