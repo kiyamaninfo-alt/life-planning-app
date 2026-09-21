@@ -1,4 +1,4 @@
-const WORKER_URL = "https://dry-math-2372.kiyamaninfo.workers.dev/calculate";
+const WORKER_URL = "/calculate";
 
 async function syncProgressWithServer(state) {
   if (typeof playChime === "function") playChime();
@@ -12,6 +12,8 @@ async function syncProgressWithServer(state) {
     const data = await res.json();
     if (data.status === "success") {
       updateUI(data.percentage, data.earnedPoints, data.totalPossiblePoints, data.rank);
+    } else {
+      console.error("Server responded with error:", data);
     }
   } catch (err) {
     console.error("API Sync Error:", err);
