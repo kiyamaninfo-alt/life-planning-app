@@ -171,8 +171,18 @@
         <button onclick="checkAdminPin()" class="w-full bg-pink-500 text-white font-bold py-2.5 rounded-xl text-xs">පිවිසෙන්න</button>
       </div>
       <div id="admin-content" class="hidden space-y-3">
-        <p class="text-xs text-emerald-600 font-semibold">✓ සාර්ථකව සම්බන්ධ විය.</p>
-        <p class="text-xs text-slate-500">ප්‍රශ්න සහ ලකුණු වෙනස් කිරීම Supabase database එක හරහා සෘජුවම කළමනාකරණය කළ හැක.</p>
+        <div class="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100 flex items-center justify-between">
+          <span class="text-xs text-emerald-700 font-bold">✓ Supabase සම්බන්ධයි</span>
+          <span class="text-[10px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-bold">Online</span>
+        </div>
+        <div class="space-y-2 pt-1">
+          <button type="button" onclick="adminResetToday()" class="w-full bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
+            <i class="fa-solid fa-rotate-left"></i> අද දින දත්ත Reset කරන්න
+          </button>
+          <button type="button" onclick="adminReloadData()" class="w-full bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
+            <i class="fa-solid fa-cloud-arrow-down"></i> දත්ත නැවත Sync කරන්න
+          </button>
+        </div>
       </div>
     </div>
   </div>

@@ -107,3 +107,50 @@ function checkAdminPin() {
     alert("මුරපදය වැරදියි!");
   }
 }
+
+// Admin Panel Actions
+async function adminResetToday() {
+  if (!confirm("අද දින සියලුම කාර්යයන් සහ ලකුණු Reset කිරීමට අවශ්‍ය බව තහවුරු කරන්නද?")) return;
+  
+  try {
+    // Reset all tasks in state
+    Object.keys(state).forEach(key => {
+      if (typeof state[key] === "boolean") state[key] = false;
+      if (typeof state[key] === "number") state[key] = 0;
+    });
+
+    // Uncheck UI checkboxes
+    document.querySelectorAll("input[type='checkbox']").forEach(cb => cb.checked = false);
+
+    // Sync reset state to Supabase via existing sync function
+    if (typeof syncProgressWithServer === "function") {
+      await syncProgressWithServer(state);
+    }
+
+    // Refresh circular progress / score
+    if (typeof updateCircularProgress === "function") {
+      updateCircularProgress();
+    }
+
+    alert("අද දින දත්ත සාර්ථකව Reset කරන ලදී!");
+    closeAdminModal();
+  } catch (err) {
+    console.error("Reset error:", err);
+    alert("Reset කිරීමේදී දෝෂයක් ඇති විය: " + err.message);
+  }
+}
+
+async function adminReloadData() {
+  try {
+    if (typeof initTodayState === "function") {
+      await initTodayState();
+    } else if (typeof fetchDailyProgress === "function") {
+      await fetchDailyProgress();
+    }
+    alert("දත්ත සාර්ථකව නැවත Sync විය!");
+    closeAdminModal();
+  } catch (err) {
+    console.error("Sync error:", err);
+    alert("දත්ත Sync කිරීමේදී දෝෂයක් ඇති විය: " + err.message);
+  }
+}
