@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wosandi O/L Mission Control - Adaptive Score & Historical Estimation</title>
+  <link rel="stylesheet" href="css/wosandi.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Top Navigation & Controls Header -->
+  <header class="header-bar">
+    <div>
+      <a href="../index.html" class="nav-back-btn" id="btnBackToRoutine">
+        <i class="fa-solid fa-arrow-left"></i> 🌸 Daily Routine Dashboard වෙත
+      </a>
+      <h1 style="margin: 10px 0 0 0; font-size: 1.5rem; font-weight: 800; color: #0f172a;">
+        🎯 Wosandi O/L Mission Control
+      </h1>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <span id="lastUpdatedBadge" style="font-size: 0.78rem; color: #64748b; background: #f1f5f9; padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0;">
+        යාවත්කාලීන විය: --
+      </span>
+      <button class="btn-subject-drawer" id="btnOpenSubjectDrawer">
+        <i class="fa-solid fa-book"></i> 📚 විෂයයන් තෝරන්න
+      </button>
+      <div class="grade-selector-container" id="gradeSelector">
+        <span style="font-size: 0.85rem; font-weight: 600; color: #475569;">ශ්‍රේණිය:</span>
+        <button class="grade-btn" data-grade="9">Grade 9</button>
+        <button class="grade-btn" data-grade="10">Grade 10</button>
+        <button class="grade-btn active" data-grade="11">Grade 11</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Dashboard Grid -->
+  <main class="dashboard-grid">
+
+    <!-- 1. SVG Circular Progress Bar & Historical Day-of-Week Benchmark (Full Width) -->
+    <section class="card full-width-card">
+      <div class="circle-score-card">
+        <!-- Hardware-Accelerated SVG Arc Progress Ring -->
+        <div class="circle-container">
+          <svg class="w-full h-full" viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+            <circle cx="50" cy="50" r="42" stroke="#f1f5f9" stroke-width="8" fill="transparent" />
+            <circle id="wosandiProgressCircle" cx="50" cy="50" r="42" stroke="url(#wosandiGradient)" stroke-width="8" fill="transparent" 
+                    stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round" class="circle-progress" />
+            <defs>
+              <linearGradient id="wosandiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#2563eb" />
+                <stop offset="50%" stop-color="#7c3aed" />
+                <stop offset="100%" stop-color="#ec4899" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="circle-content">
+            <span id="wosandiProgressPercent" class="progress-percent-text">0%</span>
+            <span id="wosandiScoreText" class="progress-score-text">0 / 0 pts</span>
+            <span id="wosandiRankBadge" style="font-size: 0.65rem; font-weight: 700; color: #7c3aed; margin-top: 2px;">
+              🌟 Target Ready
+            </span>
+          </div>
+        </div>
+
+        <!-- 3.1 Day-of-Week Benchmark & Historical Seasonality -->
+        <div class="benchmark-box">
+          <h3 style="margin: 0; font-size: 1rem; color: #0f172a; font-weight: 700;">
+            📊 දෛනික ඉලක්ක හා ලකුණු ඇස්තමේන්තුව (Seasonality Baseline)
+          </h3>
+          <div id="dowBenchmarkBadge" class="benchmark-pill">
+            🎯 අද ඉලක්කය: ගණනය වෙමින්...
+          </div>
+          <p id="dowBenchmarkDesc" class="benchmark-desc">
+            පෙර සතිවල එම දිනවලම උපයාගත් ලකුණු සාමාන්‍යය මඟින් අද දිනට නියමිත පෞද්ගලීකරණය කළ මට්ටම තීරණය කෙරේ.
+          </p>
+          
+          <!-- 3.3 Academic Priority Tier Indicators -->
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px;">
+            <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #dbeafe; color: #1d4ed8; font-weight: 600;">
+              Core Academic: 25-30 pts
+            </span>
+            <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #dcfce7; color: #15803d; font-weight: 600;">
+              Applied Basket: 12-15 pts
+            </span>
+            <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 9999px; background: #f1f5f9; color: #475569; font-weight: 600;">
+              Habits: 5 pts
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Dynamic Adaptive Questionnaire & Task Adaptation Card -->
+    <section class="card" id="cardAdaptiveQuestionnaire">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h2 class="card-title" style="margin: 0;">📝 අද දින කාර්යයන් සහ ප්‍රශ්නාවලිය (Adaptive Questionnaire)</h2>
+          <span style="font-size: 0.78rem; color: #64748b;">
+            සක්‍රිය ශ්‍රේණිය හා විෂයයන් අනුව ගතිකව වෙනස් වේ (Real-Time Reactive)
+          </span>
+        </div>
+        <span id="activeFiltersBadge" style="font-size: 0.75rem; font-weight: 700; color: #2563eb; background: #eff6ff; padding: 4px 10px; border-radius: 9999px; border: 1px solid #bfdbfe;">
+          Grade 11
+        </span>
+      </div>
+      <div id="questionnaireContainer">
+        පූරණය වෙමින් පවතී...
+      </div>
+    </section>
+
+    <!-- 3. Top Priorities Card (6 Actionable Priority Rules) -->
+    <section class="card" id="cardTodayPriorities">
+      <h2 class="card-title">📌 අද මුලින්ම කළ යුතු දේවල් (Actionable Priorities)</h2>
+      <div id="prioritiesContent">දත්ත පූරණය වෙමින් පවතී...</div>
+    </section>
+
+    <!-- 4. Multi-Source Activity Streak Card -->
+    <section class="card" id="cardActivityStreak">
+      <h2 class="card-title">🔥 අඛණ්ඩ අධ්‍යයන දින (Multi-Source Streak)</h2>
+      <div id="streakContent">ගණනය වෙමින් පවතී...</div>
+    </section>
+
+    <!-- 5. Strict Pending Test Papers Filter Card -->
+    <section class="card" id="cardPendingTestPapers">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 8px;">
+        <h2 class="card-title" style="margin: 0;">📑 විසඳිය යුතු Test Papers (Pending Test Papers)</h2>
+        <span id="pendingPapersBadge" style="font-size: 0.78rem; font-weight: 600; color: #2563eb; background: #eff6ff; padding: 3px 10px; border-radius: 12px; border: 1px solid #bfdbfe;">
+          0 ක් සූදානම්
+        </span>
+      </div>
+      <p style="font-size: 0.82rem; color: #64748b; margin-top: 2px; margin-bottom: 14px;">
+        (Lesson & HW සම්පූර්ණ කළ, HW Days = 0 සහ Paper 1 හෝ ඊට වැඩි අගයක් ඇති පාඩම්)
+      </p>
+      <div id="pendingPapersContent">පූරණය වෙමින් පවතී...</div>
+    </section>
+
+    <!-- 6. Dual-Tab Analytics (With Zero-Score Exclusion) -->
+    <section class="card full-width-card" id="cardUnitAnalytics">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+        <div>
+          <h2 class="card-title" style="margin: 0;">📊 Unit Papers විශ්ලේෂණය</h2>
+          <span style="font-size: 0.78rem; color: #16a34a; font-weight: 600;">✓ Zero-Score Exclusion සක්‍රියයි (ලකුණු 0 বাদදී ඇත)</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button id="tabSubUnit" class="tab-btn active">Sub-Unit Breakdown</button>
+          <button id="tabUnitWise" class="tab-btn">Unit-Wise Average</button>
+        </div>
+      </div>
+      <div id="analyticsContent">සංඛ්‍යාලේඛන සූදානම් වෙමින් පවතී...</div>
+    </section>
+
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
