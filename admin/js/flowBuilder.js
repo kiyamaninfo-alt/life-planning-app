@@ -1,4 +1,4 @@
-import { FlowEngine } from './flowEngine.js';
+import { FlowEngine } from './flowEngine.js?v=20260925-v4';
 
 export class FlowBuilder {
   constructor(containerEl, api, toastFn) {
@@ -749,12 +749,20 @@ export class FlowBuilder {
         pointsBadge = `+${node.points || 0} pts`;
       }
 
+      let optionsSummaryBadge = '';
+      if (Array.isArray(node.options) && node.options.length > 0) {
+        const count = node.options.length;
+        const noun = node.type === 'task' ? 'outcomes' : 'answers';
+        optionsSummaryBadge = `${count} ${noun}`;
+      }
+
       return `
         <g class="fb-node cursor-grab transition-transform" data-id="${node.id}" transform="translate(${node.x}, ${node.y})">
           <rect width="${node.width}" height="${node.height}" rx="8" fill="${bgColor}" stroke="${isSelected ? '#4F46E5' : strokeColor}" stroke-width="${strokeWidth}" ${strokeDash} ${shadow} />
           <text x="12" y="24" font-size="11.5" font-weight="bold" fill="#1E293B" font-family="'Poppins', sans-serif">${icon} ${typeLabel}</text>
           ${pointsBadge ? `<text x="${node.width - 12}" y="24" font-size="9.5" font-weight="bold" fill="#64748B" text-anchor="end" font-family="'Poppins', sans-serif">${pointsBadge}</text>` : ''}
-          <text x="12" y="${linterBadge ? 42 : 47}" font-size="11" fill="#475569" font-family="'Noto Sans Sinhala', 'Poppins', sans-serif">${truncated}</text>
+          <text x="12" y="${linterBadge ? 42 : 45}" font-size="11" fill="#475569" font-family="'Noto Sans Sinhala', 'Poppins', sans-serif">${truncated}</text>
+          ${optionsSummaryBadge ? `<text x="${node.width - 12}" y="${node.height - 10}" font-size="8.5" font-weight="600" fill="#6366F1" text-anchor="end" font-family="'Poppins', sans-serif">🔀 ${optionsSummaryBadge}</text>` : ''}
           ${linterBadge}
         </g>
       `;
@@ -783,7 +791,7 @@ export class FlowBuilder {
       : (currentEdge ? `[NODE] ${currentEdge.toId}` : '');
 
     return `
-      <div class="p-3 bg-white rounded-lg border ${currentEdge ? 'border-indigo-300 shadow-xs' : 'border-slate-200 shadow-2xs'} option-row flex flex-col gap-2 hover:border-slate-300 transition" data-idx="${idx}" data-opt-id="${opt.id}">
+      <div class="p-3 bg-white rounded-lg border ${currentEdge ? 'border-indigo-300 shadow-xs' : 'border-slate-200 shadow-2xs'} option-row flex flex-col gap-2.5 hover:border-slate-300 transition" data-idx="${idx}" data-opt-id="${opt.id}">
         <!-- Row 1: Index, Sinhala Label, Points, Delete -->
         <div class="flex items-center gap-2">
           <span class="text-xs font-mono font-bold text-slate-400 w-5">#${idx + 1}</span>
@@ -804,41 +812,82 @@ export class FlowBuilder {
         </div>
 
         <!-- Row 3: Step 1 - Direct Inline Branching for this Answer -->
-        <div class="mt-1 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 pl-7 ${currentEdge ? 'bg-indigo-50/70 border border-indigo-100' : 'bg-slate-50/70'} p-2 rounded-md">
-          <div class="flex items-center gap-1.5 flex-1 min-w-[210px]">
-            <span class="text-[11px] font-semibold text-slate-700 flex items-center gap-1 whitespace-nowrap">
-              <i class="fas fa-code-branch text-indigo-500"></i> Flow for this answer:
-            </span>
-            <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-800 focus:ring-indigo-500 focus:border-indigo-500 flex-1 min-w-[140px]" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}">
-              <option value="">-- No Branch / End of Flow --</option>
-              ${availableNodes.map(an => `
-                <option value="${an.id}" ${currentEdge?.toId === an.id ? 'selected' : ''}>
-                  ${an.type.toUpperCase()}: ${(an.text_en || an.text_si || an.id).substring(0, 22)}
-                </option>
-              `).join('')}
-              <optgroup label="Create & Branch">
-                <option value="__NEW_QUESTION__">+ Create Next Question Step...</option>
-                <option value="__NEW_TASK__">+ Create Next Task Step...</option>
-                <option value="__NEW_END__">+ Create Next End Step...</option>
-              </optgroup>
-            </select>
-          </div>
-
-          <div class="flex items-center gap-1.5">
-            ${currentEdge ? `
-              <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1" title="${targetLabel}">
-                <i class="fas fa-check text-[9px]"></i> Connected: ${linkedTargetNode ? (linkedTargetNode.text_en || linkedTargetNode.type).substring(0, 16) : currentEdge.toId}
+        ${currentEdge ? `
+          <div class="mt-1 pt-2 border-t border-indigo-100 flex flex-col gap-2 pl-7 p-2.5 rounded-lg bg-indigo-50/80 border border-indigo-200 shadow-2xs">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-indigo-900 flex items-center gap-1.5">
+                <i class="fas fa-code-branch text-indigo-600"></i> Flow for "${opt.text_en || opt.text_si || opt.id}":
               </span>
-              <button type="button" class="opt-disconnect-btn text-xs text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded" data-opt-id="${opt.id}" title="Disconnect Branch">
-                <i class="fas fa-unlink"></i>
-              </button>
-            ` : `
-              <button type="button" class="opt-add-step-btn text-[11px] bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-2.5 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}">
-                <i class="fas fa-plus-circle text-xs"></i> + Create Next Flow Step
-              </button>
-            `}
+              <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                <i class="fas fa-check text-[9px]"></i> Connected
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between bg-white p-2 rounded border border-indigo-100">
+              <div class="flex items-center gap-2 overflow-hidden">
+                <span class="text-xs font-bold text-slate-800 truncate" title="${targetLabel}">${targetLabel}</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${linkedTargetNode ? `
+                  <button type="button" class="opt-view-target-btn text-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 flex items-center gap-1 font-medium transition" data-target-id="${linkedTargetNode.id}" title="Select and edit this target node">
+                    <i class="fas fa-arrow-right text-[9px]"></i> View Node
+                  </button>
+                ` : ''}
+                <button type="button" class="opt-disconnect-btn text-[11px] bg-red-50 hover:bg-red-100 text-red-600 px-2 py-0.5 rounded border border-red-200 flex items-center gap-1 transition" data-opt-id="${opt.id}" title="Disconnect this flow branch">
+                  <i class="fas fa-unlink text-[10px]"></i> Disconnect
+                </button>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1.5 pt-1">
+              <span class="text-[10px] text-slate-500 whitespace-nowrap">Change to:</span>
+              <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500 flex-1" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}">
+                <option value="">-- Change Target Node --</option>
+                ${availableNodes.map(an => `
+                  <option value="${an.id}" ${currentEdge?.toId === an.id ? 'selected' : ''}>
+                    ${an.type.toUpperCase()}: ${(an.text_en || an.text_si || an.id).substring(0, 24)}
+                  </option>
+                `).join('')}
+              </select>
+            </div>
           </div>
-        </div>
+        ` : `
+          <div class="mt-1 pt-2 border-t border-slate-100 flex flex-col gap-2 pl-7 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
+                <i class="fas fa-code-branch text-indigo-600"></i> Flow for "${opt.text_en || opt.text_si || opt.id}":
+              </span>
+              <span class="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">No branch set</span>
+            </div>
+
+            <!-- Direct 1-Click Action Buttons to create next flow step -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[10px] font-medium text-slate-500 mr-0.5">Add next step:</span>
+              <button type="button" class="opt-add-step-btn text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}" data-step-type="question" title="Create a new question following this answer">
+                <i class="fas fa-question-circle text-[10px]"></i> + Question
+              </button>
+              <button type="button" class="opt-add-step-btn text-[11px] bg-purple-600 hover:bg-purple-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}" data-step-type="task" title="Create a new task step following this answer">
+                <i class="fas fa-tasks text-[10px]"></i> + Task
+              </button>
+              <button type="button" class="opt-add-step-btn text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}" data-step-type="end" title="Create an end/completion terminal following this answer">
+                <i class="fas fa-flag-checkered text-[10px]"></i> + End Step
+              </button>
+            </div>
+
+            <!-- Or Route to Existing Node in flow -->
+            <div class="flex items-center gap-1.5 pt-1 border-t border-slate-200">
+              <span class="text-[10px] text-slate-500 whitespace-nowrap">Or link existing:</span>
+              <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500 flex-1" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}">
+                <option value="">-- Choose Existing Node in Flow --</option>
+                ${availableNodes.map(an => `
+                  <option value="${an.id}">
+                    ${an.type.toUpperCase()}: ${(an.text_en || an.text_si || an.id).substring(0, 24)}
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+          </div>
+        `}
       </div>
     `;
   }
@@ -1078,26 +1127,26 @@ export class FlowBuilder {
         </div>
 
         <!-- Task Answer Responses / Outcomes & Flow Branching (Step 1) -->
-        <div class="mb-5 bg-purple-50/50 p-3.5 rounded-lg border border-purple-200">
+        <div class="mb-5 bg-purple-50/60 p-3.5 rounded-lg border border-purple-200">
           <div class="flex justify-between items-center mb-2.5">
             <div>
-              <h4 class="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1">
-                <i class="fas fa-code-branch text-purple-600"></i> Task Answers & Flow Branching
+              <h4 class="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fas fa-code-branch text-purple-600"></i> Task Answers / Outcomes & Flows
               </h4>
-              <p class="text-xs text-purple-700">Add a flow branch for each answer/outcome of this task (e.g. Completed vs Incomplete)</p>
+              <p class="text-xs text-purple-700">Add answer outcomes for this task (e.g. Completed vs Missed) and branch a flow for each answer</p>
             </div>
-            <button type="button" id="ne-add-option-btn" class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 px-2.5 py-1 rounded font-semibold transition flex items-center gap-1">
-              <i class="fas fa-plus text-[10px]"></i> Add Task Answer
+            <button type="button" id="ne-add-option-btn" class="text-xs bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 rounded font-semibold transition flex items-center gap-1 shadow-2xs">
+              <i class="fas fa-plus text-[10px]"></i> + Add Task Answer
             </button>
           </div>
 
           <!-- Presets -->
           <div class="mb-3 flex items-center gap-2">
             <span class="text-[11px] text-purple-700 font-medium">Presets:</span>
-            <button type="button" id="ne-task-preset-done-missed" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100">
+            <button type="button" id="ne-task-preset-done-missed" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100 font-medium shadow-2xs">
               Completed / Missed
             </button>
-            <button type="button" id="ne-task-preset-tiers" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100">
+            <button type="button" id="ne-task-preset-tiers" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100 font-medium shadow-2xs">
               Done / Partial / Missed
             </button>
           </div>
@@ -1108,17 +1157,28 @@ export class FlowBuilder {
         </div>
       `;
     } else if (node.type === 'question') {
+      if (!node.input_type) {
+        node.input_type = 'choice';
+      }
+      if ((!Array.isArray(node.options) || node.options.length === 0) && isOptionInput) {
+        node.options = [
+          { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10 },
+          { id: 'opt_2', text_si: 'නැත', text_en: 'No',  points: 0 }
+        ];
+      }
+      const questionOptions = FlowEngine.normalizeOptions(node.options);
+
       specificFields = `
         <div class="mb-5">
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Input Type</label>
-          <select id="ne-input-type" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
-            <option value="choice" ${node.input_type === 'choice' ? 'selected' : ''}>Multiple Choice (Options Matrix)</option>
-            <option value="select" ${node.input_type === 'select' ? 'selected' : ''}>Select Dropdown (Options Matrix)</option>
-            <option value="radio" ${node.input_type === 'radio' ? 'selected' : ''}>Radio Buttons (Options Matrix)</option>
-            <option value="time-range" ${node.input_type === 'time-range' ? 'selected' : ''}>Time Range (Options Matrix)</option>
-            <option value="boolean" ${node.input_type === 'boolean' ? 'selected' : ''}>Yes / No (Options Matrix)</option>
-            <option value="text" ${node.input_type === 'text' ? 'selected' : ''}>Text Input (Static Points)</option>
-            <option value="scale" ${node.input_type === 'scale' ? 'selected' : ''}>Scale 1-10 (Static Points)</option>
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Question Format</label>
+          <select id="ne-input-type" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 font-medium">
+            <option value="choice" ${node.input_type === 'choice' ? 'selected' : ''}>Multiple Choice (With Answers & Flows)</option>
+            <option value="select" ${node.input_type === 'select' ? 'selected' : ''}>Select Dropdown (With Answers & Flows)</option>
+            <option value="radio" ${node.input_type === 'radio' ? 'selected' : ''}>Radio Buttons (With Answers & Flows)</option>
+            <option value="time-range" ${node.input_type === 'time-range' ? 'selected' : ''}>Time Range (With Answers & Flows)</option>
+            <option value="boolean" ${node.input_type === 'boolean' ? 'selected' : ''}>Yes / No (With Answers & Flows)</option>
+            <option value="text" ${node.input_type === 'text' ? 'selected' : ''}>Text Input (Single Open-Ended)</option>
+            <option value="scale" ${node.input_type === 'scale' ? 'selected' : ''}>Scale 1-10 (Numeric Rating)</option>
           </select>
         </div>
 
@@ -1127,30 +1187,46 @@ export class FlowBuilder {
           <div class="mb-5 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
             <div class="flex justify-between items-center mb-2.5">
               <div>
-                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Per-Option Scoring Matrix & Flow Branching</h4>
-                <p class="text-xs text-slate-500">Define answer options, assign points, and branch next flow step for each answer</p>
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <i class="fas fa-list-ul text-indigo-600"></i> Answers / Choices & Next Flows
+                </h4>
+                <p class="text-xs text-slate-500">Define answers for this question, assign points, and branch flows for each answer</p>
               </div>
-              <button type="button" id="ne-add-option-btn" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded font-semibold transition flex items-center gap-1">
-                <i class="fas fa-plus text-[10px]"></i> Add Option
+              <button type="button" id="ne-add-option-btn" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded font-semibold transition flex items-center gap-1 shadow-2xs">
+                <i class="fas fa-plus text-[10px]"></i> + Add Answer
               </button>
             </div>
 
             <!-- Presets -->
             <div class="mb-3 flex items-center gap-2">
               <span class="text-[11px] text-gray-500 font-medium">Presets:</span>
-              <button type="button" id="ne-preset-morning" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100">
-                Wakeup (-20 After 6:30)
-              </button>
-              <button type="button" id="ne-preset-yesno" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100">
+              <button type="button" id="ne-preset-yesno" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium shadow-2xs">
                 Yes (+10) / No (0)
+              </button>
+              <button type="button" id="ne-preset-morning" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium shadow-2xs">
+                Wakeup (-20 After 6:30)
               </button>
             </div>
 
             <div id="ne-options-matrix-container" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
-              ${normalizedOptions.map((opt, idx) => this.renderOptionRowHtml(node, opt, idx, availableNodes, outgoingEdges)).join('')}
+              ${questionOptions.map((opt, idx) => this.renderOptionRowHtml(node, opt, idx, availableNodes, outgoingEdges)).join('')}
             </div>
           </div>
         ` : `
+          <!-- Fallback when Text Input or Scale: Provide clear 1-click switch to Answers & Flows -->
+          <div class="mb-5 bg-indigo-50/80 p-3.5 rounded-lg border border-indigo-200">
+            <div class="flex items-center gap-2 mb-1.5">
+              <i class="fas fa-info-circle text-indigo-600"></i>
+              <span class="text-xs font-bold text-indigo-900 uppercase">Single Open-Ended Mode</span>
+            </div>
+            <p class="text-xs text-indigo-800 mb-2.5">
+              This question currently accepts open text without answer choices. To add answers (like Yes/No or custom choices) and branch different flows for each answer:
+            </p>
+            <button type="button" id="ne-switch-to-choice" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-1.5 rounded shadow-sm flex items-center gap-1.5 transition">
+              <i class="fas fa-list-ul"></i> Enable Answer Choices & Flows
+            </button>
+          </div>
+
           <!-- Static Points Input -->
           <div class="mb-5">
             <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Static Points Value</label>
@@ -1444,7 +1520,21 @@ export class FlowBuilder {
       btn.addEventListener('click', (e) => {
         const optId = e.currentTarget.dataset.optId;
         const opt = (node.options || []).find(o => o.id === optId) || { id: optId, text_en: e.currentTarget.dataset.optLabel };
-        this.createNextStepForOption(node, opt, 'question');
+        const stepType = e.currentTarget.dataset.stepType || 'question';
+        this.createNextStepForOption(node, opt, stepType);
+      });
+    });
+
+    document.querySelectorAll('.opt-view-target-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const targetId = e.currentTarget.dataset.targetId;
+        const targetNode = this.currentFlow.flow_data.nodes.find(n => n.id === targetId);
+        if (targetNode) {
+          this.selectedNodeId = targetNode.id;
+          this.updateGraph();
+          this.renderNodeEditor(targetNode);
+          this.toast(`Viewing target node: [${targetNode.type.toUpperCase()}] ${targetNode.text_en || targetNode.id}`, 'info');
+        }
       });
     });
 
@@ -1455,6 +1545,22 @@ export class FlowBuilder {
         this.disconnectOptionBranch(node, opt);
       });
     });
+
+    if (document.getElementById('ne-switch-to-choice')) {
+      document.getElementById('ne-switch-to-choice').addEventListener('click', () => {
+        node.input_type = 'choice';
+        if (!Array.isArray(node.options) || node.options.length === 0) {
+          node.options = [
+            { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10 },
+            { id: 'opt_2', text_si: 'නැත', text_en: 'No',  points: 0 }
+          ];
+        }
+        this.pushHistory('Enable answer choices for question');
+        this.renderNodeEditor(node);
+        this.updateGraph();
+        this.toast('Answers & Flows enabled for this question', 'success');
+      });
+    }
 
     if (document.getElementById('ne-add-option-btn')) {
       document.getElementById('ne-add-option-btn').addEventListener('click', () => {

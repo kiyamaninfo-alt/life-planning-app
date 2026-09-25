@@ -5,3 +5,7 @@
 
 /admin/*
   X-Frame-Options: SAMEORIGIN
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/admin/js/*
+  Cache-Control: no-cache, no-store, must-revalidate

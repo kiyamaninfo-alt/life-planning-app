@@ -539,6 +539,108 @@ async function runPhase2Tests() {
   assert(dagCheck.orphanNodes.length === 0, 'No orphan nodes in answer-branched graph');
   assert(dagCheck.deadEndNodes.length === 0, 'All answer branches successfully reach terminal end node');
 
+  // ==========================================
+  // TEST 16: End-to-End Answer Flow from Tasks & Questions
+  // ==========================================
+  console.log('\n=== TEST 16: Step-by-Step Task & Question Answer Flow Branching ===');
+
+  const q1Node = {
+    id: 'node_q_hw',
+    type: 'question',
+    text_en: 'Did you finish your homework?',
+    text_si: 'ඔබ ගෙදර වැඩ අවසන් කළාද?',
+    input_type: 'choice',
+    options: [
+      { id: 'ans_yes', text_en: 'Yes', text_si: 'ඔව්', points: 10 },
+      { id: 'ans_no', text_en: 'No', text_si: 'නැත', points: -5 }
+    ]
+  };
+
+  const t1Node = {
+    id: 'node_task_science',
+    type: 'task',
+    text_en: 'Study Science Chapter 4',
+    text_si: 'විද්‍යාව 4 වන පරිච්ඡේදය අධ්‍යයනය කරන්න',
+    task_id: 'task_sci_01',
+    points: 25,
+    options: [
+      { id: 'opt_done', text_en: 'Completed', text_si: 'සම්පූර්ණ කරන ලදී', points: 25 },
+      { id: 'opt_missed', text_en: 'Missed', text_si: 'නොකරන ලදී', points: 0 }
+    ]
+  };
+
+  const qUnderstandNode = {
+    id: 'node_q_understand',
+    type: 'question',
+    text_en: 'Did you understand the concepts?',
+    text_si: 'ඔබට සංකල්ප තේරුම් ගියේද?',
+    input_type: 'choice',
+    options: [
+      { id: 'ans_full', text_en: 'Fully', text_si: 'සම්පූර්ණයෙන්ම', points: 10 },
+      { id: 'ans_need_help', text_en: 'Need Help', text_si: 'උදව් අවශ්‍යයි', points: 0 }
+    ]
+  };
+
+  const tPendingNode = {
+    id: 'node_task_pending',
+    type: 'task',
+    text_en: 'Complete Pending Homework Now',
+    text_si: 'ඉතිරි ගෙදර වැඩ දැන් කරන්න',
+    points: 15,
+    options: [
+      { id: 'opt_done', text_en: 'Completed', text_si: 'සම්පූර්ණයි', points: 15 },
+      { id: 'opt_missed', text_en: 'Incomplete', text_si: 'අසම්පූර්ණයි', points: -10 }
+    ]
+  };
+
+  const endNode = {
+    id: 'node_end_final',
+    type: 'end',
+    text_en: 'Session Complete',
+    text_si: 'සැසිය අවසන්'
+  };
+
+  const complexEdges = [
+    // Question -> Task branch
+    { fromId: q1Node.id, toId: t1Node.id, condition_option_id: 'ans_yes', condition_value: 'ans_yes', condition: 'Yes' },
+    { fromId: q1Node.id, toId: tPendingNode.id, condition_option_id: 'ans_no', condition_value: 'ans_no', condition: 'No' },
+
+    // Task -> Next Question branch
+    { fromId: t1Node.id, toId: qUnderstandNode.id, condition_option_id: 'opt_done', condition_value: 'opt_done', condition: 'Completed' },
+    { fromId: t1Node.id, toId: endNode.id, condition_option_id: 'opt_missed', condition_value: 'opt_missed', condition: 'Missed' },
+
+    // Pending Task -> End
+    { fromId: tPendingNode.id, toId: endNode.id, condition: '' },
+    // Understand Question -> End
+    { fromId: qUnderstandNode.id, toId: endNode.id, condition: '' }
+  ];
+
+  // 1. Verify question answer "Yes" branches to Task t1Node
+  const resQYes = FlowEngine.resolveNextNode(q1Node.id, 'ans_yes', complexEdges);
+  assert(resQYes && resQYes.targetNodeId === t1Node.id, 'Question answer "Yes" branches directly to Task node');
+
+  // 2. Verify question answer "No" branches to Task tPendingNode
+  const resQNo = FlowEngine.resolveNextNode(q1Node.id, 'ans_no', complexEdges);
+  assert(resQNo && resQNo.targetNodeId === tPendingNode.id, 'Question answer "No" branches to Pending Task node');
+
+  // 3. Verify task answer "Completed" branches to follow-up question
+  const resTDone = FlowEngine.resolveNextNode(t1Node.id, 'opt_done', complexEdges);
+  assert(resTDone && resTDone.targetNodeId === qUnderstandNode.id, 'Task answer "Completed" branches to follow-up question');
+
+  // 4. Verify task answer "Missed" branches to end
+  const resTMissed = FlowEngine.resolveNextNode(t1Node.id, 'opt_missed', complexEdges);
+  assert(resTMissed && resTMissed.targetNodeId === endNode.id, 'Task answer "Missed" branches to End node');
+
+  // 5. Verify complete graph validation
+  const fullFlowGraph = {
+    nodes: [q1Node, t1Node, tPendingNode, qUnderstandNode, endNode],
+    edges: complexEdges
+  };
+  const valFull = FlowEngine.validateGraph(fullFlowGraph);
+  assert(valFull.isValid === true, 'Full Question-Task-Answer flow passes DAG validation');
+  assert(valFull.orphanNodes.length === 0, 'No orphan nodes in full Question-Task-Answer flow');
+  assert(valFull.deadEndNodes.length === 0, 'No dead ends in full Question-Task-Answer flow');
+
   console.log('\n========================================');
   console.log(`PHASE 2 SUMMARY: ${passed} passed, ${failed} failed.`);
   console.log('========================================');

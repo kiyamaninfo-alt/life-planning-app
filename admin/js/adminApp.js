@@ -1,11 +1,11 @@
-import { AdminAuth } from './adminAuth.js';
-import { AdminApi } from './adminApi.js';
+import { AdminAuth } from './adminAuth.js?v=20260925-v4';
+import { AdminApi } from './adminApi.js?v=20260925-v4';
 // These will be implemented by other agents
-import { TaskManager } from './taskManager.js';
-import { TimerManager } from './timerManager.js';
-import { FlowBuilder } from './flowBuilder.js';
-import { UiConfigurator } from './uiConfigurator.js';
-import { PublishManager } from './publishManager.js';
+import { TaskManager } from './taskManager.js?v=20260925-v4';
+import { TimerManager } from './timerManager.js?v=20260925-v4';
+import { FlowBuilder } from './flowBuilder.js?v=20260925-v4';
+import { UiConfigurator } from './uiConfigurator.js?v=20260925-v4';
+import { PublishManager } from './publishManager.js?v=20260925-v4';
 
 class AdminApp {
     constructor() {
