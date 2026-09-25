@@ -40,9 +40,8 @@ class AdminApp {
 
     showApp() {
         this.appContainer.classList.remove('hidden');
-        this.setupNavigation();
         this.initManagers();
-        this.loadOverview();
+        this.setupNavigation();
         
         // Logout handler
         document.getElementById('logout-btn').addEventListener('click', () => {
@@ -69,36 +68,84 @@ class AdminApp {
         closeSidebarBtn.addEventListener('click', toggleSidebar);
         mobileOverlay.addEventListener('click', toggleSidebar);
 
+        const switchTab = (tabId, updateUrl = true) => {
+            const targetTab = document.querySelector(`.tab-link[data-tab="${tabId}"]`);
+            if (!targetTab) return;
+
+            // Remove active class from all tabs
+            tabs.forEach(t => {
+                t.classList.remove('active', 'bg-indigo-600', 'text-white');
+            });
+
+            // Add active class to clicked tab
+            targetTab.classList.add('active', 'bg-indigo-600', 'text-white');
+
+            // Hide all panes
+            panes.forEach(pane => pane.classList.add('hidden'));
+
+            // Show targeted pane
+            const paneEl = document.getElementById(`tab-${tabId}`);
+            if (paneEl) paneEl.classList.remove('hidden');
+
+            // Update header title
+            headerTitle.textContent = targetTab.textContent.trim();
+
+            // Push clean URL for Cloudflare Pages routing (/admin/flows, /admin/tasks, etc.)
+            if (updateUrl && window.history && window.history.pushState) {
+                const targetUrl = tabId === 'overview' ? '/admin' : `/admin/${tabId}`;
+                if (window.location.pathname !== targetUrl) {
+                    window.history.pushState({ tab: tabId }, '', targetUrl);
+                }
+            }
+
+            // Close sidebar on mobile after selection
+            if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
+                toggleSidebar();
+            }
+
+            // Render manager content if applicable
+            this.renderTabContent(tabId);
+        };
+
         tabs.forEach(tab => {
             tab.addEventListener('click', (e) => {
                 e.preventDefault();
-                
-                // Remove active class from all tabs
-                tabs.forEach(t => {
-                    t.classList.remove('active', 'bg-indigo-600', 'text-white');
-                });
-                
-                // Add active class to clicked tab
-                tab.classList.add('active', 'bg-indigo-600', 'text-white');
-                
-                // Hide all panes
-                panes.forEach(pane => pane.classList.add('hidden'));
-                
-                // Show targeted pane
                 const tabId = tab.getAttribute('data-tab');
-                document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-                
-                // Update header title
-                headerTitle.textContent = tab.textContent.trim();
-                
-                // Close sidebar on mobile after selection
-                if (window.innerWidth < 768 && !sidebar.classList.contains('-translate-x-full')) {
-                    toggleSidebar();
-                }
-
-                // Render manager content if applicable
-                this.renderTabContent(tabId);
+                switchTab(tabId, true);
             });
+        });
+
+        // Route resolution for clean URLs (/admin/flows, /admin/tasks, etc.)
+        const resolveInitialRoute = () => {
+            const pathname = window.location.pathname || '';
+            const hash = (window.location.hash || '').replace('#', '');
+            const params = new URLSearchParams(window.location.search || '');
+            const queryTab = params.get('tab');
+
+            if (pathname.includes('/admin/flows') || hash === 'flows' || queryTab === 'flows') {
+                return 'flows';
+            }
+            if (pathname.includes('/admin/tasks') || hash === 'tasks' || queryTab === 'tasks') {
+                return 'tasks';
+            }
+            if (pathname.includes('/admin/timers') || hash === 'timers' || queryTab === 'timers') {
+                return 'timers';
+            }
+            if (pathname.includes('/admin/widgets') || hash === 'widgets' || queryTab === 'widgets') {
+                return 'widgets';
+            }
+            if (pathname.includes('/admin/settings') || hash === 'settings' || queryTab === 'settings') {
+                return 'settings';
+            }
+            return 'overview';
+        };
+
+        const initialTab = resolveInitialRoute();
+        switchTab(initialTab, false);
+
+        window.addEventListener('popstate', (e) => {
+            const tabToLoad = e.state?.tab || resolveInitialRoute();
+            switchTab(tabToLoad, false);
         });
     }
 

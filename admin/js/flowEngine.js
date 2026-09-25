@@ -200,6 +200,22 @@ export class FlowEngine {
   }
 
   /**
+   * Helper to check if score floor (clamp >= 0) is active
+   * Section 4.3: Toggle "Allow Negative Total Score" (allow_negative_score).
+   * When disabled, score clamps at 0: Final Score = max(0, Total Points).
+   */
+  static isScoreFloorEnabled(flowSettingsOrFlow) {
+    const settings = flowSettingsOrFlow?.settings || flowSettingsOrFlow?.flow_data?.settings || flowSettingsOrFlow || {};
+    if (settings.allow_negative_score !== undefined) {
+      return !settings.allow_negative_score;
+    }
+    if (settings.score_floor_zero !== undefined) {
+      return settings.score_floor_zero;
+    }
+    return true;
+  }
+
+  /**
    * Resolves the selected option and calculates points, applying
    * the negative score floor safeguard if enabled.
    */
@@ -213,6 +229,7 @@ export class FlowEngine {
       // Match by id, value, or text
       selectedOption = normalizedOpts.find(opt => 
         opt.id === selectedAnswer ||
+        opt.id?.toLowerCase() === String(selectedAnswer).toLowerCase() ||
         opt.text_en?.toLowerCase() === String(selectedAnswer).toLowerCase() ||
         opt.text_si === selectedAnswer ||
         opt.text_en === selectedAnswer
@@ -240,8 +257,24 @@ export class FlowEngine {
   }
 
   /**
+   * Calculates points for a Task Node (linked to wosandi_tasks)
+   */
+  static calculateTaskScore(node, currentScore = 0, scoreFloorZero = true) {
+    const pointsAwarded = Number(node?.step_points ?? node?.points ?? node?.task_payload?.weight_points ?? node?.task_data?.weight_points ?? 0);
+    const rawScore = currentScore + pointsAwarded;
+    const finalScore = scoreFloorZero ? Math.max(0, rawScore) : rawScore;
+
+    return {
+      pointsAwarded,
+      rawScore,
+      finalScore
+    };
+  }
+
+  /**
    * Evaluates conditional branching based on the user's selected answer.
-   * Matches outgoing edge conditions against answer label, value, or ID.
+   * Section 3.2: Supports condition-based binding where edge executes only if Answer == Option_ID.
+   * Also supports multiple outgoing conditional edges pointing to distinct target nodes.
    */
   static resolveNextNode(currentNodeId, selectedAnswer, edges = []) {
     const outgoing = edges.filter(e => e.fromId === currentNodeId);
@@ -249,20 +282,35 @@ export class FlowEngine {
 
     // 1. Try to find a matching conditional edge
     if (selectedAnswer !== undefined && selectedAnswer !== null) {
-      const answerStr = String(selectedAnswer).trim().toLowerCase();
+      let answerStr = '';
+      let answerId = '';
+      let answerTextEn = '';
+      let answerTextSi = '';
+
+      if (typeof selectedAnswer === 'object' && selectedAnswer !== null) {
+        answerId = selectedAnswer.id ? String(selectedAnswer.id).trim().toLowerCase() : '';
+        answerTextEn = selectedAnswer.text_en ? String(selectedAnswer.text_en).trim().toLowerCase() : '';
+        answerTextSi = selectedAnswer.text_si ? String(selectedAnswer.text_si).trim().toLowerCase() : '';
+        answerStr = answerId || answerTextEn || answerTextSi;
+      } else {
+        answerStr = String(selectedAnswer).trim().toLowerCase();
+        answerId = answerStr;
+      }
 
       for (const edge of outgoing) {
-        if (!edge.condition) continue;
+        if (!edge.condition && !edge.condition_option_id && !edge.condition_value) continue;
 
-        const condStr = String(edge.condition).trim().toLowerCase();
+        const condStr = edge.condition ? String(edge.condition).trim().toLowerCase() : '';
         const condVal = edge.condition_value ? String(edge.condition_value).trim().toLowerCase() : '';
+        const condOptId = edge.condition_option_id ? String(edge.condition_option_id).trim().toLowerCase() : '';
 
-        // Match exact or contains
+        // Match Option_ID or condition text
         if (
-          condStr === answerStr ||
-          condVal === answerStr ||
-          answerStr.includes(condStr) ||
-          condStr.includes(answerStr)
+          (condOptId && (condOptId === answerId || condOptId === answerStr)) ||
+          (condVal && (condVal === answerId || condVal === answerStr)) ||
+          (condStr && (condStr === answerStr || condStr === answerId || answerStr.includes(condStr) || condStr.includes(answerStr))) ||
+          (answerTextEn && condStr === answerTextEn) ||
+          (answerTextSi && condStr === answerTextSi)
         ) {
           return {
             targetNodeId: edge.toId,
@@ -274,7 +322,7 @@ export class FlowEngine {
     }
 
     // 2. Fall back to unconditional / default edge
-    const defaultEdge = outgoing.find(e => !e.condition || e.condition.trim() === '');
+    const defaultEdge = outgoing.find(e => (!e.condition || e.condition.trim() === '') && !e.condition_option_id);
     if (defaultEdge) {
       return {
         targetNodeId: defaultEdge.toId,

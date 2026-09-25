@@ -11,17 +11,46 @@ export class FlowBuilder {
     this.svgWidth = 800;
     this.svgHeight = 600;
 
-    // History stack for Undo / Redo
+    // Cross-module active tasks cache (Section 2.2)
+    this.activeTasks = [];
+
+    // History stack for Undo / Redo (Section 3.4)
     this.history = [];
     this.historyIndex = -1;
     this.maxHistory = 30;
+
+    // Interactive canvas drag state
+    this.isDragging = false;
+    this.dragNode = null;
+    this.dragOffset = { x: 0, y: 0 };
+    this.dragStartPos = { x: 0, y: 0 };
+    this._hasDragged = false;
 
     // Bound keyboard shortcut listener
     this._handleKeyDown = this.handleKeyDown.bind(this);
   }
 
+  /**
+   * Internal API / State Selector (Section 2.2):
+   * Fetches active tasks from wosandi_tasks for embedding into Flow Builder nodes
+   */
+  async loadActiveTasks() {
+    try {
+      if (typeof this.api.getActiveTasks === 'function') {
+        this.activeTasks = await this.api.getActiveTasks();
+      } else {
+        const res = await this.api.select('wosandi_tasks');
+        this.activeTasks = res.data || (Array.isArray(res) ? res : []);
+      }
+    } catch (e) {
+      console.warn('Could not load active tasks for flow builder:', e);
+      this.activeTasks = [];
+    }
+  }
+
   async render() {
     this.detachKeyboardShortcuts();
+    await this.loadActiveTasks();
 
     this.containerEl.innerHTML = `
       <div class="flex justify-between items-center mb-6">
@@ -55,7 +84,7 @@ export class FlowBuilder {
         const isPublished = flow.status === 'published';
         const flowTitle = flow.title_si || flow.title || 'Untitled Flow';
         const flowType = flow.flow_type || flow.type || 'questionnaire';
-        const scoreFloorZero = flow.flow_data?.settings?.score_floor_zero !== false;
+        const scoreFloorZero = flow.flow_data?.settings?.score_floor_zero !== false && flow.flow_data?.settings?.allow_negative_score !== true;
 
         return `
           <div class="bg-white rounded-lg shadow-md p-5 border-t-4 border-blue-500 cursor-pointer hover:shadow-lg transition-shadow" data-id="${flow.id}">
@@ -89,6 +118,8 @@ export class FlowBuilder {
   }
 
   async openFlowEditor(flowId = null) {
+    await this.loadActiveTasks();
+
     if (flowId) {
       try {
         const { data } = await this.api.selectById(this.tableName, flowId);
@@ -97,12 +128,12 @@ export class FlowBuilder {
           this.currentFlow.title = data.title_si || data.title || 'Untitled Flow';
           this.currentFlow.type = data.flow_type || data.type || 'questionnaire';
           if (!this.currentFlow.flow_data) {
-            this.currentFlow.flow_data = { nodes: [], edges: [], settings: { score_floor_zero: true } };
+            this.currentFlow.flow_data = { nodes: [], edges: [], settings: { score_floor_zero: true, allow_negative_score: false } };
           } else {
             if (!this.currentFlow.flow_data.nodes) this.currentFlow.flow_data.nodes = [];
             if (!this.currentFlow.flow_data.edges) this.currentFlow.flow_data.edges = [];
             if (!this.currentFlow.flow_data.settings) {
-              this.currentFlow.flow_data.settings = { score_floor_zero: true };
+              this.currentFlow.flow_data.settings = { score_floor_zero: true, allow_negative_score: false };
             }
           }
         }
@@ -139,7 +170,8 @@ export class FlowBuilder {
           ],
           edges: [],
           settings: {
-            score_floor_zero: true
+            score_floor_zero: true,
+            allow_negative_score: false
           }
         }
       };
@@ -149,7 +181,8 @@ export class FlowBuilder {
         this.currentFlow.flow_data.edges.push({
           fromId: this.currentFlow.flow_data.nodes[0].id,
           toId: this.currentFlow.flow_data.nodes[1].id,
-          condition: ''
+          condition: '',
+          condition_option_id: ''
         });
       }
     }
@@ -161,7 +194,8 @@ export class FlowBuilder {
 
     this.selectedNodeId = null;
 
-    const scoreFloorZero = this.currentFlow.flow_data.settings?.score_floor_zero !== false;
+    const allowNegativeScore = this.currentFlow.flow_data.settings?.allow_negative_score === true;
+    const scoreFloorZero = !allowNegativeScore;
 
     this.containerEl.innerHTML = `
       <div class="flex flex-col h-full bg-gray-50 relative">
@@ -182,10 +216,10 @@ export class FlowBuilder {
               ${this.currentFlow.status === 'published' ? 'Published' : 'Draft'}
             </span>
 
-            <!-- Score Floor Safeguard Toggle -->
-            <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 select-none ml-2" title="Safeguard: Clamp aggregate score to minimum of 0 (Math.max(0, currentScore))">
-              <input type="checkbox" id="fb-score-floor-toggle" ${scoreFloorZero ? 'checked' : ''} class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
-              <span>🛡️ Score Floor ≥ 0</span>
+            <!-- Section 4.3: Negative Score Floor Safeguard Toggle: "Allow Negative Total Score" -->
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 select-none ml-2" title="Toggle negative total score. When disabled, runtime calculator clamps final score at 0: Final Score = max(0, Total Points)">
+              <input type="checkbox" id="fb-allow-negative-toggle" ${allowNegativeScore ? 'checked' : ''} class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+              <span id="fb-score-floor-label">${allowNegativeScore ? '⚠️ Negative Score Allowed' : '🛡️ Score Floor ≥ 0'}</span>
             </label>
           </div>
 
@@ -215,13 +249,16 @@ export class FlowBuilder {
             <div class="p-2.5 bg-white border-b flex items-center justify-between shadow-xs">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Add Nodes:</span>
-                <button id="fb-add-question" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1">
+                <button id="fb-add-question" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="Input-driven question node">
                   <i class="fas fa-question-circle"></i> Question
                 </button>
-                <button id="fb-add-branch" class="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1">
+                <button id="fb-add-task" class="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="Task node linked to wosandi_tasks">
+                  <i class="fas fa-tasks"></i> Task
+                </button>
+                <button id="fb-add-branch" class="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="Conditional routing splitter">
                   <i class="fas fa-code-branch"></i> Branch
                 </button>
-                <button id="fb-add-end" class="bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1">
+                <button id="fb-add-end" class="bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="Flow completion terminal">
                   <i class="fas fa-flag-checkered"></i> End
                 </button>
               </div>
@@ -232,7 +269,7 @@ export class FlowBuilder {
               </div>
             </div>
 
-            <div id="fb-svg-container" class="flex-1 w-full h-full p-4 min-w-[800px] min-h-[600px] overflow-auto flow-graph-container">
+            <div id="fb-svg-container" class="flex-1 w-full h-full p-4 min-w-[800px] min-h-[600px] overflow-auto flow-graph-container select-none">
               <!-- SVG will be injected here -->
             </div>
           </div>
@@ -275,6 +312,7 @@ export class FlowBuilder {
     document.getElementById('fb-dag-status').addEventListener('click', () => this.openDagReportModal());
 
     document.getElementById('fb-add-question').addEventListener('click', () => this.addNode('question'));
+    document.getElementById('fb-add-task')?.addEventListener('click', () => this.addNode('task'));
     document.getElementById('fb-add-branch').addEventListener('click', () => this.addNode('branch'));
     document.getElementById('fb-add-end').addEventListener('click', () => this.addNode('end'));
 
@@ -288,11 +326,17 @@ export class FlowBuilder {
       this.currentFlow.flow_type = e.target.value;
     });
 
-    document.getElementById('fb-score-floor-toggle').addEventListener('change', (e) => {
+    document.getElementById('fb-allow-negative-toggle')?.addEventListener('change', (e) => {
       if (!this.currentFlow.flow_data.settings) this.currentFlow.flow_data.settings = {};
-      this.currentFlow.flow_data.settings.score_floor_zero = e.target.checked;
-      this.pushHistory(`Toggle score floor: ${e.target.checked ? 'Enabled' : 'Disabled'}`);
-      this.toast(`Score floor safeguard ${e.target.checked ? 'enabled (min 0 pts)' : 'disabled (negative marks allowed)'}`, 'info');
+      const allowNeg = e.target.checked;
+      this.currentFlow.flow_data.settings.allow_negative_score = allowNeg;
+      this.currentFlow.flow_data.settings.score_floor_zero = !allowNeg;
+      const labelEl = document.getElementById('fb-score-floor-label');
+      if (labelEl) {
+        labelEl.textContent = allowNeg ? '⚠️ Negative Score Allowed' : '🛡️ Score Floor ≥ 0';
+      }
+      this.pushHistory(`Toggle Allow Negative Score: ${allowNeg ? 'Enabled' : 'Disabled'}`);
+      this.toast(`Score floor safeguard: ${allowNeg ? 'Negative scores permitted' : 'Clamped to 0 minimum'}`, 'info');
     });
   }
 
@@ -452,10 +496,15 @@ export class FlowBuilder {
       const totalWidth = countInLevel * hGap;
       const startX = (this.svgWidth / 2) - (totalWidth / 2) + (hGap / 2);
       
+      const posX = (n.x !== undefined && n.x !== null) ? n.x : Math.max(20, startX + (idx * hGap) - (width / 2));
+      const posY = (n.y !== undefined && n.y !== null) ? n.y : (40 + (l * vGap));
+      n.x = posX;
+      n.y = posY;
+
       return {
         ...n,
-        x: Math.max(20, startX + (idx * hGap) - (width / 2)),
-        y: 40 + (l * vGap),
+        x: posX,
+        y: posY,
         width,
         height
       };
@@ -469,10 +518,67 @@ export class FlowBuilder {
     setTimeout(() => {
       const gNodes = container.querySelectorAll('.fb-node');
       gNodes.forEach(g => {
+        const nodeId = g.dataset.id;
+        const node = nodes.find(n => n.id === nodeId);
+        if (!node) return;
+
+        // Selection click
         g.addEventListener('click', (e) => {
-          this.selectedNodeId = g.dataset.id;
+          if (this._hasDragged) return;
+          this.selectedNodeId = nodeId;
           this.updateGraph();
-          this.renderNodeEditor(nodes.find(n => n.id === this.selectedNodeId));
+          this.renderNodeEditor(node);
+        });
+
+        // Interactive Drag-and-drop repositioning (Section 3.4)
+        g.addEventListener('mousedown', (e) => {
+          if (e.button !== 0) return; // Primary button only
+          this.isDragging = true;
+          this.dragNode = node;
+          this._hasDragged = false;
+          
+          const svgEl = container.querySelector('svg');
+          if (!svgEl) return;
+          const svgRect = svgEl.getBoundingClientRect();
+          this.dragOffset = {
+            x: (e.clientX - svgRect.left) - node.x,
+            y: (e.clientY - svgRect.top) - node.y
+          };
+          this.dragStartPos = { x: node.x, y: node.y };
+
+          const onMouseMove = (moveEvt) => {
+            if (!this.isDragging || !this.dragNode) return;
+            const curX = (moveEvt.clientX - svgRect.left) - this.dragOffset.x;
+            const curY = (moveEvt.clientY - svgRect.top) - this.dragOffset.y;
+
+            const dx = Math.abs(curX - this.dragStartPos.x);
+            const dy = Math.abs(curY - this.dragStartPos.y);
+            if (dx > 4 || dy > 4) {
+              this._hasDragged = true;
+            }
+
+            this.dragNode.x = Math.max(10, Math.round(curX));
+            this.dragNode.y = Math.max(10, Math.round(curY));
+
+            container.innerHTML = this.renderFlowGraph(nodes, edges);
+          };
+
+          const onMouseUp = () => {
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+
+            if (this.isDragging && this.dragNode) {
+              if (this._hasDragged) {
+                this.pushHistory(`Reposition ${this.dragNode.type} node`);
+              }
+              this.isDragging = false;
+              this.dragNode = null;
+              this.updateGraph();
+            }
+          };
+
+          window.addEventListener('mousemove', onMouseMove);
+          window.addEventListener('mouseup', onMouseUp);
         });
       });
     }, 0);
@@ -481,6 +587,8 @@ export class FlowBuilder {
   }
 
   renderFlowGraph(nodes, edges) {
+    const validation = FlowEngine.validateGraph(this.currentFlow.flow_data);
+
     const defs = `
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -494,6 +602,9 @@ export class FlowBuilder {
         </marker>
         <marker id="arrow-no" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#EA580C" />
+        </marker>
+        <marker id="arrow-slate" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748B" />
         </marker>
       </defs>
     `;
@@ -512,33 +623,43 @@ export class FlowBuilder {
       
       const isSelected = this.selectedNodeId === from.id || this.selectedNodeId === to.id;
 
-      // Color coding based on condition
+      // Section 3.3 Visual Condition Badges on Canvas (Color-coded)
       const cond = (edge.condition || '').trim().toLowerCase();
+      const condOpt = (edge.condition_option_id || '').trim().toLowerCase();
+
       let color = isSelected ? '#4F46E5' : '#94A3B8';
       let marker = isSelected ? 'url(#arrow-selected)' : 'url(#arrow)';
-      let badgeBg = '#EEF2FF';
-      let badgeStroke = '#6366F1';
-      let badgeText = '#4338CA';
+      let badgeBg = '#F1F5F9';
+      let badgeStroke = '#64748B';
+      let badgeText = '#334155';
 
-      if (cond === 'yes' || cond.includes('yes') || cond === 'opt_yes' || cond === 'true') {
+      if (cond === 'yes' || cond.includes('yes') || condOpt === 'opt_yes' || cond === 'opt_yes' || cond === 'true' || cond === 'ඔව්') {
         color = '#16A34A';
         marker = 'url(#arrow-yes)';
         badgeBg = '#DCFCE7';
         badgeStroke = '#16A34A';
         badgeText = '#15803D';
-      } else if (cond === 'no' || cond.includes('no') || cond === 'opt_no' || cond === 'false') {
+      } else if (cond === 'no' || cond.includes('no') || condOpt === 'opt_no' || cond === 'opt_no' || cond === 'false' || cond === 'නැත') {
         color = '#EA580C';
         marker = 'url(#arrow-no)';
         badgeBg = '#FFEDD5';
-        badgeStroke = '#F97316';
+        badgeStroke = '#EA580C';
         badgeText = '#C2410C';
+      } else if (edge.condition || edge.condition_option_id) {
+        // Slate pill for specific multi-choice values
+        color = isSelected ? '#4F46E5' : '#64748B';
+        marker = isSelected ? 'url(#arrow-selected)' : 'url(#arrow-slate)';
+        badgeBg = '#F1F5F9';
+        badgeStroke = '#64748B';
+        badgeText = '#334155';
       }
 
       let labelHtml = '';
-      if (edge.condition && edge.condition.trim() !== '') {
+      const displayCondition = edge.condition || edge.condition_option_id;
+      if (displayCondition && displayCondition.trim() !== '') {
         const mx = (x1 + x2) / 2;
         const my = (y1 + y2) / 2;
-        const labelText = edge.condition;
+        const labelText = displayCondition.trim();
         const pillWidth = Math.max(54, labelText.length * 7.5 + 18);
         const pillHeight = 22;
 
@@ -565,7 +686,13 @@ export class FlowBuilder {
       let icon = '❓';
       let typeLabel = 'QUESTION';
 
-      if (node.type === 'branch') {
+      // 4 Core Node Types (Section 3.1)
+      if (node.type === 'task') {
+        bgColor = '#FAF5FF';
+        strokeColor = '#8B5CF6';
+        icon = '📋';
+        typeLabel = 'TASK';
+      } else if (node.type === 'branch') {
         bgColor = '#FFFBEB';
         strokeColor = '#F59E0B';
         icon = '🔀';
@@ -577,7 +704,31 @@ export class FlowBuilder {
         typeLabel = 'END';
       }
 
+      // Section 3.5 Canvas Linter Warnings (Orphan & Dead-End reachability)
+      const isOrphan = validation.orphanNodes.some(on => on.id === node.id);
+      const isDeadEnd = validation.deadEndNodes.some(den => den.id === node.id);
+
+      let linterBadge = '';
+      if (isOrphan) {
+        strokeColor = '#EF4444';
+        linterBadge = `
+          <g transform="translate(10, ${node.height - 18})">
+            <rect width="84" height="13" rx="3" fill="#FEF2F2" stroke="#EF4444" stroke-width="0.8"/>
+            <text x="42" y="9.5" font-size="8" font-weight="bold" fill="#DC2626" text-anchor="middle" font-family="'Poppins', sans-serif">⚠️ Disconnected</text>
+          </g>
+        `;
+      } else if (isDeadEnd) {
+        strokeColor = '#F59E0B';
+        linterBadge = `
+          <g transform="translate(10, ${node.height - 18})">
+            <rect width="78" height="13" rx="3" fill="#FFFBEB" stroke="#F59E0B" stroke-width="0.8"/>
+            <text x="39" y="9.5" font-size="8" font-weight="bold" fill="#D97706" text-anchor="middle" font-family="'Poppins', sans-serif">⚠️ No End Path</text>
+          </g>
+        `;
+      }
+
       const strokeWidth = isSelected ? '3' : '1.5';
+      const strokeDash = (isOrphan || isDeadEnd) && !isSelected ? 'stroke-dasharray="4,3"' : '';
       const shadow = isSelected ? 'filter="drop-shadow(0px 4px 8px rgba(79, 70, 229, 0.25))"' : 'filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.05))"';
 
       const text = node.text_en || node.text_si || node.type;
@@ -594,14 +745,17 @@ export class FlowBuilder {
         } else if (typeof node.points === 'number') {
           pointsBadge = `${node.points} pts`;
         }
+      } else if (node.type === 'task') {
+        pointsBadge = `+${node.points || 0} pts`;
       }
 
       return `
-        <g class="fb-node cursor-pointer transition-transform" data-id="${node.id}" transform="translate(${node.x}, ${node.y})">
-          <rect width="${node.width}" height="${node.height}" rx="8" fill="${bgColor}" stroke="${isSelected ? '#4F46E5' : strokeColor}" stroke-width="${strokeWidth}" ${shadow} />
+        <g class="fb-node cursor-grab transition-transform" data-id="${node.id}" transform="translate(${node.x}, ${node.y})">
+          <rect width="${node.width}" height="${node.height}" rx="8" fill="${bgColor}" stroke="${isSelected ? '#4F46E5' : strokeColor}" stroke-width="${strokeWidth}" ${strokeDash} ${shadow} />
           <text x="12" y="24" font-size="11.5" font-weight="bold" fill="#1E293B" font-family="'Poppins', sans-serif">${icon} ${typeLabel}</text>
           ${pointsBadge ? `<text x="${node.width - 12}" y="24" font-size="9.5" font-weight="bold" fill="#64748B" text-anchor="end" font-family="'Poppins', sans-serif">${pointsBadge}</text>` : ''}
-          <text x="12" y="47" font-size="11" fill="#475569" font-family="'Noto Sans Sinhala', 'Poppins', sans-serif">${truncated}</text>
+          <text x="12" y="${linterBadge ? 42 : 47}" font-size="11" fill="#475569" font-family="'Noto Sans Sinhala', 'Poppins', sans-serif">${truncated}</text>
+          ${linterBadge}
         </g>
       `;
     };
@@ -632,7 +786,61 @@ export class FlowBuilder {
 
     let specificFields = '';
 
-    if (node.type === 'question') {
+    // Task Node Configuration (Section 2.2 & 3.1)
+    if (node.type === 'task') {
+      const activeTasks = this.activeTasks || [];
+      const currentTask = activeTasks.find(t => t.id === node.task_id);
+
+      specificFields = `
+        <div class="mb-5 bg-purple-50 p-3.5 rounded-lg border border-purple-200">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs font-bold text-purple-900 uppercase tracking-wider"><i class="fas fa-tasks mr-1"></i> Link to wosandi_tasks Record</span>
+          </div>
+          <p class="text-xs text-purple-700 mb-3">Embed active task from wosandi_tasks as an actionable step or assignment payload in this flow</p>
+          
+          <div class="mb-3">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Select Active Task</label>
+            <select id="ne-task-selector" class="w-full text-xs border-purple-300 rounded shadow-xs focus:ring-purple-500 focus:border-purple-500 bg-white">
+              <option value="">-- Choose Task from wosandi_tasks --</option>
+              ${activeTasks.map(t => `
+                <option value="${t.id}" ${node.task_id === t.id ? 'selected' : ''}>
+                  [${t.category || 'General'}] ${t.title_en || t.title_si} (+${t.weight_points || 0} pts)
+                </option>
+              `).join('')}
+            </select>
+          </div>
+
+          ${currentTask ? `
+            <div class="p-2.5 bg-white rounded border border-purple-200 text-xs space-y-1.5 shadow-2xs">
+              <div class="flex justify-between">
+                <span class="text-slate-500 font-medium">Category / Tier:</span>
+                <span class="font-semibold text-slate-800 uppercase">${currentTask.category || 'academic'} (${currentTask.tier || 'core'})</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500 font-medium">Weight Points:</span>
+                <span class="font-bold text-green-600">+${currentTask.weight_points || 0} pts</span>
+              </div>
+              ${currentTask.schema_definition?.description ? `
+                <div class="pt-1 border-t border-purple-100">
+                  <span class="text-slate-500 block text-[11px]">Instructions:</span>
+                  <p class="text-slate-700 text-[11px]">${currentTask.schema_definition.description}</p>
+                </div>
+              ` : ''}
+              ${currentTask.has_timer ? `
+                <div class="flex items-center gap-1.5 text-indigo-600 font-medium text-[11px]">
+                  <i class="fas fa-stopwatch"></i> Timer: ${Math.round((currentTask.timer_seconds || 0) / 60)} mins
+                </div>
+              ` : ''}
+            </div>
+          ` : ''}
+
+          <div class="mt-3">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Step Completion Points</label>
+            <input type="number" id="ne-points" value="${node.points !== undefined ? node.points : (currentTask?.weight_points || 15)}" class="w-full text-xs border-purple-300 rounded shadow-xs font-bold text-purple-900" />
+          </div>
+        </div>
+      `;
+    } else if (node.type === 'question') {
       specificFields = `
         <div class="mb-5">
           <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Input Type</label>
@@ -648,19 +856,19 @@ export class FlowBuilder {
         </div>
 
         ${isOptionInput ? `
-          <!-- 1.1 & 1.2 Per-Option Dynamic Scoring Matrix -->
+          <!-- Section 4.1 & 4.2 Per-Option Dynamic Scoring Matrix -->
           <div class="mb-5 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
             <div class="flex justify-between items-center mb-2.5">
               <div>
                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Per-Option Scoring Matrix</h4>
-                <p class="text-xs text-slate-500">Assign positive, zero, or negative marks per option</p>
+                <p class="text-xs text-slate-500">Bilingual options with positive (+), zero, or negative (-) marks</p>
               </div>
               <button type="button" id="ne-add-option-btn" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded font-semibold transition flex items-center gap-1">
                 <i class="fas fa-plus text-[10px]"></i> Add Option
               </button>
             </div>
 
-            <!-- Quick Preset Helper -->
+            <!-- Presets -->
             <div class="mb-3 flex items-center gap-2">
               <span class="text-[11px] text-gray-500 font-medium">Presets:</span>
               <button type="button" id="ne-preset-morning" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100">
@@ -703,31 +911,55 @@ export class FlowBuilder {
     const availableNodes = this.currentFlow.flow_data.nodes.filter(n => n.id !== node.id);
     const outgoingEdges = this.currentFlow.flow_data.edges.filter(e => e.fromId === node.id);
 
-    // 3.2 Outgoing Edges with Condition Dropdown
+    // Section 3.2: Multi-Branch Conditional Routing & Option_ID Binding
     const edgesHtml = `
       <div class="mt-6 border-t pt-4">
         <div class="flex justify-between items-center mb-2">
           <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Outgoing Connectors & Conditions</h4>
           <span class="text-xs text-gray-400">${outgoingEdges.length} active</span>
         </div>
-        <p class="text-xs text-gray-500 mb-3">Direct flow path to next node conditionally based on student answer</p>
+        <p class="text-xs text-gray-500 mb-3">Multi-branch conditional routing: edge executes when Answer == Option_ID. A single question can branch to distinct target nodes.</p>
 
-        <div class="space-y-2 mb-3">
+        <div class="space-y-2.5 mb-3">
           ${outgoingEdges.map((e, idx) => {
             const targetNode = availableNodes.find(n => n.id === e.toId);
-            const targetTitle = targetNode ? (targetNode.text_en || targetNode.text_si || targetNode.id) : e.toId;
             return `
-              <div class="flex items-center gap-2 p-2.5 bg-gray-50 rounded border border-gray-200 shadow-2xs">
-                <div class="flex-1">
-                  <div class="flex items-center gap-2">
-                    <input type="text" placeholder="Condition (e.g. Yes / Before 05:30)" value="${e.condition || ''}" class="edge-condition flex-1 text-xs border-gray-300 rounded p-1 font-semibold" data-to="${e.toId}" />
-                    <span class="text-gray-400 text-xs">➔</span>
-                    <span class="text-xs font-semibold text-gray-800 truncate max-w-[130px]" title="${targetTitle}">${targetTitle}</span>
-                  </div>
+              <div class="p-2.5 bg-gray-50 rounded border border-gray-200 shadow-2xs space-y-2">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-bold text-slate-700">Connector #${idx + 1}</span>
+                  <button type="button" class="text-red-500 hover:text-red-700 edge-remove p-1 text-xs" data-to="${e.toId}" title="Remove Connector">
+                    <i class="fas fa-times mr-1"></i> Remove
+                  </button>
                 </div>
-                <button type="button" class="text-red-500 hover:text-red-700 edge-remove p-1 text-xs" data-to="${e.toId}" title="Remove Connector">
-                  <i class="fas fa-times"></i>
-                </button>
+
+                <!-- Condition Binding -->
+                <div class="flex items-center gap-2">
+                  <span class="text-[11px] text-gray-500 w-16">Condition:</span>
+                  ${isOptionInput && normalizedOptions.length > 0 ? `
+                    <select class="edge-condition-picker flex-1 text-xs border-gray-300 rounded p-1 font-semibold" data-to="${e.toId}">
+                      <option value="" ${!e.condition && !e.condition_option_id ? 'selected' : ''}>Default / Unconditional</option>
+                      ${normalizedOptions.map(opt => `
+                        <option value="${opt.id}" data-text="${opt.text_en || opt.text_si}" ${(e.condition_option_id === opt.id || e.condition === (opt.text_en || opt.text_si) || e.condition === opt.id) ? 'selected' : ''}>
+                          [${opt.id}] ${opt.text_en || opt.text_si} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
+                        </option>
+                      `).join('')}
+                    </select>
+                  ` : `
+                    <input type="text" placeholder="Condition text" value="${e.condition || ''}" class="edge-condition flex-1 text-xs border-gray-300 rounded p-1 font-semibold" data-to="${e.toId}" />
+                  `}
+                </div>
+
+                <!-- Re-linking Target Node (Section 3.4) -->
+                <div class="flex items-center gap-2">
+                  <span class="text-[11px] text-gray-500 w-16">Routes to:</span>
+                  <select class="edge-relink-target flex-1 text-xs border-gray-300 rounded p-1 font-semibold text-indigo-700 bg-white" data-from="${node.id}" data-current-to="${e.toId}">
+                    ${availableNodes.map(an => `
+                      <option value="${an.id}" ${an.id === e.toId ? 'selected' : ''}>
+                        ${an.type.toUpperCase()}: ${an.text_en ? an.text_en.substring(0, 24) : an.id}
+                      </option>
+                    `).join('')}
+                  </select>
+                </div>
               </div>
             `;
           }).join('')}
@@ -739,11 +971,14 @@ export class FlowBuilder {
           <div class="space-y-2">
             ${isOptionInput && normalizedOptions.length > 0 ? `
               <div>
-                <label class="block text-[11px] text-gray-500 mb-1">Pick Condition from Option:</label>
+                <label class="block text-[11px] text-gray-500 mb-1">Bind Condition (Answer == Option_ID):</label>
                 <select id="ne-option-condition-picker" class="w-full text-xs border-gray-300 rounded shadow-xs">
                   <option value="">Default / Unconditional Path</option>
-                  ${normalizedOptions.map(opt => `<option value="${opt.text_en || opt.text_si || opt.id}">${opt.text_en || opt.text_si} (${opt.points > 0 ? '+' : ''}${opt.points} pts)</option>`).join('')}
-                  <option value="__custom__">Custom condition text...</option>
+                  ${normalizedOptions.map(opt => `
+                    <option value="${opt.id}" data-text="${opt.text_en || opt.text_si}">
+                      [${opt.id}] ${opt.text_en || opt.text_si} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
+                    </option>
+                  `).join('')}
                 </select>
               </div>
             ` : ''}
@@ -825,6 +1060,38 @@ export class FlowBuilder {
         this.pushHistory('Update node English text');
       });
     }
+
+    // Task Node Selector Listener (Section 2.2)
+    if (document.getElementById('ne-task-selector')) {
+      document.getElementById('ne-task-selector').addEventListener('change', (e) => {
+        const taskId = e.target.value;
+        const task = (this.activeTasks || []).find(t => t.id === taskId);
+        if (task) {
+          node.task_id = task.id;
+          node.text_si = task.title_si || node.text_si || '';
+          node.text_en = task.title_en || node.text_en || '';
+          node.points = task.weight_points !== undefined ? task.weight_points : 15;
+          node.task_payload = {
+            id: task.id,
+            title_si: task.title_si,
+            title_en: task.title_en,
+            category: task.category,
+            tier: task.tier,
+            weight_points: task.weight_points,
+            schema_definition: task.schema_definition
+          };
+          this.pushHistory(`Link task "${task.title_en || task.id}" to node`);
+          this.renderNodeEditor(node);
+          this.updateGraph();
+        } else {
+          node.task_id = null;
+          node.task_payload = null;
+          this.pushHistory('Unlink task from node');
+          this.renderNodeEditor(node);
+          this.updateGraph();
+        }
+      });
+    }
     
     if (document.getElementById('ne-input-type')) {
       document.getElementById('ne-input-type').addEventListener('change', (e) => { 
@@ -851,7 +1118,7 @@ export class FlowBuilder {
       });
     }
 
-    // Options Matrix Listeners
+    // Options Matrix Listeners (Section 4.1 & 4.2)
     const saveOptionsFromDom = () => {
       const rows = document.querySelectorAll('.option-row');
       const updated = [];
@@ -934,7 +1201,23 @@ export class FlowBuilder {
       });
     }
 
-    // Outgoing edge conditions & connectors
+    // Section 3.2 & 3.4: Edge condition picker & relinking listeners
+    document.querySelectorAll('.edge-condition-picker').forEach(el => {
+      el.addEventListener('change', (e) => {
+        const toId = e.target.dataset.to;
+        const optId = e.target.value;
+        const optText = e.target.selectedOptions[0]?.dataset?.text || optId;
+        const edge = this.currentFlow.flow_data.edges.find(ed => ed.fromId === node.id && ed.toId === toId);
+        if (edge) {
+          edge.condition_option_id = optId;
+          edge.condition_value = optId;
+          edge.condition = optText;
+          this.pushHistory(`Bind condition ${optId || 'Default'} to edge`);
+          this.updateGraph();
+        }
+      });
+    });
+
     document.querySelectorAll('.edge-condition').forEach(el => {
       el.addEventListener('change', (e) => {
         const toId = e.target.dataset.to;
@@ -943,6 +1226,23 @@ export class FlowBuilder {
           edge.condition = e.target.value;
           this.pushHistory(`Set condition on edge to ${toId}`);
           this.updateGraph();
+        }
+      });
+    });
+
+    // Re-link target node (Section 3.4)
+    document.querySelectorAll('.edge-relink-target').forEach(el => {
+      el.addEventListener('change', (e) => {
+        const fromId = e.target.dataset.from;
+        const currentToId = e.target.dataset.currentTo;
+        const newToId = e.target.value;
+
+        const edge = this.currentFlow.flow_data.edges.find(ed => ed.fromId === fromId && ed.toId === currentToId);
+        if (edge && newToId) {
+          edge.toId = newToId;
+          this.pushHistory(`Relink edge from ${fromId} to ${newToId}`);
+          this.updateGraph();
+          this.renderNodeEditor(node);
         }
       });
     });
@@ -961,11 +1261,16 @@ export class FlowBuilder {
       document.getElementById('ne-add-edge').addEventListener('click', () => {
         const toId = document.getElementById('ne-new-edge-to').value;
         const picker = document.getElementById('ne-option-condition-picker');
-        let condition = picker ? picker.value : '';
-        if (condition === '__custom__') condition = '';
+        let conditionOptionId = '';
+        let conditionText = '';
+
+        if (picker) {
+          conditionOptionId = picker.value;
+          conditionText = picker.selectedOptions[0]?.dataset?.text || picker.value;
+        }
 
         if (toId) {
-          this.addEdge(node.id, toId, condition);
+          this.addEdge(node.id, toId, conditionText, conditionOptionId);
           this.pushHistory(`Add edge from ${node.id} to ${toId}`);
           this.updateGraph();
           this.renderNodeEditor(node);
@@ -986,17 +1291,40 @@ export class FlowBuilder {
 
   addNode(type = 'question') {
     const id = 'node_' + Math.random().toString(36).substr(2, 9);
-    const newNode = {
-      id,
-      type,
-      text_en: `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
-      text_si: '',
-      input_type: type === 'question' ? 'choice' : null,
-      options: type === 'question' ? [
-        { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10 },
-        { id: 'opt_2', text_si: 'නැත', text_en: 'No',  points: 0 }
-      ] : []
-    };
+    let newNode = null;
+
+    if (type === 'task') {
+      const firstTask = this.activeTasks && this.activeTasks.length > 0 ? this.activeTasks[0] : null;
+      newNode = {
+        id,
+        type: 'task',
+        task_id: firstTask ? firstTask.id : null,
+        text_en: firstTask ? (firstTask.title_en || firstTask.title_si) : 'New Task Assignment Step',
+        text_si: firstTask ? (firstTask.title_si || firstTask.title_en) : 'නව කාර්ය පැවරුම් පියවර',
+        points: firstTask ? (firstTask.weight_points || 15) : 15,
+        task_payload: firstTask ? {
+          id: firstTask.id,
+          title_si: firstTask.title_si,
+          title_en: firstTask.title_en,
+          category: firstTask.category,
+          tier: firstTask.tier,
+          weight_points: firstTask.weight_points,
+          schema_definition: firstTask.schema_definition
+        } : null
+      };
+    } else {
+      newNode = {
+        id,
+        type,
+        text_en: `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+        text_si: '',
+        input_type: type === 'question' ? 'choice' : null,
+        options: type === 'question' ? [
+          { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10 },
+          { id: 'opt_2', text_si: 'නැත', text_en: 'No',  points: 0 }
+        ] : []
+      };
+    }
 
     this.currentFlow.flow_data.nodes.push(newNode);
     this.selectedNodeId = id;
@@ -1010,12 +1338,20 @@ export class FlowBuilder {
     this.currentFlow.flow_data.edges = this.currentFlow.flow_data.edges.filter(e => e.fromId !== nodeId && e.toId !== nodeId);
   }
 
-  addEdge(fromId, toId, condition = '') {
+  addEdge(fromId, toId, condition = '', conditionOptionId = '') {
     const exists = this.currentFlow.flow_data.edges.find(e => e.fromId === fromId && e.toId === toId);
     if (!exists) {
-      this.currentFlow.flow_data.edges.push({ fromId, toId, condition });
+      this.currentFlow.flow_data.edges.push({
+        fromId,
+        toId,
+        condition,
+        condition_option_id: conditionOptionId || '',
+        condition_value: conditionOptionId || ''
+      });
     } else {
       exists.condition = condition;
+      exists.condition_option_id = conditionOptionId || '';
+      exists.condition_value = conditionOptionId || '';
     }
   }
 
@@ -1045,7 +1381,7 @@ export class FlowBuilder {
         title_en: this.currentFlow.title_en || '',
         flow_type: this.currentFlow.flow_type || this.currentFlow.type || 'questionnaire',
         status: isPublish ? 'published' : (this.currentFlow.status || 'draft'),
-        flow_data: this.currentFlow.flow_data || { nodes: [], edges: [], settings: { score_floor_zero: true } }
+        flow_data: this.currentFlow.flow_data || { nodes: [], edges: [], settings: { score_floor_zero: true, allow_negative_score: false } }
       };
 
       if (this.currentFlow.id) {
@@ -1149,7 +1485,7 @@ export class FlowBuilder {
     const flowData = this.currentFlow.flow_data;
     const nodes = flowData.nodes || [];
     const edges = flowData.edges || [];
-    const scoreFloorZero = flowData.settings?.score_floor_zero !== false;
+    const scoreFloorZero = FlowEngine.isScoreFloorEnabled(flowData);
 
     if (nodes.length === 0) {
       this.toast('Cannot simulate empty flow', 'info');
@@ -1168,6 +1504,7 @@ export class FlowBuilder {
 
     const renderSimulatorState = () => {
       const isEnd = currentNode.type === 'end';
+      const isTask = currentNode.type === 'task';
       const normalizedOpts = FlowEngine.normalizeOptions(currentNode.options);
 
       modalContainer.innerHTML = `
@@ -1200,11 +1537,35 @@ export class FlowBuilder {
                   <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
                     🏁
                   </div>
-                  <h4 class="text-xl font-bold text-gray-800 mb-1">${currentNode.text_si || 'දවසේ ඇගයීම සාර්ථකයි!'}</h4>
+                  <h4 class="text-xl font-bold text-gray-800 mb-1 font-['Noto_Sans_Sinhala']">${currentNode.text_si || 'දවසේ ඇගයීම සාර්ථකයි!'}</h4>
                   <p class="text-sm text-gray-500 mb-4">${currentNode.text_en || 'Assessment completed successfully!'}</p>
                   <div class="inline-block p-4 bg-slate-50 border rounded-lg text-center">
-                    <span class="text-xs font-semibold text-gray-500 uppercase">Final Assessment Score</span>
+                    <span class="text-xs font-semibold text-gray-500 uppercase">Final Consolidated Score</span>
                     <p class="text-3xl font-extrabold text-indigo-600 mt-1">${accumulatedScore} pts</p>
+                  </div>
+                </div>
+              ` : (isTask ? `
+                <!-- Task Node Actionable Step -->
+                <div class="mb-4 p-4 bg-purple-50 border border-purple-200 rounded-xl">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span class="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">📋</span>
+                    <span class="text-xs font-bold text-purple-800 uppercase tracking-wider">Actionable Task Step</span>
+                    <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold">+${currentNode.points || 0} pts</span>
+                  </div>
+                  <h4 class="text-base font-bold text-slate-800 font-['Noto_Sans_Sinhala']">${currentNode.text_si || ''}</h4>
+                  <p class="text-xs text-slate-600">${currentNode.text_en || ''}</p>
+                  
+                  ${currentNode.task_payload?.schema_definition?.description ? `
+                    <div class="text-xs text-purple-900 bg-white p-2.5 rounded border border-purple-100 mt-2.5">
+                      <span class="font-semibold block mb-0.5 text-purple-800">Task Instructions:</span>
+                      ${currentNode.task_payload.schema_definition.description}
+                    </div>
+                  ` : ''}
+
+                  <div class="mt-4 flex justify-end">
+                    <button type="button" id="sim-task-complete-btn" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+                      <i class="fas fa-check"></i> Complete Task & Advance
+                    </button>
                   </div>
                 </div>
               ` : `
@@ -1241,7 +1602,7 @@ export class FlowBuilder {
                     </button>
                   </div>
                 `}
-              `}
+              `)}
 
               <!-- Traversal Breadcrumb Path -->
               ${pathHistory.length > 0 ? `
@@ -1281,6 +1642,7 @@ export class FlowBuilder {
         renderSimulatorState();
       });
 
+      // Question Option Click (Section 3.2: Option_ID based conditional routing)
       document.querySelectorAll('.sim-option-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const optId = btn.dataset.optId;
@@ -1296,8 +1658,8 @@ export class FlowBuilder {
             points: scoring.pointsAwarded
           });
 
-          // Branch based on condition
-          const nextRes = FlowEngine.resolveNextNode(currentNode.id, optEn || optSi || optId, edges);
+          // Branch based on condition / Option_ID
+          const nextRes = FlowEngine.resolveNextNode(currentNode.id, optId, edges);
           if (nextRes && nextRes.targetNodeId) {
             const nextNode = nodes.find(n => n.id === nextRes.targetNodeId);
             if (nextNode) {
@@ -1307,9 +1669,43 @@ export class FlowBuilder {
             }
           }
 
-          // If no further edge, terminate or stay
+          // Fallback check with option label
+          const nextResByLabel = FlowEngine.resolveNextNode(currentNode.id, optEn || optSi, edges);
+          if (nextResByLabel && nextResByLabel.targetNodeId) {
+            const nextNode = nodes.find(n => n.id === nextResByLabel.targetNodeId);
+            if (nextNode) {
+              currentNode = nextNode;
+              renderSimulatorState();
+              return;
+            }
+          }
+
           this.toast('Flow path reached end of outgoing connectors', 'info');
         });
+      });
+
+      // Task Completion Click
+      document.getElementById('sim-task-complete-btn')?.addEventListener('click', () => {
+        const scoring = FlowEngine.calculateTaskScore(currentNode, accumulatedScore, scoreFloorZero);
+        accumulatedScore = scoring.finalScore;
+
+        pathHistory.push({
+          nodeTitle: currentNode.text_en || currentNode.text_si || currentNode.id,
+          answer: 'Task Completed',
+          points: scoring.pointsAwarded
+        });
+
+        const nextRes = FlowEngine.resolveNextNode(currentNode.id, null, edges);
+        if (nextRes && nextRes.targetNodeId) {
+          const nextNode = nodes.find(n => n.id === nextRes.targetNodeId);
+          if (nextNode) {
+            currentNode = nextNode;
+            renderSimulatorState();
+            return;
+          }
+        }
+
+        this.toast('Flow path reached end of outgoing connectors', 'info');
       });
 
       document.getElementById('sim-static-advance-btn')?.addEventListener('click', () => {
@@ -1337,3 +1733,4 @@ export class FlowBuilder {
     renderSimulatorState();
   }
 }
+

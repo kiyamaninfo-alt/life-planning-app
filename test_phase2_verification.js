@@ -341,6 +341,109 @@ async function runPhase2Tests() {
   }
   assert(allowedWosandi, 'Access to wosandi_flows is allowed and succeeds');
 
+
+  console.log('\n=== TEST 11: Task Node Schema, Linking wosandi_tasks & Point Calculation ===');
+  const sampleTaskNode = {
+    id: 'node_task_math',
+    type: 'task',
+    task_id: 'task-uuid-math-001',
+    task_data: {
+      id: 'task-uuid-math-001',
+      title_si: 'ගණිත ඒකක පුනරීක්ෂණය',
+      title_en: 'Trigonometry Problem Set',
+      category: 'academic',
+      tier: 'core_academic',
+      weight_points: 25
+    },
+    text_si: 'ගණිත අභ්‍යාස සම්පූර්ණ කරන්න',
+    text_en: 'Complete Trigonometry exercises',
+    step_points: 25,
+    points: 25
+  };
+
+  assert(sampleTaskNode.type === 'task', 'Node type is verified as "task"');
+  assert(sampleTaskNode.task_id === 'task-uuid-math-001', 'Task node is linked to task_id');
+  assert(sampleTaskNode.task_data.tier === 'core_academic', 'Task node preserves tier from wosandi_tasks');
+
+  // Test calculateTaskScore on completion
+  const taskAward = FlowEngine.calculateTaskScore(sampleTaskNode, 50, true);
+  assert(taskAward.pointsAwarded === 25, 'Task completion awards +25 points');
+  assert(taskAward.finalScore === 75, 'Final score updated to 75 (50 + 25)');
+
+  // Test calculateTaskScore with penalty and score floor enabled
+  const penaltyTaskNode = { ...sampleTaskNode, step_points: -30 };
+  const taskPenaltyClamped = FlowEngine.calculateTaskScore(penaltyTaskNode, 10, true);
+  assert(taskPenaltyClamped.rawScore === -20, 'Raw score is -20 before clamping');
+  assert(taskPenaltyClamped.finalScore === 0, 'Score is clamped to floor 0 when floor is active');
+
+  const taskPenaltyUnclamped = FlowEngine.calculateTaskScore(penaltyTaskNode, 10, false);
+  assert(taskPenaltyUnclamped.finalScore === -20, 'Score reaches -20 when score floor is disabled');
+
+
+  console.log('\n=== TEST 12: Cross-Module Flow Availability (api.getActiveTasks) ===');
+  const activeTasks = await api.getActiveTasks();
+  assert(Array.isArray(activeTasks), 'api.getActiveTasks() returns an array');
+  assert(activeTasks.length > 0, 'Active tasks available for Flow Builder node consumption');
+  const firstActiveTask = activeTasks[0];
+  assert(firstActiveTask.id && firstActiveTask.title_en, 'Active task contains id and title for node dropdown');
+  assert(typeof firstActiveTask.weight_points === 'number', 'Active task contains numeric weight_points for point calculation');
+
+
+  console.log('\n=== TEST 13: Answer-Dependent Branching with Answer == Option_ID Multi-Route Resolution ===');
+  // Scenario: Question "Did you eat?" -> If "Yes" (opt_yes), branch to "Sugary or Non-Sugary?" (node_sugary)
+  //                                  -> If "No" (opt_no), branch to "Alternate Path / Fasting" (node_alt_path)
+  const multiBranchEdges = [
+    {
+      fromId: 'node_eat',
+      toId: 'node_sugary',
+      condition: 'Yes',
+      condition_option_id: 'opt_yes',
+      condition_value: 'opt_yes'
+    },
+    {
+      fromId: 'node_eat',
+      toId: 'node_alt_path',
+      condition: 'No',
+      condition_option_id: 'opt_no',
+      condition_value: 'opt_no'
+    },
+    {
+      fromId: 'node_eat',
+      toId: 'node_fallback_end',
+      condition: ''
+    }
+  ];
+
+  // 1. Answer by exact Option_ID 'opt_yes'
+  const routeYesById = FlowEngine.resolveNextNode('node_eat', 'opt_yes', multiBranchEdges);
+  assert(routeYesById && routeYesById.targetNodeId === 'node_sugary', 'Answer == "opt_yes" routes to sub-question node_sugary');
+
+  // 2. Answer by exact Option_ID 'opt_no'
+  const routeNoById = FlowEngine.resolveNextNode('node_eat', 'opt_no', multiBranchEdges);
+  assert(routeNoById && routeNoById.targetNodeId === 'node_alt_path', 'Answer == "opt_no" routes to alternate path node_alt_path');
+
+  // 3. Answer by option object { id: 'opt_yes' }
+  const routeByObj = FlowEngine.resolveNextNode('node_eat', { id: 'opt_yes' }, multiBranchEdges);
+  assert(routeByObj && routeByObj.targetNodeId === 'node_sugary', 'Option object with id "opt_yes" routes to node_sugary');
+
+  // 4. Multiple outgoing edges verification: single node points to distinct targets
+  const outgoingTargets = multiBranchEdges.filter(e => e.fromId === 'node_eat').map(e => e.toId);
+  const distinctTargets = new Set(outgoingTargets);
+  assert(distinctTargets.size === 3, 'Single question node supports multiple distinct target routes');
+
+
+  console.log('\n=== TEST 14: Negative Score Floor Safeguard Toggle (FlowEngine.isScoreFloorEnabled) ===');
+  // When allow_negative_score is false -> Floor is enabled (returns true)
+  assert(FlowEngine.isScoreFloorEnabled({ allow_negative_score: false }) === true, 'allow_negative_score: false enables floor safeguarding (clamp to 0)');
+  // When allow_negative_score is true -> Floor is disabled (returns false)
+  assert(FlowEngine.isScoreFloorEnabled({ allow_negative_score: true }) === false, 'allow_negative_score: true allows negative scores below 0');
+  // Legacy compatibility: score_floor_zero
+  assert(FlowEngine.isScoreFloorEnabled({ score_floor_zero: true }) === true, 'Legacy score_floor_zero: true enables floor');
+  assert(FlowEngine.isScoreFloorEnabled({ score_floor_zero: false }) === false, 'Legacy score_floor_zero: false disables floor');
+  // Default behavior
+  assert(FlowEngine.isScoreFloorEnabled({}) === true, 'Default settings enable score floor safeguard');
+  assert(FlowEngine.isScoreFloorEnabled(null) === true, 'Null settings default to score floor enabled');
+
   console.log('\n========================================');
   console.log(`PHASE 2 SUMMARY: ${passed} passed, ${failed} failed.`);
   console.log('========================================');

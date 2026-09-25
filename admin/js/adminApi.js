@@ -279,4 +279,24 @@ export class AdminApi {
     async unpublish(table, id) {
         return this.update(table, id, { status: 'draft' });
     }
+
+    /**
+     * Cross-Module State Selector (Section 2.2):
+     * Exposes active tasks from wosandi_tasks for embedding into Flow Builder nodes
+     */
+    async getActiveTasks() {
+        try {
+            const res = await this.select('wosandi_tasks', { status: 'published' });
+            const published = res.data || (Array.isArray(res) ? res : []);
+            if (published.length > 0) return published;
+
+            // Fallback to all tasks if none published yet
+            const allRes = await this.select('wosandi_tasks');
+            return allRes.data || (Array.isArray(allRes) ? allRes : []);
+        } catch (e) {
+            console.warn('Error fetching active tasks from wosandi_tasks:', e);
+            return [];
+        }
+    }
 }
+
