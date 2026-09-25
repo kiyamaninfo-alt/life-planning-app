@@ -92,10 +92,16 @@ export class ScoringEngine {
   /**
    * 3.3 Calculate Weighted Score based on Active Questionnaire Tasks
    * 
-   * @param {Array} tasks - Questionnaire items with { id, tier, weight, completed, scoreRatio }
-   * @returns {Object} { earnedPoints, totalObtainablePoints, percentage, tierBreakdown }
+   * Supports:
+   * - Standard task completion & ratio
+   * - Per-option scoring matrix (positive, zero, and negative points)
+   * - Negative score floor safeguard (Math.max(0, currentScore) when scoreFloorZero is enabled)
+   * 
+   * @param {Array} tasks - Questionnaire items with { id, tier, weight, completed, scoreRatio, pointsAwarded, selectedOptionPoints }
+   * @param {Object} options - { scoreFloorZero: boolean }
+   * @returns {Object} { earnedPoints, rawEarnedPoints, totalObtainablePoints, percentage, tierBreakdown }
    */
-  calculateWeightedScore(tasks = []) {
+  calculateWeightedScore(tasks = [], options = { scoreFloorZero: true }) {
     let earnedPoints = 0;
     let totalObtainablePoints = 0;
 
@@ -114,7 +120,11 @@ export class ScoringEngine {
       totalObtainablePoints += weight;
 
       let taskEarned = 0;
-      if (task.completed === true) {
+      if (typeof task.pointsAwarded === 'number') {
+        taskEarned = task.pointsAwarded;
+      } else if (typeof task.selectedOptionPoints === 'number') {
+        taskEarned = task.selectedOptionPoints;
+      } else if (task.completed === true) {
         taskEarned = weight;
       } else if (typeof task.scoreRatio === 'number' && task.scoreRatio > 0) {
         taskEarned = Math.round(weight * Math.min(1, Math.max(0, task.scoreRatio)));
@@ -129,13 +139,17 @@ export class ScoringEngine {
       }
     });
 
+    // 1.3 Negative Score Floor Safeguard
+    const clampFloor = options?.scoreFloorZero !== false;
+    const finalEarned = clampFloor ? Math.max(0, earnedPoints) : earnedPoints;
+
     // 2.2 Defensive Zero / Division-by-Zero Guard
     const validTotal = totalObtainablePoints > 0 ? totalObtainablePoints : 0;
-    const validEarned = earnedPoints > 0 ? earnedPoints : 0;
-    const percentage = validTotal > 0 ? Math.min(100, Math.round((validEarned / validTotal) * 100)) : 0;
+    const percentage = validTotal > 0 ? Math.min(100, Math.round((Math.max(0, finalEarned) / validTotal) * 100)) : 0;
 
     return {
-      earnedPoints: validEarned,
+      earnedPoints: finalEarned,
+      rawEarnedPoints: earnedPoints,
       totalObtainablePoints: validTotal,
       percentage,
       tierBreakdown
