@@ -9,3 +9,4 @@ token*
 Thumbs.db
 .vscode/
 .idea/
+.wrangler/
