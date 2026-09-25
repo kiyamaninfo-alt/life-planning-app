@@ -769,6 +769,231 @@ export class FlowBuilder {
     `;
   }
 
+  renderOptionRowHtml(node, opt, idx, availableNodes, outgoingEdges) {
+    const currentEdge = outgoingEdges.find(e => 
+      e.condition_option_id === opt.id || 
+      e.condition_value === opt.id ||
+      e.condition === opt.id ||
+      (opt.text_en && e.condition === opt.text_en) ||
+      (opt.text_si && e.condition === opt.text_si)
+    );
+    const linkedTargetNode = currentEdge ? availableNodes.find(n => n.id === currentEdge.toId) : null;
+    const targetLabel = linkedTargetNode 
+      ? `[${linkedTargetNode.type.toUpperCase()}] ${linkedTargetNode.text_en || linkedTargetNode.text_si || linkedTargetNode.id}`
+      : (currentEdge ? `[NODE] ${currentEdge.toId}` : '');
+
+    return `
+      <div class="p-3 bg-white rounded-lg border ${currentEdge ? 'border-indigo-300 shadow-xs' : 'border-slate-200 shadow-2xs'} option-row flex flex-col gap-2 hover:border-slate-300 transition" data-idx="${idx}" data-opt-id="${opt.id}">
+        <!-- Row 1: Index, Sinhala Label, Points, Delete -->
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-mono font-bold text-slate-400 w-5">#${idx + 1}</span>
+          <input type="text" placeholder="Sinhala Label (e.g. ඔව් / 05:30ට පෙර / සම්පූර්ණයි)" value="${opt.text_si || ''}" class="opt-text-si flex-1 text-xs border-gray-300 rounded p-1.5 focus:border-indigo-500 font-['Noto_Sans_Sinhala']" />
+          <div class="flex items-center gap-1">
+            <span class="text-[10px] text-gray-400 font-medium">Pts:</span>
+            <input type="number" placeholder="Points" value="${opt.points !== undefined ? opt.points : 0}" class="opt-points w-16 text-xs font-bold border-gray-300 rounded p-1.5 ${opt.points < 0 ? 'text-red-600 bg-red-50' : (opt.points > 0 ? 'text-green-600' : 'text-gray-700')}" />
+          </div>
+          <button type="button" class="opt-delete text-gray-400 hover:text-red-600 p-1 text-xs transition" title="Remove Option">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+
+        <!-- Row 2: English Label & Option ID -->
+        <div class="flex items-center gap-2 pl-7">
+          <input type="text" placeholder="English Label (e.g. Yes / Before 05:30 / Completed)" value="${opt.text_en || ''}" class="opt-text-en flex-1 text-xs border-gray-200 rounded p-1 text-gray-600 focus:border-indigo-500" />
+          <span class="text-[10px] text-gray-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">ID: ${opt.id}</span>
+        </div>
+
+        <!-- Row 3: Step 1 - Direct Inline Branching for this Answer -->
+        <div class="mt-1 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 pl-7 ${currentEdge ? 'bg-indigo-50/70 border border-indigo-100' : 'bg-slate-50/70'} p-2 rounded-md">
+          <div class="flex items-center gap-1.5 flex-1 min-w-[210px]">
+            <span class="text-[11px] font-semibold text-slate-700 flex items-center gap-1 whitespace-nowrap">
+              <i class="fas fa-code-branch text-indigo-500"></i> Flow for this answer:
+            </span>
+            <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-800 focus:ring-indigo-500 focus:border-indigo-500 flex-1 min-w-[140px]" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}">
+              <option value="">-- No Branch / End of Flow --</option>
+              ${availableNodes.map(an => `
+                <option value="${an.id}" ${currentEdge?.toId === an.id ? 'selected' : ''}>
+                  ${an.type.toUpperCase()}: ${(an.text_en || an.text_si || an.id).substring(0, 22)}
+                </option>
+              `).join('')}
+              <optgroup label="Create & Branch">
+                <option value="__NEW_QUESTION__">+ Create Next Question Step...</option>
+                <option value="__NEW_TASK__">+ Create Next Task Step...</option>
+                <option value="__NEW_END__">+ Create Next End Step...</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            ${currentEdge ? `
+              <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1" title="${targetLabel}">
+                <i class="fas fa-check text-[9px]"></i> Connected: ${linkedTargetNode ? (linkedTargetNode.text_en || linkedTargetNode.type).substring(0, 16) : currentEdge.toId}
+              </span>
+              <button type="button" class="opt-disconnect-btn text-xs text-red-500 hover:text-red-700 p-1 hover:bg-red-50 rounded" data-opt-id="${opt.id}" title="Disconnect Branch">
+                <i class="fas fa-unlink"></i>
+              </button>
+            ` : `
+              <button type="button" class="opt-add-step-btn text-[11px] bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-2.5 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}">
+                <i class="fas fa-plus-circle text-xs"></i> + Create Next Flow Step
+              </button>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  createNextStepForOption(sourceNode, opt, stepType = 'question') {
+    const id = 'node_' + Math.random().toString(36).substr(2, 9);
+    
+    // Position intelligently: offset from current node
+    const sourceX = (sourceNode.x !== undefined && sourceNode.x !== null) ? sourceNode.x : 100;
+    const sourceY = (sourceNode.y !== undefined && sourceNode.y !== null) ? sourceNode.y : 100;
+    
+    const optIdx = (sourceNode.options || []).findIndex(o => o.id === opt.id);
+    const fanIndex = optIdx >= 0 ? optIdx : 0;
+    const posX = sourceX + 260;
+    const posY = Math.max(20, sourceY + (fanIndex * 110) - 30);
+
+    let newNode = null;
+    if (stepType === 'task') {
+      const firstTask = this.activeTasks && this.activeTasks.length > 0 ? this.activeTasks[0] : null;
+      newNode = {
+        id,
+        type: 'task',
+        x: posX,
+        y: posY,
+        task_id: firstTask ? firstTask.id : null,
+        text_en: `Task for "${opt.text_en || opt.id}"`,
+        text_si: `කාර්යය (${opt.text_si || opt.id} සඳහා)`,
+        points: firstTask ? (firstTask.weight_points || 15) : 15,
+        options: [
+          { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: firstTask ? (firstTask.weight_points || 15) : 15 },
+          { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed / Incomplete', points: 0 }
+        ],
+        task_payload: firstTask ? {
+          id: firstTask.id,
+          title_si: firstTask.title_si,
+          title_en: firstTask.title_en,
+          category: firstTask.category,
+          tier: firstTask.tier,
+          weight_points: firstTask.weight_points,
+          schema_definition: firstTask.schema_definition
+        } : null
+      };
+    } else if (stepType === 'end') {
+      newNode = {
+        id,
+        type: 'end',
+        x: posX,
+        y: posY,
+        text_en: `End: Complete after "${opt.text_en || opt.id}"`,
+        text_si: `අවසන්: ${opt.text_si || opt.id} පසු අවසන්`
+      };
+    } else {
+      newNode = {
+        id,
+        type: 'question',
+        x: posX,
+        y: posY,
+        text_en: `Question for "${opt.text_en || opt.id}"`,
+        text_si: `ප්‍රශ්නය (${opt.text_si || opt.id} සඳහා)`,
+        input_type: 'choice',
+        options: [
+          { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10 },
+          { id: 'opt_2', text_si: 'නැත', text_en: 'No',  points: 0 }
+        ]
+      };
+    }
+
+    this.currentFlow.flow_data.nodes.push(newNode);
+
+    // Remove any existing edge for this option from this sourceNode
+    this.currentFlow.flow_data.edges = this.currentFlow.flow_data.edges.filter(e => 
+      !(e.fromId === sourceNode.id && (
+        e.condition_option_id === opt.id || 
+        e.condition_value === opt.id || 
+        e.condition === opt.id || 
+        (opt.text_en && e.condition === opt.text_en) ||
+        (opt.text_si && e.condition === opt.text_si)
+      ))
+    );
+
+    // Create edge bound to this option
+    this.currentFlow.flow_data.edges.push({
+      fromId: sourceNode.id,
+      toId: newNode.id,
+      condition: opt.text_en || opt.text_si || opt.id,
+      condition_option_id: opt.id,
+      condition_value: opt.id
+    });
+
+    this.pushHistory(`Add ${stepType} branch for answer "${opt.text_en || opt.id}"`);
+    this.updateGraph();
+    this.renderNodeEditor(sourceNode);
+    this.toast(`Added new ${stepType} node branched from "${opt.text_en || opt.id}"`, 'success');
+  }
+
+  handleBranchSelect(sourceNode, opt, targetVal) {
+    if (targetVal === '__NEW_QUESTION__') {
+      this.createNextStepForOption(sourceNode, opt, 'question');
+      return;
+    }
+    if (targetVal === '__NEW_TASK__') {
+      this.createNextStepForOption(sourceNode, opt, 'task');
+      return;
+    }
+    if (targetVal === '__NEW_END__') {
+      this.createNextStepForOption(sourceNode, opt, 'end');
+      return;
+    }
+
+    // Remove existing edge for this option
+    this.currentFlow.flow_data.edges = this.currentFlow.flow_data.edges.filter(e => 
+      !(e.fromId === sourceNode.id && (
+        e.condition_option_id === opt.id || 
+        e.condition_value === opt.id || 
+        e.condition === opt.id || 
+        (opt.text_en && e.condition === opt.text_en) ||
+        (opt.text_si && e.condition === opt.text_si)
+      ))
+    );
+
+    if (targetVal) {
+      this.currentFlow.flow_data.edges.push({
+        fromId: sourceNode.id,
+        toId: targetVal,
+        condition: opt.text_en || opt.text_si || opt.id,
+        condition_option_id: opt.id,
+        condition_value: opt.id
+      });
+      this.pushHistory(`Branch answer "${opt.text_en || opt.id}" to node`);
+      this.toast(`Connected answer "${opt.text_en || opt.id}" to target node`, 'success');
+    } else {
+      this.pushHistory(`Disconnect branch for answer "${opt.text_en || opt.id}"`);
+      this.toast(`Disconnected branch for "${opt.text_en || opt.id}"`, 'info');
+    }
+
+    this.updateGraph();
+    this.renderNodeEditor(sourceNode);
+  }
+
+  disconnectOptionBranch(sourceNode, opt) {
+    this.currentFlow.flow_data.edges = this.currentFlow.flow_data.edges.filter(e => 
+      !(e.fromId === sourceNode.id && (
+        e.condition_option_id === opt.id || 
+        e.condition_value === opt.id || 
+        e.condition === opt.id || 
+        (opt.text_en && e.condition === opt.text_en) ||
+        (opt.text_si && e.condition === opt.text_si)
+      ))
+    );
+    this.pushHistory(`Disconnect branch for answer "${opt.text_en || opt.id}"`);
+    this.updateGraph();
+    this.renderNodeEditor(sourceNode);
+    this.toast(`Disconnected branch for "${opt.text_en || opt.id}"`, 'info');
+  }
+
   renderNodeEditor(node) {
     const editorEl = document.getElementById('fb-node-editor');
     if (!node) {
@@ -781,15 +1006,27 @@ export class FlowBuilder {
       return;
     }
 
+    const availableNodes = this.currentFlow.flow_data.nodes.filter(n => n.id !== node.id);
+    const outgoingEdges = this.currentFlow.flow_data.edges.filter(e => e.fromId === node.id);
+
     const isOptionInput = ['choice', 'select', 'radio', 'time-range', 'boolean'].includes(node.input_type);
     const normalizedOptions = FlowEngine.normalizeOptions(node.options);
 
     let specificFields = '';
 
-    // Task Node Configuration (Section 2.2 & 3.1)
+    // Task Node Configuration (Section 2.2 & 3.1 + Task Answers Branching)
     if (node.type === 'task') {
       const activeTasks = this.activeTasks || [];
       const currentTask = activeTasks.find(t => t.id === node.task_id);
+
+      // Default task options/outcomes if not initialized
+      if (!Array.isArray(node.options) || node.options.length === 0) {
+        node.options = [
+          { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: node.points || (currentTask?.weight_points || 15) },
+          { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed / Incomplete', points: 0 }
+        ];
+      }
+      const taskOptions = FlowEngine.normalizeOptions(node.options);
 
       specificFields = `
         <div class="mb-5 bg-purple-50 p-3.5 rounded-lg border border-purple-200">
@@ -839,6 +1076,36 @@ export class FlowBuilder {
             <input type="number" id="ne-points" value="${node.points !== undefined ? node.points : (currentTask?.weight_points || 15)}" class="w-full text-xs border-purple-300 rounded shadow-xs font-bold text-purple-900" />
           </div>
         </div>
+
+        <!-- Task Answer Responses / Outcomes & Flow Branching (Step 1) -->
+        <div class="mb-5 bg-purple-50/50 p-3.5 rounded-lg border border-purple-200">
+          <div class="flex justify-between items-center mb-2.5">
+            <div>
+              <h4 class="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1">
+                <i class="fas fa-code-branch text-purple-600"></i> Task Answers & Flow Branching
+              </h4>
+              <p class="text-xs text-purple-700">Add a flow branch for each answer/outcome of this task (e.g. Completed vs Incomplete)</p>
+            </div>
+            <button type="button" id="ne-add-option-btn" class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-300 px-2.5 py-1 rounded font-semibold transition flex items-center gap-1">
+              <i class="fas fa-plus text-[10px]"></i> Add Task Answer
+            </button>
+          </div>
+
+          <!-- Presets -->
+          <div class="mb-3 flex items-center gap-2">
+            <span class="text-[11px] text-purple-700 font-medium">Presets:</span>
+            <button type="button" id="ne-task-preset-done-missed" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100">
+              Completed / Missed
+            </button>
+            <button type="button" id="ne-task-preset-tiers" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100">
+              Done / Partial / Missed
+            </button>
+          </div>
+
+          <div id="ne-options-matrix-container" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+            ${taskOptions.map((opt, idx) => this.renderOptionRowHtml(node, opt, idx, availableNodes, outgoingEdges)).join('')}
+          </div>
+        </div>
       `;
     } else if (node.type === 'question') {
       specificFields = `
@@ -856,12 +1123,12 @@ export class FlowBuilder {
         </div>
 
         ${isOptionInput ? `
-          <!-- Section 4.1 & 4.2 Per-Option Dynamic Scoring Matrix -->
+          <!-- Section 4.1 & 4.2 Per-Option Dynamic Scoring Matrix & Step 1 Direct Inline Branching -->
           <div class="mb-5 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
             <div class="flex justify-between items-center mb-2.5">
               <div>
-                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Per-Option Scoring Matrix</h4>
-                <p class="text-xs text-slate-500">Bilingual options with positive (+), zero, or negative (-) marks</p>
+                <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Per-Option Scoring Matrix & Flow Branching</h4>
+                <p class="text-xs text-slate-500">Define answer options, assign points, and branch next flow step for each answer</p>
               </div>
               <button type="button" id="ne-add-option-btn" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded font-semibold transition flex items-center gap-1">
                 <i class="fas fa-plus text-[10px]"></i> Add Option
@@ -879,23 +1146,8 @@ export class FlowBuilder {
               </button>
             </div>
 
-            <div id="ne-options-matrix-container" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-              ${normalizedOptions.map((opt, idx) => `
-                <div class="p-2.5 bg-white rounded border border-slate-200 shadow-2xs option-row flex flex-col gap-1.5" data-idx="${idx}">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-mono font-bold text-slate-400 w-5">#${idx + 1}</span>
-                    <input type="text" placeholder="Sinhala Label (e.g. 05:30ට පෙර)" value="${opt.text_si || ''}" class="opt-text-si flex-1 text-xs border-gray-300 rounded p-1.5" />
-                    <input type="number" placeholder="Points" value="${opt.points !== undefined ? opt.points : 0}" class="opt-points w-20 text-xs font-bold border-gray-300 rounded p-1.5 ${opt.points < 0 ? 'text-red-600 bg-red-50' : (opt.points > 0 ? 'text-green-600' : 'text-gray-700')}" />
-                    <button type="button" class="opt-delete text-red-500 hover:text-red-700 p-1 text-xs" title="Remove Option">
-                      <i class="fas fa-trash-alt"></i>
-                    </button>
-                  </div>
-                  <div class="flex items-center gap-2 pl-7">
-                    <input type="text" placeholder="English Label (e.g. Before 05:30)" value="${opt.text_en || ''}" class="opt-text-en flex-1 text-xs border-gray-200 rounded p-1 text-gray-600" />
-                    <span class="text-[10px] text-gray-400 font-mono">ID: ${opt.id}</span>
-                  </div>
-                </div>
-              `).join('')}
+            <div id="ne-options-matrix-container" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
+              ${normalizedOptions.map((opt, idx) => this.renderOptionRowHtml(node, opt, idx, availableNodes, outgoingEdges)).join('')}
             </div>
           </div>
         ` : `
@@ -908,9 +1160,6 @@ export class FlowBuilder {
       `;
     }
 
-    const availableNodes = this.currentFlow.flow_data.nodes.filter(n => n.id !== node.id);
-    const outgoingEdges = this.currentFlow.flow_data.edges.filter(e => e.fromId === node.id);
-
     // Section 3.2: Multi-Branch Conditional Routing & Option_ID Binding
     const edgesHtml = `
       <div class="mt-6 border-t pt-4">
@@ -918,11 +1167,12 @@ export class FlowBuilder {
           <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Outgoing Connectors & Conditions</h4>
           <span class="text-xs text-gray-400">${outgoingEdges.length} active</span>
         </div>
-        <p class="text-xs text-gray-500 mb-3">Multi-branch conditional routing: edge executes when Answer == Option_ID. A single question can branch to distinct target nodes.</p>
+        <p class="text-xs text-gray-500 mb-3">Multi-branch conditional routing: edge executes when Answer == Option_ID. A single question/task can branch to distinct target nodes.</p>
 
         <div class="space-y-2.5 mb-3">
           ${outgoingEdges.map((e, idx) => {
             const targetNode = availableNodes.find(n => n.id === e.toId);
+            const allOpts = FlowEngine.normalizeOptions(node.options);
             return `
               <div class="p-2.5 bg-gray-50 rounded border border-gray-200 shadow-2xs space-y-2">
                 <div class="flex items-center justify-between gap-2">
@@ -935,10 +1185,10 @@ export class FlowBuilder {
                 <!-- Condition Binding -->
                 <div class="flex items-center gap-2">
                   <span class="text-[11px] text-gray-500 w-16">Condition:</span>
-                  ${isOptionInput && normalizedOptions.length > 0 ? `
+                  ${allOpts.length > 0 ? `
                     <select class="edge-condition-picker flex-1 text-xs border-gray-300 rounded p-1 font-semibold" data-to="${e.toId}">
                       <option value="" ${!e.condition && !e.condition_option_id ? 'selected' : ''}>Default / Unconditional</option>
-                      ${normalizedOptions.map(opt => `
+                      ${allOpts.map(opt => `
                         <option value="${opt.id}" data-text="${opt.text_en || opt.text_si}" ${(e.condition_option_id === opt.id || e.condition === (opt.text_en || opt.text_si) || e.condition === opt.id) ? 'selected' : ''}>
                           [${opt.id}] ${opt.text_en || opt.text_si} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
                         </option>
@@ -969,12 +1219,12 @@ export class FlowBuilder {
         <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-md">
           <span class="block text-xs font-bold text-gray-600 mb-1.5">Add Outgoing Connector</span>
           <div class="space-y-2">
-            ${isOptionInput && normalizedOptions.length > 0 ? `
+            ${FlowEngine.normalizeOptions(node.options).length > 0 ? `
               <div>
                 <label class="block text-[11px] text-gray-500 mb-1">Bind Condition (Answer == Option_ID):</label>
                 <select id="ne-option-condition-picker" class="w-full text-xs border-gray-300 rounded shadow-xs">
                   <option value="">Default / Unconditional Path</option>
-                  ${normalizedOptions.map(opt => `
+                  ${FlowEngine.normalizeOptions(node.options).map(opt => `
                     <option value="${opt.id}" data-text="${opt.text_en || opt.text_si}">
                       [${opt.id}] ${opt.text_en || opt.text_si} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
                     </option>
@@ -1007,12 +1257,12 @@ export class FlowBuilder {
 
         ${node.type !== 'end' ? `
         <div class="mb-4">
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Prompt / Question (Sinhala)</label>
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Prompt / Question / Task (Sinhala)</label>
           <textarea id="ne-text-si" rows="2" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 font-['Noto_Sans_Sinhala']">${node.text_si || ''}</textarea>
         </div>
         
         <div class="mb-4">
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Prompt / Question (English)</label>
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Prompt / Question / Task (English)</label>
           <textarea id="ne-text-en" rows="2" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">${node.text_en || ''}</textarea>
         </div>
         ` : `
@@ -1080,6 +1330,17 @@ export class FlowBuilder {
             weight_points: task.weight_points,
             schema_definition: task.schema_definition
           };
+          if (!Array.isArray(node.options) || node.options.length === 0) {
+            node.options = [
+              { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: task.weight_points || 15 },
+              { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed / Incomplete', points: 0 }
+            ];
+          } else {
+            const doneOpt = node.options.find(o => o.id === 'opt_done');
+            if (doneOpt && task.weight_points !== undefined) {
+              doneOpt.points = task.weight_points;
+            }
+          }
           this.pushHistory(`Link task "${task.title_en || task.id}" to node`);
           this.renderNodeEditor(node);
           this.updateGraph();
@@ -1123,11 +1384,12 @@ export class FlowBuilder {
       const rows = document.querySelectorAll('.option-row');
       const updated = [];
       rows.forEach((row, i) => {
-        const textSi = row.querySelector('.opt-text-si').value;
-        const textEn = row.querySelector('.opt-text-en').value;
-        const pts = parseFloat(row.querySelector('.opt-points').value) || 0;
+        const optId = row.dataset.optId || `opt_${i + 1}`;
+        const textSi = row.querySelector('.opt-text-si')?.value || '';
+        const textEn = row.querySelector('.opt-text-en')?.value || '';
+        const pts = parseFloat(row.querySelector('.opt-points')?.value) || 0;
         updated.push({
-          id: `opt_${i + 1}`,
+          id: optId,
           text_si: textSi,
           text_en: textEn,
           points: pts
@@ -1150,11 +1412,47 @@ export class FlowBuilder {
       btn.addEventListener('click', (e) => {
         const row = e.target.closest('.option-row');
         if (row) {
+          const optId = row.dataset.optId;
+          if (optId) {
+            this.currentFlow.flow_data.edges = this.currentFlow.flow_data.edges.filter(ed => 
+              !(ed.fromId === node.id && (
+                ed.condition_option_id === optId || 
+                ed.condition_value === optId || 
+                ed.condition === optId
+              ))
+            );
+          }
           row.remove();
           saveOptionsFromDom();
           this.pushHistory('Remove option');
           this.renderNodeEditor(node);
+          this.updateGraph();
         }
+      });
+    });
+
+    // Step 1: Direct Inline Branching Listeners on Each Option Row
+    document.querySelectorAll('.opt-branch-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const optId = e.target.dataset.optId;
+        const opt = (node.options || []).find(o => o.id === optId) || { id: optId, text_en: e.target.dataset.optLabel };
+        this.handleBranchSelect(node, opt, e.target.value);
+      });
+    });
+
+    document.querySelectorAll('.opt-add-step-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const optId = e.currentTarget.dataset.optId;
+        const opt = (node.options || []).find(o => o.id === optId) || { id: optId, text_en: e.currentTarget.dataset.optLabel };
+        this.createNextStepForOption(node, opt, 'question');
+      });
+    });
+
+    document.querySelectorAll('.opt-disconnect-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const optId = e.currentTarget.dataset.optId;
+        const opt = (node.options || []).find(o => o.id === optId) || { id: optId };
+        this.disconnectOptionBranch(node, opt);
       });
     });
 
@@ -1174,7 +1472,7 @@ export class FlowBuilder {
       });
     }
 
-    // Presets
+    // Presets for Questions
     if (document.getElementById('ne-preset-morning')) {
       document.getElementById('ne-preset-morning').addEventListener('click', () => {
         node.options = [
@@ -1201,6 +1499,33 @@ export class FlowBuilder {
       });
     }
 
+    // Presets for Tasks
+    if (document.getElementById('ne-task-preset-done-missed')) {
+      document.getElementById('ne-task-preset-done-missed').addEventListener('click', () => {
+        node.options = [
+          { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: node.points || 15 },
+          { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed / Incomplete', points: 0 }
+        ];
+        this.pushHistory('Apply Completed/Missed preset for task');
+        this.renderNodeEditor(node);
+        this.updateGraph();
+      });
+    }
+
+    if (document.getElementById('ne-task-preset-tiers')) {
+      document.getElementById('ne-task-preset-tiers').addEventListener('click', () => {
+        const fullPts = node.points || 20;
+        node.options = [
+          { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී (100%)', text_en: 'Completed (100%)', points: fullPts },
+          { id: 'opt_partial', text_si: 'අර්ධ වශයෙන් (50%)', text_en: 'Partially Done (50%)', points: Math.round(fullPts / 2) },
+          { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed / Incomplete', points: 0 }
+        ];
+        this.pushHistory('Apply 3-Tier Done/Partial/Missed preset for task');
+        this.renderNodeEditor(node);
+        this.updateGraph();
+      });
+    }
+
     // Section 3.2 & 3.4: Edge condition picker & relinking listeners
     document.querySelectorAll('.edge-condition-picker').forEach(el => {
       el.addEventListener('change', (e) => {
@@ -1214,6 +1539,7 @@ export class FlowBuilder {
           edge.condition = optText;
           this.pushHistory(`Bind condition ${optId || 'Default'} to edge`);
           this.updateGraph();
+          this.renderNodeEditor(node);
         }
       });
     });
@@ -1226,6 +1552,7 @@ export class FlowBuilder {
           edge.condition = e.target.value;
           this.pushHistory(`Set condition on edge to ${toId}`);
           this.updateGraph();
+          this.renderNodeEditor(node);
         }
       });
     });
@@ -1302,6 +1629,10 @@ export class FlowBuilder {
         text_en: firstTask ? (firstTask.title_en || firstTask.title_si) : 'New Task Assignment Step',
         text_si: firstTask ? (firstTask.title_si || firstTask.title_en) : 'නව කාර්ය පැවරුම් පියවර',
         points: firstTask ? (firstTask.weight_points || 15) : 15,
+        options: [
+          { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: firstTask ? (firstTask.weight_points || 15) : 15 },
+          { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed / Incomplete', points: 0 }
+        ],
         task_payload: firstTask ? {
           id: firstTask.id,
           title_si: firstTask.title_si,
@@ -1562,11 +1893,30 @@ export class FlowBuilder {
                     </div>
                   ` : ''}
 
-                  <div class="mt-4 flex justify-end">
-                    <button type="button" id="sim-task-complete-btn" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
-                      <i class="fas fa-check"></i> Complete Task & Advance
-                    </button>
-                  </div>
+                  ${normalizedOpts.length > 0 ? `
+                    <div class="mt-4 space-y-2">
+                      <span class="text-xs font-bold text-purple-900 uppercase">Select Task Outcome:</span>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        ${normalizedOpts.map(opt => `
+                          <button type="button" class="sim-option-btn p-2.5 rounded-lg border border-purple-200 hover:border-purple-500 hover:bg-purple-100 text-left transition flex justify-between items-center bg-white" data-opt-id="${opt.id}" data-opt-en="${opt.text_en}" data-opt-si="${opt.text_si}">
+                            <div>
+                              <div class="font-bold text-xs text-slate-800">${opt.text_si || opt.text_en}</div>
+                              ${opt.text_si && opt.text_en ? `<div class="text-[10px] text-slate-500">${opt.text_en}</div>` : ''}
+                            </div>
+                            <span class="text-xs font-bold px-2 py-0.5 rounded-full ${opt.points < 0 ? 'bg-red-100 text-red-700' : (opt.points > 0 ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700')}">
+                              ${opt.points > 0 ? '+' : ''}${opt.points} pts
+                            </span>
+                          </button>
+                        `).join('')}
+                      </div>
+                    </div>
+                  ` : `
+                    <div class="mt-4 flex justify-end">
+                      <button type="button" id="sim-task-complete-btn" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg shadow-sm flex items-center gap-1.5 transition">
+                        <i class="fas fa-check"></i> Complete Task & Advance
+                      </button>
+                    </div>
+                  `}
                 </div>
               ` : `
                 <div class="mb-4">

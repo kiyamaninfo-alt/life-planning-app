@@ -444,6 +444,101 @@ async function runPhase2Tests() {
   assert(FlowEngine.isScoreFloorEnabled({}) === true, 'Default settings enable score floor safeguard');
   assert(FlowEngine.isScoreFloorEnabled(null) === true, 'Null settings default to score floor enabled');
 
+
+  console.log('\n=== TEST 15: Inline Answer Branching & Dynamic Next Flow Step Creation ===');
+  // Scenario: Flow with a Task Node "Daily Math Challenge" having 2 answer outcomes:
+  // opt_done: "Completed" -> branches to Next Flow Step (Reward / Advanced question)
+  // opt_missed: "Missed" -> branches to Alternate Flow Step (Help / Review)
+  const taskSourceNode = {
+    id: 'node_task_math',
+    type: 'task',
+    task_id: 'task-uuid-math-001',
+    text_si: 'දිනපතා ගණිත අභ්‍යාසය',
+    text_en: 'Daily Math Challenge',
+    points: 20,
+    options: [
+      { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: 20 },
+      { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed', points: 0 }
+    ],
+    x: 100,
+    y: 100
+  };
+
+  // Simulate dynamic next step creation for opt_done
+  const optDone = taskSourceNode.options[0];
+  const nextStepRewardNode = {
+    id: 'node_reward_step',
+    type: 'question',
+    text_en: 'Great job! Choose your reward question',
+    text_si: 'විශිෂ්ටයි! ඊළඟ ප්‍රශ්නය තෝරන්න',
+    x: 360,
+    y: 100
+  };
+
+  // Simulate dynamic next step creation for opt_missed
+  const optMissed = taskSourceNode.options[1];
+  const nextStepHelpNode = {
+    id: 'node_help_step',
+    type: 'question',
+    text_en: 'Would you like assistance with trigonometry formulas?',
+    text_si: 'ත්‍රිකෝණමිතිය සූත්‍ර පිළිබඳ සහාය අවශ්‍යද?',
+    x: 360,
+    y: 210
+  };
+
+  // Edge wiring as created by inline branching
+  const dynamicFlowEdges = [
+    {
+      fromId: taskSourceNode.id,
+      toId: nextStepRewardNode.id,
+      condition: optDone.text_en,
+      condition_option_id: optDone.id,
+      condition_value: optDone.id
+    },
+    {
+      fromId: taskSourceNode.id,
+      toId: nextStepHelpNode.id,
+      condition: optMissed.text_en,
+      condition_option_id: optMissed.id,
+      condition_value: optMissed.id
+    }
+  ];
+
+  // 1. Verify answering with 'opt_done' navigates directly to reward step
+  const navDone = FlowEngine.resolveNextNode(taskSourceNode.id, 'opt_done', dynamicFlowEdges);
+  assert(navDone && navDone.targetNodeId === 'node_reward_step', 'Task answer "opt_done" dynamically routes to node_reward_step');
+
+  // 2. Verify answering with 'opt_missed' navigates directly to help step
+  const navMissed = FlowEngine.resolveNextNode(taskSourceNode.id, 'opt_missed', dynamicFlowEdges);
+  assert(navMissed && navMissed.targetNodeId === 'node_help_step', 'Task answer "opt_missed" dynamically routes to node_help_step');
+
+  // 3. Verify simulator / runtime score calculation for task answer
+  const scoreIfDone = FlowEngine.calculateOptionScore(taskSourceNode, 'opt_done', 10, true);
+  assert(scoreIfDone.finalScore === 30, 'Answering "opt_done" awards +20 points (10 + 20 = 30)');
+
+  const scoreIfMissed = FlowEngine.calculateOptionScore(taskSourceNode, 'opt_missed', 10, true);
+  assert(scoreIfMissed.finalScore === 10, 'Answering "opt_missed" awards 0 points (score remains 10)');
+
+  // 4. Verify graph validation on complete answer-branched DAG
+  const answerBranchedGraph = {
+    nodes: [
+      taskSourceNode,
+      nextStepRewardNode,
+      nextStepHelpNode,
+      { id: 'end_terminal', type: 'end', text_en: 'Flow Finished' }
+    ],
+    edges: [
+      ...dynamicFlowEdges,
+      { fromId: nextStepRewardNode.id, toId: 'end_terminal', condition: '' },
+      { fromId: nextStepHelpNode.id, toId: 'end_terminal', condition: '' }
+    ]
+  };
+
+  const dagCheck = FlowEngine.validateGraph(answerBranchedGraph);
+  assert(dagCheck.isValid === true, 'Dynamically answer-branched graph passes DAG validation');
+  assert(dagCheck.orphanNodes.length === 0, 'No orphan nodes in answer-branched graph');
+  assert(dagCheck.deadEndNodes.length === 0, 'All answer branches successfully reach terminal end node');
+
   console.log('\n========================================');
   console.log(`PHASE 2 SUMMARY: ${passed} passed, ${failed} failed.`);
   console.log('========================================');
