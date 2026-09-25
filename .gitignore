@@ -1,0 +1,11 @@
+# Secrets & Tokens
+token*
+*.token
+*.env
+*.env.local
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

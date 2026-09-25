@@ -97,6 +97,10 @@ function openAdminModal() {
 function closeAdminModal() {
   document.getElementById("admin-modal").classList.add("hidden");
   document.getElementById("admin-modal").classList.remove("flex");
+  // Reset PIN state so re-opening requires PIN again
+  document.getElementById("admin-pin-screen").classList.remove("hidden");
+  document.getElementById("admin-content").classList.add("hidden");
+  document.getElementById("admin-pin").value = "";
 }
 
 function checkAdminPin() {
@@ -113,23 +117,40 @@ async function adminResetToday() {
   if (!confirm("අද දින සියලුම කාර්යයන් සහ ලකුණු Reset කිරීමට අවශ්‍ය බව තහවුරු කරන්නද?")) return;
   
   try {
-    // Reset all tasks in state
+    // Reset ALL state keys including string and object types
+    state.wake_up = null;
+    state.school_attended = false;
+    state.school_subjects = {};
     Object.keys(state).forEach(key => {
       if (typeof state[key] === "boolean") state[key] = false;
-      if (typeof state[key] === "number") state[key] = 0;
     });
 
-    // Uncheck UI checkboxes
+    // Uncheck all UI checkboxes and reset school toggle
     document.querySelectorAll("input[type='checkbox']").forEach(cb => cb.checked = false);
+
+    // Reset wake time button UI
+    document.querySelectorAll(".wake-btn").forEach(b => {
+      b.classList.remove("bg-pink-500", "text-white", "border-pink-500");
+    });
+
+    // Hide subjects container and clear homework details
+    const subjectsContainer = document.getElementById("subjects-container");
+    if (subjectsContainer) subjectsContainer.classList.add("hidden");
+
+    const homeworkDetails = document.getElementById("homework-details");
+    if (homeworkDetails) homeworkDetails.innerHTML = "";
+
+    // Reset subject buttons
+    const subjectsGrid = document.getElementById("subjects-grid");
+    if (subjectsGrid) {
+      subjectsGrid.querySelectorAll("button").forEach(btn => {
+        btn.classList.remove("bg-pink-500", "text-white", "border-pink-500");
+      });
+    }
 
     // Sync reset state to Supabase via existing sync function
     if (typeof syncProgressWithServer === "function") {
       await syncProgressWithServer(state);
-    }
-
-    // Refresh circular progress / score
-    if (typeof updateCircularProgress === "function") {
-      updateCircularProgress();
     }
 
     alert("අද දින දත්ත සාර්ථකව Reset කරන ලදී!");
@@ -142,10 +163,9 @@ async function adminResetToday() {
 
 async function adminReloadData() {
   try {
-    if (typeof initTodayState === "function") {
-      await initTodayState();
-    } else if (typeof fetchDailyProgress === "function") {
-      await fetchDailyProgress();
+    // Call the actual data loading function from api.js
+    if (typeof loadTodayData === "function") {
+      await loadTodayData();
     }
     alert("දත්ත සාර්ථකව නැවත Sync විය!");
     closeAdminModal();

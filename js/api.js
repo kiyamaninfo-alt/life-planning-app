@@ -17,8 +17,9 @@ let circularGraph = null;
 let currentDayBenchmark = 140;
 
 function initCircularGraph() {
-  if (typeof CircularProgress === 'function') {
-    circularGraph = new CircularProgress({
+  const Cls = typeof CircularProgress === 'function' ? CircularProgress : (typeof window !== 'undefined' ? window.CircularProgress : null);
+  if (Cls) {
+    circularGraph = new Cls({
       circle: '#progress-circle',
       percentEl: '#progress-percent',
       scoreEl: '#score-text',
