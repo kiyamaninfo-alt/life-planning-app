@@ -1,8 +1,10 @@
-const SUPABASE_URL = "https://rxwopsfjnlzlzzazgnvq.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn";
+const DEFAULT_SUPABASE_URL = "https://rxwopsfjnlzlzzazgnvq.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn";
 
 export async function onRequest(context) {
-  const { request } = context;
+  const { request, env } = context;
+  const SUPABASE_URL = (env && env.SUPABASE_URL) || DEFAULT_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = (env && env.SUPABASE_ANON_KEY) || DEFAULT_SUPABASE_ANON_KEY;
   const today = new Date().toISOString().split("T")[0];
 
   if (request.method === "OPTIONS") {

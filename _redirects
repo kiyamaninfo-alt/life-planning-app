@@ -1,0 +1,11 @@
+# Cloudflare Pages Redirects & Routing Rules
+
+# Admin Panel sub-route resolution and clean URL support
+/admin            /admin/index.html    200
+/admin/           /admin/index.html    200
+/admin/*          /admin/index.html    200
+
+# Wosandi O/L Mission Control routing
+/wosandi          /wosandi/index.html  200
+/wosandi/         /wosandi/index.html  200
+/wosandi/*        /wosandi/index.html  200
