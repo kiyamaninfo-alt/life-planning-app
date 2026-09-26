@@ -8,17 +8,19 @@ export class UiConfigurator {
 
   async render() {
     this.containerEl.innerHTML = `
-      <div class="flex justify-between items-center mb-6">
-        <h2 class="text-2xl font-bold text-gray-800">UI Component Manager</h2>
-        <button id="ui-add-widget" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded shadow">
-          <i class="fas fa-plus mr-2"></i> Add Widget
+      <div class="flex justify-between items-center mb-6 font-['Noto_Sans_Sinhala']">
+        <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+          <i class="fas fa-layer-group text-indigo-600"></i> මුහුණත සංරචක කළමනාකරු (UI Components)
+        </h2>
+        <button id="ui-add-widget" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-sm text-xs flex items-center gap-1.5 transition">
+          <i class="fas fa-plus"></i> නව Widget එකක් (Add Widget)
         </button>
       </div>
-      <div id="ui-widgets-list" class="space-y-6">
-        <div class="text-center text-gray-500 py-10 w-full">Loading widgets...</div>
+      <div id="ui-widgets-list" class="space-y-6 font-['Noto_Sans_Sinhala']">
+        <div class="text-center text-gray-500 py-10 w-full">සංරචක පූරණය වෙමින් පවතී...</div>
       </div>
       <!-- Modal Container -->
-      <div id="ui-modal-container" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex justify-center items-center"></div>
+      <div id="ui-modal-container" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex justify-center items-center font-['Noto_Sans_Sinhala']"></div>
     `;
 
     document.getElementById('ui-add-widget').addEventListener('click', () => this.openAddModal());
@@ -134,9 +136,9 @@ export class UiConfigurator {
     const dc = widget.schema_definition || widget.dynamic_config || {};
 
     const modalContent = `
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden font-['Noto_Sans_Sinhala']">
         <div class="px-6 py-4 border-b bg-gray-50 flex justify-between items-center">
-          <h3 class="text-lg font-bold text-gray-800">${widget.id ? 'Edit Widget' : 'Add New Widget'}</h3>
+          <h3 class="text-base font-bold text-gray-800">${widget.id ? 'Widget සංස්කරණය (Edit Widget)' : 'නව Widget එකක් එක් කරන්න (Add Widget)'}</h3>
           <button id="ui-modal-close" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times"></i></button>
         </div>
         
@@ -145,45 +147,45 @@ export class UiConfigurator {
           <div class="w-2/3 p-6 overflow-y-auto border-r border-gray-200">
             <div class="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Widget Type</label>
-                <select id="mw-type" class="w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
+                <label class="block text-xs font-bold text-gray-700 mb-1">Widget වර්ගය (Type)</label>
+                <select id="mw-type" class="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500">
                   ${['switch', 'checkbox', 'dropdown', 'action_button', 'number_input', 'text_input', 'radio_group'].map(t => 
                     `<option value="${t}" ${widget.widget_type === t ? 'selected' : ''}>${t.replace('_', ' ').toUpperCase()}</option>`
                   ).join('')}
                 </select>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select id="mw-status" class="w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500">
-                  <option value="draft" ${widget.status === 'draft' ? 'selected' : ''}>Draft</option>
-                  <option value="published" ${widget.status === 'published' ? 'selected' : ''}>Published</option>
+                <label class="block text-xs font-bold text-gray-700 mb-1">තත්ත්වය (Status)</label>
+                <select id="mw-status" class="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500">
+                  <option value="draft" ${widget.status === 'draft' ? 'selected' : ''}>කෙටුම්පතක් (Draft)</option>
+                  <option value="published" ${widget.status === 'published' ? 'selected' : ''}>ප්‍රකාශිතයි (Published)</option>
                 </select>
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Label (English)</label>
-                <input type="text" id="mw-label-en" value="${widget.label_en || ''}" class="w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" />
+                <label class="block text-xs font-bold text-gray-700 mb-1">නම / ලේබලය (ඉංග්‍රීසි)</label>
+                <input type="text" id="mw-label-en" value="${widget.label_en || ''}" class="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Label (Sinhala)</label>
-                <input type="text" id="mw-label-si" value="${widget.label_si || ''}" class="w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" />
+                <label class="block text-xs font-bold text-gray-700 mb-1">නම / ලේබලය (සිංහල)</label>
+                <input type="text" id="mw-label-si" value="${widget.label_si || ''}" class="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4 mb-6">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Section (Grouping)</label>
-                <input type="text" id="mw-section" value="${widget.section || ''}" class="w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" />
+                <label class="block text-xs font-bold text-gray-700 mb-1">අංශය / කාණ්ඩය (Section)</label>
+                <input type="text" id="mw-section" value="${widget.section || ''}" class="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
-                <input type="number" id="mw-sort" value="${widget.sort_order || 0}" class="w-full border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500" />
+                <label class="block text-xs font-bold text-gray-700 mb-1">පිළිවෙල අංකය (Sort Order)</label>
+                <input type="number" id="mw-sort" value="${widget.sort_order || 0}" class="w-full text-xs border-gray-300 rounded focus:ring-indigo-500 focus:border-indigo-500" />
               </div>
             </div>
 
-            <h4 class="font-bold text-gray-800 border-b pb-2 mb-4">Dynamic Configuration</h4>
+            <h4 class="font-bold text-xs text-gray-800 border-b pb-2 mb-4 uppercase tracking-wider">ගතික වින්‍යාසය (Dynamic Configuration)</h4>
             <div id="mw-dynamic-fields" class="space-y-4">
               <!-- Dynamic fields injected here -->
             </div>
@@ -192,7 +194,7 @@ export class UiConfigurator {
 
           <!-- Preview Section -->
           <div class="w-1/3 bg-gray-50 p-6 flex flex-col">
-            <h4 class="font-bold text-gray-700 mb-4 text-center">Live Preview</h4>
+            <h4 class="font-bold text-xs text-gray-700 mb-4 text-center uppercase tracking-wider">සජීවී පෙරදසුන (Live Preview)</h4>
             <div class="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-6 flex items-center justify-center bg-white" id="mw-preview-container">
               <!-- Preview injected here -->
             </div>
@@ -200,8 +202,8 @@ export class UiConfigurator {
         </div>
         
         <div class="px-6 py-4 border-t bg-gray-50 flex justify-end space-x-3">
-          <button id="ui-modal-cancel" class="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100">Cancel</button>
-          <button id="ui-modal-save" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium shadow-sm">Save Widget</button>
+          <button id="ui-modal-cancel" class="px-4 py-2 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-100 transition">අවලංගු කරන්න</button>
+          <button id="ui-modal-save" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-xs font-bold shadow-sm transition">සුරකින්න (Save)</button>
         </div>
       </div>
     `;
@@ -487,25 +489,25 @@ export class UiConfigurator {
     try {
       if (widgetId) {
         await this.api.update(this.tableName, widgetId, data);
-        this.toast('Widget updated successfully', 'success');
+        this.toast('Widget එක සාර්ථකව යාවත්කාලීන කරන ලදී', 'success');
       } else {
         await this.api.insert(this.tableName, data);
-        this.toast('Widget created successfully', 'success');
+        this.toast('නව Widget එකක් සාර්ථකව නිර්මාණය කරන ලදී', 'success');
       }
       this.loadWidgets();
     } catch (e) {
-      this.toast('Error saving widget', 'error');
+      this.toast('Widget සුරැකීමේ දෝෂයකි', 'error');
     }
   }
 
   async deleteWidget(widgetId) {
-    if (confirm('Are you sure you want to delete this widget?')) {
+    if (confirm('මෙම Widget එක ඉවත් කිරීමට ඔබට සහතිකද?')) {
       try {
         await this.api.delete(this.tableName, widgetId);
-        this.toast('Widget deleted', 'success');
+        this.toast('Widget එක සාර්ථකව ඉවත් කරන ලදී', 'success');
         this.loadWidgets();
       } catch (e) {
-        this.toast('Error deleting widget', 'error');
+        this.toast('Widget ඉවත් කිරීමේ දෝෂයකි', 'error');
       }
     }
   }

@@ -64,6 +64,40 @@ class FlowPlayer {
     const nodes = this.flow.flow_data.nodes.filter(n => !n.disabled);
     if (nodes.length === 0) return;
 
+    const todayDate = new Date().toISOString().split('T')[0];
+    const isAlreadyCompleted = 
+      (typeof localStorage !== 'undefined' && localStorage.getItem('wosandi_flow_completed_' + todayDate) === 'true') ||
+      (typeof state !== 'undefined' && state.flow_completed === true);
+
+    if (isAlreadyCompleted) {
+      let endNode = nodes.find(n => n.type === 'end');
+      if (!endNode) {
+        endNode = {
+          type: 'end',
+          text_si: 'දවසේ ඇගයීම සාර්ථකව අවසන් කළා!'
+        };
+      }
+      this.currentNode = endNode;
+      const savedPoints = (typeof localStorage !== 'undefined' && localStorage.getItem('wosandi_flow_points_' + todayDate)) ||
+                          (typeof state !== 'undefined' && state.flow_points) || 0;
+      this.accumulatedScore = Number(savedPoints) || 0;
+
+      if (this.sectionEl) this.sectionEl.classList.remove("hidden");
+      this.renderCurrentNode();
+
+      if (typeof state !== 'undefined') {
+        state.flow_completed = true;
+        state.flow_points = this.accumulatedScore;
+      }
+      if (typeof updateSectionCollapseStates === 'function') {
+        updateSectionCollapseStates(state);
+      }
+      if (typeof window !== 'undefined' && window.routineOrdering?.applyRoutineOrderAndDependencies) {
+        window.routineOrdering.applyRoutineOrderAndDependencies(state);
+      }
+      return;
+    }
+
     // Find start node: node with no incoming edges (or first question node)
     const incomingIds = new Set((this.flow.flow_data.edges || []).map(e => e.toId));
     let startNode = nodes.find(n => !incomingIds.has(n.id) && n.type !== 'end');
@@ -225,17 +259,57 @@ class FlowPlayer {
       const nextNode = (this.flow.flow_data.nodes || []).find(n => n.id === nextEdge.toId);
       if (nextNode) {
         this.currentNode = nextNode;
+        if (nextNode.type === 'end') {
+          const todayDate = new Date().toISOString().split('T')[0];
+          try {
+            localStorage.setItem('wosandi_flow_completed_' + todayDate, 'true');
+            localStorage.setItem('wosandi_flow_points_' + todayDate, String(this.accumulatedScore));
+          } catch(e) {}
+          if (typeof state !== 'undefined') {
+            state.flow_completed = true;
+            state.flow_points = this.accumulatedScore;
+            if (typeof syncProgressWithServer === 'function') {
+              syncProgressWithServer(state);
+            }
+          }
+          if (typeof updateSectionCollapseStates === 'function') {
+            updateSectionCollapseStates(state);
+          }
+          if (typeof window !== 'undefined' && window.routineOrdering?.applyRoutineOrderAndDependencies) {
+            window.routineOrdering.applyRoutineOrderAndDependencies(state);
+          }
+        }
         this.renderCurrentNode();
         return;
       }
     }
 
     // If no next node, show completion
+    const todayDate = new Date().toISOString().split('T')[0];
+    try {
+      localStorage.setItem('wosandi_flow_completed_' + todayDate, 'true');
+      localStorage.setItem('wosandi_flow_points_' + todayDate, String(this.accumulatedScore));
+    } catch(e) {}
+    if (typeof state !== 'undefined') {
+      state.flow_completed = true;
+      state.flow_points = this.accumulatedScore;
+      if (typeof syncProgressWithServer === 'function') {
+        syncProgressWithServer(state);
+      }
+    }
+
     this.currentNode = {
       type: 'end',
       text_si: 'දවසේ ඇගයීම සාර්ථකව අවසන් කළා!'
     };
     this.renderCurrentNode();
+
+    if (typeof updateSectionCollapseStates === 'function') {
+      updateSectionCollapseStates(state);
+    }
+    if (typeof window !== 'undefined' && window.routineOrdering?.applyRoutineOrderAndDependencies) {
+      window.routineOrdering.applyRoutineOrderAndDependencies(state);
+    }
   }
 
   handleTaskDone() {
@@ -258,7 +332,22 @@ class FlowPlayer {
         if (!ok) return;
       }
     }
+    const todayDate = new Date().toISOString().split('T')[0];
+    try {
+      localStorage.removeItem('wosandi_flow_completed_' + todayDate);
+      localStorage.removeItem('wosandi_flow_points_' + todayDate);
+    } catch(e) {}
+    if (typeof state !== 'undefined') {
+      state.flow_completed = false;
+    }
+    this.currentNode = null;
     this.startFlow();
+    if (typeof updateSectionCollapseStates === 'function') {
+      updateSectionCollapseStates(state);
+    }
+    if (typeof window !== 'undefined' && window.routineOrdering?.applyRoutineOrderAndDependencies) {
+      window.routineOrdering.applyRoutineOrderAndDependencies(state);
+    }
   }
 }
 

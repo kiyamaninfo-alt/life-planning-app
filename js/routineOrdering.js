@@ -236,11 +236,39 @@ export function applyRoutineOrderAndDependencies(stateObj) {
 
   const sortedSections = [...config.sections].sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0));
 
+  // Partition into active (uncompleted) and completed sections
+  // Completed cards (including live flow) are automatically sent to the bottom!
+  const isSecDone = (secId) => {
+    if (typeof window !== 'undefined' && typeof window.isSectionCompleted === 'function') {
+      return window.isSectionCompleted(secId, stateObj);
+    }
+    if (!stateObj) return false;
+    if (secId === 'flow') return Boolean(stateObj.flow_completed || (Number(stateObj.flow_points) > 0 && window.flowPlayer?.currentNode?.type === 'end'));
+    if (secId === 'wake_up') return Boolean(stateObj.wake_up);
+    if (secId === 'school') return Boolean(stateObj.school_attended);
+    if (secId === 'study') return Boolean(stateObj.maths_practice && stateObj.gemini_english && stateObj.vocab_words);
+    if (secId === 'fitness') return Boolean(stateObj.dance_workout && stateObj.exercise_schedule);
+    if (secId === 'chores') return Boolean(stateObj.clean_room && stateObj.water_plants && stateObj.sweep_floor && stateObj.dispose_garbage && stateObj.hair_care && stateObj.clean_wardrobe);
+    return Boolean(stateObj[secId]);
+  };
+
+  const activeSections = [];
+  const completedSections = [];
   sortedSections.forEach(sec => {
+    if (isSecDone(sec.id)) {
+      completedSections.push(sec);
+    } else {
+      activeSections.push(sec);
+    }
+  });
+
+  const finalOrderedSections = [...activeSections, ...completedSections];
+
+  finalOrderedSections.forEach(sec => {
     const el = container.querySelector(`[data-section-id="${sec.id}"]`);
     if (!el) return;
 
-    // 1. Move element to bottom of container in sorted order (re-arranges visually without reloading!)
+    // 1. Move element to bottom of container in partitioned order (uncompleted first, completed to bottom!)
     container.appendChild(el);
 
     // 2. Evaluate progressive unlocking condition

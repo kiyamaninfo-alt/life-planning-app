@@ -10,13 +10,18 @@ export class TimerManager {
 
     async render() {
         this.containerEl.innerHTML = `
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-800">Timer Configuration</h2>
-                <button id="addTimerBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded shadow">
-                    <i class="fas fa-plus mr-2"></i> Add Timer
+            <div class="flex justify-between items-center mb-6 font-['Noto_Sans_Sinhala']">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-stopwatch text-purple-600"></i> වේලාවන් කළමනාකරණය (Timers)
+                    </h2>
+                    <p class="text-xs text-gray-500 mt-1">ශිෂ්‍යයාගේ පාඩම් සහ ව්‍යායාම සඳහා නියමිත වේලාවන් සකසන්න</p>
+                </div>
+                <button id="addTimerBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm text-xs transition flex items-center gap-1.5">
+                    <i class="fas fa-plus"></i> නව Timer එකක් (Add Timer)
                 </button>
             </div>
-            <div id="timersGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div id="timersGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-['Noto_Sans_Sinhala']">
                 <!-- Grid will be rendered here -->
             </div>
             <div id="timerModalContainer"></div>
@@ -34,7 +39,7 @@ export class TimerManager {
             this.renderGrid();
         } catch (error) {
             console.error('Error loading timers:', error);
-            this.toastFn('Failed to load timers', 'error');
+            this.toastFn('වේලාවන් ලබා ගැනීම අසාර්ථක විය', 'error');
         }
     }
 
@@ -63,7 +68,7 @@ export class TimerManager {
         const gridContainer = document.getElementById('timersGridContainer');
 
         if (this.timers.length === 0) {
-            gridContainer.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded shadow">No timers configured.</div>`;
+            gridContainer.innerHTML = `<div class="col-span-full p-8 text-center text-gray-500 bg-white rounded-xl shadow-xs border border-slate-200 text-xs font-['Noto_Sans_Sinhala']">කිසිදු Timer එකක් සකසා නැත. නව Timer එකක් එක් කිරීමට "නව Timer එකක්" ක්ලික් කරන්න.</div>`;
             return;
         }
 
@@ -80,46 +85,46 @@ export class TimerManager {
             if (trigger.pause_on_blur) configSummary.push('Pause on blur');
             if (trigger.chime) configSummary.push('Chime');
             if (trigger.repeat_count > 1) configSummary.push(`Repeat x${trigger.repeat_count}`);
-            const configStr = configSummary.length ? configSummary.join(' • ') : 'Basic timer';
+            const configStr = configSummary.length ? configSummary.join(' • ') : 'මූලික Timer';
 
             gridHtml += `
-                <div class="bg-white rounded-lg shadow border border-gray-100 overflow-hidden flex flex-col">
+                <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden flex flex-col font-['Noto_Sans_Sinhala']">
                     <div class="p-4 border-b border-gray-100 flex justify-between items-start">
                         <div class="flex items-center gap-3">
-                            <div class="text-3xl bg-gray-50 w-12 h-12 flex items-center justify-center rounded-lg shadow-sm">
+                            <div class="text-3xl bg-slate-50 w-12 h-12 flex items-center justify-center rounded-xl shadow-inner">
                                 ${timer.icon || '⏱️'}
                             </div>
                             <div>
-                                <h3 class="font-bold text-gray-800 text-lg">${timer.label_si || 'Unnamed Timer'}</h3>
-                                <p class="text-xs text-gray-500">${timer.label_en || ''}</p>
+                                <h3 class="font-bold text-gray-800 text-sm">${timer.label_si || 'නම් නොකළ Timer'}</h3>
+                                <p class="text-xs text-gray-400">${timer.label_en || ''}</p>
                             </div>
                         </div>
-                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${statusColor}">
-                            ${timer.status || 'draft'}
+                        <span class="px-2.5 py-0.5 text-[11px] font-bold rounded-full ${statusColor}">
+                            ${timer.status === 'published' ? 'ප්‍රකාශිතයි' : 'Draft'}
                         </span>
                     </div>
                     
                     <div class="p-4 flex-1">
                         <div class="flex items-center justify-center py-4">
-                            <div class="text-3xl font-mono text-gray-700 tracking-wider">
+                            <div class="text-3xl font-mono font-bold text-purple-700 tracking-wider">
                                 ${durationStr}
                             </div>
                         </div>
-                        <div class="mt-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                            <p class="truncate" title="${configStr}"><i class="fas fa-cog text-gray-400 mr-2"></i> ${configStr}</p>
-                            ${trigger.linked_task_id ? `<p class="mt-1 truncate text-xs"><i class="fas fa-link text-gray-400 mr-2"></i> Linked Task</p>` : ''}
+                        <div class="mt-2 text-xs text-gray-600 bg-purple-50/50 p-2.5 rounded-xl border border-purple-100">
+                            <p class="truncate" title="${configStr}"><i class="fas fa-cog text-purple-400 mr-1.5"></i> ${configStr}</p>
+                            ${trigger.linked_task_id ? `<p class="mt-1 truncate text-xs"><i class="fas fa-link text-purple-400 mr-1.5"></i> කාර්යයකට සම්බන්ධයි</p>` : ''}
                         </div>
                     </div>
                     
-                    <div class="bg-gray-50 p-3 border-t border-gray-100 flex justify-end gap-2">
-                        <button class="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-50 text-gray-700 toggle-publish-btn" data-id="${timer.id}" data-status="${timer.status}">
-                            ${timer.status === 'published' ? 'Unpublish' : 'Publish'}
+                    <div class="bg-gray-50 p-3 border-t border-gray-100 flex justify-end gap-2 text-xs">
+                        <button class="px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700 font-bold toggle-publish-btn" data-id="${timer.id}" data-status="${timer.status}">
+                            ${timer.status === 'published' ? 'අත්හිටුවන්න' : 'ප්‍රකාශ කරන්න'}
                         </button>
-                        <button class="px-3 py-1 text-sm bg-blue-50 text-blue-600 border border-blue-200 rounded hover:bg-blue-100 edit-timer-btn" data-id="${timer.id}">
-                            Edit
+                        <button class="px-3 py-1.5 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 font-bold edit-timer-btn" data-id="${timer.id}">
+                            සංස්කරණය
                         </button>
-                        <button class="px-3 py-1 text-sm bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100 delete-timer-btn" data-id="${timer.id}">
-                            Delete
+                        <button class="px-3 py-1.5 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 font-bold delete-timer-btn" data-id="${timer.id}">
+                            මකන්න
                         </button>
                     </div>
                 </div>
@@ -168,12 +173,12 @@ export class TimerManager {
         const linkedTask = trigger.linked_task_id || '';
 
         const modalHtml = `
-            <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                    <div class="p-6 border-b border-gray-200 flex justify-between items-center">
-                        <h3 class="text-xl font-bold text-gray-800">${isEdit ? 'Edit Timer' : 'Add Timer'}</h3>
+            <div class="fixed inset-0 bg-slate-900 bg-opacity-60 flex items-center justify-center z-50 p-4 font-['Noto_Sans_Sinhala']">
+                <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+                    <div class="p-6 border-b border-gray-200 flex justify-between items-center bg-slate-50">
+                        <h3 class="text-base font-bold text-gray-800">${isEdit ? 'Timer එක සංස්කරණය (Edit Timer)' : 'නව Timer එකක් එක් කරන්න (Add Timer)'}</h3>
                         <button type="button" class="text-gray-400 hover:text-gray-600 close-modal-btn">
-                            <i class="fas fa-times"></i>
+                            <i class="fas fa-times text-lg"></i>
                         </button>
                     </div>
                     <div class="p-6 overflow-y-auto flex-1">
@@ -181,32 +186,32 @@ export class TimerManager {
                             <!-- Basic Info -->
                             <div class="grid grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Label (Sinhala) *</label>
-                                    <input type="text" id="label_si" value="${timer?.label_si || ''}" required class="w-full p-2 border rounded focus:ring focus:ring-purple-200">
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (සිංහලෙන්) *</label>
+                                    <input type="text" id="label_si" value="${timer?.label_si || ''}" required placeholder="උදා: ඉංග්‍රීසි කතා කිරීමේ Timer" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-purple-200 font-['Noto_Sans_Sinhala']">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Label (English)</label>
-                                    <input type="text" id="label_en" value="${timer?.label_en || ''}" class="w-full p-2 border rounded focus:ring focus:ring-purple-200">
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (English)</label>
+                                    <input type="text" id="label_en" value="${timer?.label_en || ''}" placeholder="e.g. English Dialogue Timer" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-purple-200">
                                 </div>
                             </div>
                             
                             <!-- Duration -->
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">කාල සීමාව (Duration)</label>
                                 <div class="flex gap-4 items-center">
                                     <div class="flex flex-col">
-                                        <input type="number" id="dur_h" min="0" max="23" value="${h}" class="w-20 p-2 text-center border rounded focus:ring focus:ring-purple-200">
-                                        <span class="text-xs text-gray-500 text-center mt-1">Hours</span>
+                                        <input type="number" id="dur_h" min="0" max="23" value="${h}" class="w-20 p-2 text-center border rounded-xl font-bold focus:ring-2 focus:ring-purple-200 text-sm">
+                                        <span class="text-[11px] text-gray-500 text-center mt-1">පැය (Hours)</span>
                                     </div>
                                     <span class="text-xl font-bold text-gray-400">:</span>
                                     <div class="flex flex-col">
-                                        <input type="number" id="dur_m" min="0" max="59" value="${m}" class="w-20 p-2 text-center border rounded focus:ring focus:ring-purple-200">
-                                        <span class="text-xs text-gray-500 text-center mt-1">Mins</span>
+                                        <input type="number" id="dur_m" min="0" max="59" value="${m}" class="w-20 p-2 text-center border rounded-xl font-bold focus:ring-2 focus:ring-purple-200 text-sm">
+                                        <span class="text-[11px] text-gray-500 text-center mt-1">මිනිත්තු (Mins)</span>
                                     </div>
                                     <span class="text-xl font-bold text-gray-400">:</span>
                                     <div class="flex flex-col">
-                                        <input type="number" id="dur_s" min="0" max="59" value="${s}" class="w-20 p-2 text-center border rounded focus:ring focus:ring-purple-200">
-                                        <span class="text-xs text-gray-500 text-center mt-1">Secs</span>
+                                        <input type="number" id="dur_s" min="0" max="59" value="${s}" class="w-20 p-2 text-center border rounded-xl font-bold focus:ring-2 focus:ring-purple-200 text-sm">
+                                        <span class="text-[11px] text-gray-500 text-center mt-1">තත්පර (Secs)</span>
                                     </div>
                                 </div>
                             </div>
@@ -214,74 +219,54 @@ export class TimerManager {
                             <!-- Display & Status -->
                             <div class="grid grid-cols-3 gap-4 border-t pt-4">
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Icon (Emoji)</label>
-                                    <input type="text" id="icon" value="${timer?.icon || '⏱️'}" class="w-full p-2 border rounded focus:ring focus:ring-purple-200 text-center">
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">සංකේතය (Icon/Emoji)</label>
+                                    <input type="text" id="icon" value="${timer?.icon || '⏱️'}" class="w-full p-2 border rounded-xl focus:ring-2 focus:ring-purple-200 text-center text-lg">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Sort Order</label>
-                                    <input type="number" id="sort_order" value="${timer?.sort_order || 0}" class="w-full p-2 border rounded focus:ring focus:ring-purple-200">
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">පිළිවෙල (Order)</label>
+                                    <input type="number" id="sort_order" value="${timer?.sort_order || 0}" class="w-full p-2 border rounded-xl focus:ring-2 focus:ring-purple-200 text-xs">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                    <select id="status" class="w-full p-2 border rounded focus:ring focus:ring-purple-200">
-                                        <option value="draft" ${timer?.status === 'draft' ? 'selected' : ''}>Draft</option>
-                                        <option value="published" ${timer?.status === 'published' ? 'selected' : ''}>Published</option>
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">තත්ත්වය (Status)</label>
+                                    <select id="status" class="w-full p-2 border rounded-xl focus:ring-2 focus:ring-purple-200 text-xs bg-white">
+                                        <option value="draft" ${timer?.status === 'draft' ? 'selected' : ''}>කටු කෙටුම්පත් (Draft)</option>
+                                        <option value="published" ${timer?.status === 'published' ? 'selected' : ''}>ප්‍රකාශිතයි (Published)</option>
                                     </select>
                                 </div>
                             </div>
                             
                             <!-- Trigger Configuration -->
-                            <div class="border-t pt-4">
-                                <h4 class="font-semibold text-gray-800 mb-4">Trigger Configuration</h4>
+                            <div class="border-t pt-4 space-y-3">
+                                <h4 class="text-xs font-bold text-gray-800 uppercase tracking-wider">ස්වයංක්‍රීය සැකසුම් (Trigger Configuration)</h4>
                                 
-                                <div class="grid grid-cols-2 gap-4 mb-4">
-                                    <label class="flex items-center space-x-3 cursor-pointer bg-gray-50 p-3 rounded">
-                                        <input type="checkbox" id="auto_start" ${autoStart ? 'checked' : ''} class="w-5 h-5 rounded text-purple-600 focus:ring focus:ring-purple-200">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-medium text-gray-700">Auto Start</span>
-                                            <span class="text-xs text-gray-500">Start immediately when loaded</span>
-                                        </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <label class="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                        <input type="checkbox" id="auto_start" ${autoStart ? 'checked' : ''} class="w-4 h-4 rounded text-purple-600 focus:ring-purple-200">
+                                        <span class="text-xs font-medium text-gray-700">Auto Start</span>
                                     </label>
                                     
-                                    <label class="flex items-center space-x-3 cursor-pointer bg-gray-50 p-3 rounded">
-                                        <input type="checkbox" id="pause_on_blur" ${pauseOnBlur ? 'checked' : ''} class="w-5 h-5 rounded text-purple-600 focus:ring focus:ring-purple-200">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-medium text-gray-700">Pause on Tab Blur</span>
-                                            <span class="text-xs text-gray-500">Pause when user switches tabs</span>
-                                        </div>
+                                    <label class="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                        <input type="checkbox" id="pause_on_blur" ${pauseOnBlur ? 'checked' : ''} class="w-4 h-4 rounded text-purple-600 focus:ring-purple-200">
+                                        <span class="text-xs font-medium text-gray-700">Pause on Tab Blur</span>
                                     </label>
                                     
-                                    <label class="flex items-center space-x-3 cursor-pointer bg-gray-50 p-3 rounded">
-                                        <input type="checkbox" id="chime" ${chime ? 'checked' : ''} class="w-5 h-5 rounded text-purple-600 focus:ring focus:ring-purple-200">
-                                        <div class="flex flex-col">
-                                            <span class="text-sm font-medium text-gray-700">Chime on Complete</span>
-                                            <span class="text-xs text-gray-500">Play sound when finished</span>
-                                        </div>
+                                    <label class="flex items-center space-x-2.5 cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                                        <input type="checkbox" id="chime" ${chime ? 'checked' : ''} class="w-4 h-4 rounded text-purple-600 focus:ring-purple-200">
+                                        <span class="text-xs font-medium text-gray-700">Chime Sound</span>
                                     </label>
-                                </div>
-                                
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Alert Intervals (seconds)</label>
-                                        <input type="text" id="alert_intervals" value="${alertIntervals}" placeholder="e.g. 300, 60" class="w-full p-2 border rounded focus:ring focus:ring-purple-200">
-                                        <p class="text-xs text-gray-500 mt-1">Comma-separated seconds</p>
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Repeat Count</label>
-                                        <input type="number" id="repeat_count" min="1" value="${repeatCount}" class="w-full p-2 border rounded focus:ring focus:ring-purple-200">
-                                    </div>
-                                    <div class="col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">Linked Task ID (UUID)</label>
-                                        <input type="text" id="linked_task_id" value="${linkedTask}" placeholder="Optional task UUID" class="w-full p-2 border rounded focus:ring focus:ring-purple-200">
-                                    </div>
                                 </div>
                             </div>
                         </form>
                     </div>
-                    <div class="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 rounded-b-lg">
-                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 close-modal-btn">Cancel</button>
-                        <button type="button" id="saveTimerBtn" class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700">Save</button>
+                    <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 font-['Noto_Sans_Sinhala']">
+                        <button type="button" class="px-4 py-2 bg-gray-200 text-gray-800 text-xs font-bold rounded-xl hover:bg-gray-300 close-modal-btn">අවලංගු කරන්න (Cancel)</button>
+                        <button type="button" id="saveTimerBtn" class="px-5 py-2 bg-purple-600 text-white text-xs font-bold rounded-xl hover:bg-purple-700 shadow-sm flex items-center gap-1.5">
+                            <i class="fas fa-save"></i> Timer සුරකින්න (Save)
+                        </button>
                     </div>
+                </div>
+            </div>
+        `;
                 </div>
             </div>
         `;

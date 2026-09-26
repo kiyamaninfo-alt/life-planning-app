@@ -94,6 +94,15 @@ function verifyChangePin() {
   }
 }
 
+// Restore same-day state immediately from local storage for instant zero-reload delay
+const todayDateStr = new Date().toISOString().split('T')[0];
+try {
+  const cached = localStorage.getItem('wosandi_routine_state_' + todayDateStr);
+  if (cached) {
+    Object.assign(state, JSON.parse(cached));
+  }
+} catch (e) {}
+
 // =========================================================================
 // Routine Section Completion & Auto-Collapsing Controller
 // =========================================================================
@@ -101,22 +110,118 @@ const manualExpandedSections = new Set();
 
 function isSectionCompleted(sectionId, stateObj = state) {
   if (!stateObj) return false;
+  const today = new Date().toISOString().split('T')[0];
+
   switch (sectionId) {
     case 'wake_up':
       return Boolean(stateObj.wake_up);
     case 'school':
       return Boolean(stateObj.school_attended);
-    case 'study':
-      return Boolean(stateObj.maths_practice && stateObj.gemini_english && stateObj.vocab_words);
-    case 'fitness':
-      return Boolean(stateObj.dance_workout && stateObj.exercise_schedule);
-    case 'chores':
-      return Boolean(stateObj.clean_room && stateObj.water_plants && stateObj.sweep_floor && stateObj.dispose_garbage && stateObj.hair_care && stateObj.clean_wardrobe);
     case 'flow':
-      return Boolean(stateObj.flow_completed || (Number(stateObj.flow_points) > 0 && window.flowPlayer?.currentNode?.type === 'end'));
+      return Boolean(
+        stateObj.flow_completed || 
+        (typeof localStorage !== 'undefined' && localStorage.getItem('wosandi_flow_completed_' + today) === 'true') ||
+        (Number(stateObj.flow_points) > 0 && window.flowPlayer?.currentNode?.type === 'end')
+      );
+    case 'study': {
+      if (typeof document !== 'undefined') {
+        const list = document.getElementById('study-tasks-list');
+        if (list) {
+          const taskRows = list.querySelectorAll('[data-task-id]');
+          if (taskRows.length > 0) {
+            let allDone = true;
+            taskRows.forEach(row => {
+              const tid = row.getAttribute('data-task-id');
+              if (tid && !stateObj[tid]) allDone = false;
+            });
+            return allDone;
+          }
+        }
+      }
+      const adminStudyTasks = (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks))
+        ? window.publishedAdminTasks.filter(t => (t.category || '').toLowerCase() === 'study')
+        : [];
+      const adminStudyDone = adminStudyTasks.every(t => Boolean(stateObj[t.id]));
+      return Boolean(stateObj.maths_practice && stateObj.gemini_english && stateObj.vocab_words) && adminStudyDone;
+    }
+    case 'fitness': {
+      if (typeof document !== 'undefined') {
+        const list = document.getElementById('fitness-tasks-list');
+        if (list) {
+          const taskRows = list.querySelectorAll('[data-task-id]');
+          if (taskRows.length > 0) {
+            let allDone = true;
+            taskRows.forEach(row => {
+              const tid = row.getAttribute('data-task-id');
+              if (tid && !stateObj[tid]) allDone = false;
+            });
+            return allDone;
+          }
+        }
+      }
+      const adminFitTasks = (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks))
+        ? window.publishedAdminTasks.filter(t => (t.category || '').toLowerCase() === 'fitness')
+        : [];
+      const adminFitDone = adminFitTasks.every(t => Boolean(stateObj[t.id]));
+      return Boolean(stateObj.dance_workout && stateObj.exercise_schedule) && adminFitDone;
+    }
+    case 'chores': {
+      if (typeof document !== 'undefined') {
+        const list = document.getElementById('chores-tasks-list');
+        if (list) {
+          const taskRows = list.querySelectorAll('[data-task-id]');
+          if (taskRows.length > 0) {
+            let allDone = true;
+            taskRows.forEach(row => {
+              const tid = row.getAttribute('data-task-id');
+              if (tid && !stateObj[tid]) allDone = false;
+            });
+            return allDone;
+          }
+        }
+      }
+      const adminChoresTasks = (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks))
+        ? window.publishedAdminTasks.filter(t => (t.category || '').toLowerCase() === 'chores')
+        : [];
+      const adminChoresDone = adminChoresTasks.every(t => Boolean(stateObj[t.id]));
+      return Boolean(stateObj.clean_room && stateObj.water_plants && stateObj.sweep_floor && stateObj.dispose_garbage && stateObj.hair_care && stateObj.clean_wardrobe) && adminChoresDone;
+    }
     default:
-      return false;
+      return Boolean(stateObj[sectionId]);
   }
+}
+
+// 3. Tick box tasks sent to bottom of their list when completed
+function reorderTasksInList(container) {
+  if (!container) return;
+  const taskRows = Array.from(container.children || []).filter(el => Boolean(el.querySelector && el.querySelector('input[type="checkbox"]')));
+  if (taskRows.length === 0) return;
+
+  const active = [];
+  const completed = [];
+
+  taskRows.forEach(row => {
+    const cb = row.querySelector('input[type="checkbox"]');
+    const isDone = cb ? cb.checked : false;
+    if (isDone) {
+      row.classList.add('task-is-completed', 'opacity-75', 'bg-emerald-50/40', 'border-emerald-200');
+      completed.push(row);
+    } else {
+      row.classList.remove('task-is-completed', 'opacity-75', 'bg-emerald-50/40', 'border-emerald-200');
+      active.push(row);
+    }
+  });
+
+  // Re-append: unchecked at top, checked at bottom!
+  [...active, ...completed].forEach(row => container.appendChild(row));
+}
+
+function reorderAllTaskLists() {
+  if (typeof document === 'undefined') return;
+  ['study-tasks-list', 'fitness-tasks-list', 'chores-tasks-list'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) reorderTasksInList(el);
+  });
 }
 
 function updateSectionCollapseStates(stateObj = state) {
@@ -211,14 +316,105 @@ function syncStateToUI() {
     }
   });
 
+  // Reorder tasks so ticked tasks go to the bottom of their list
+  reorderAllTaskLists();
+
   // 6. Section Completion & Collapse State
   updateSectionCollapseStates(state);
 }
 
 // =========================================================================
+// Dynamic Published Tasks from Admin Panel (wosandi_tasks)
+// =========================================================================
+async function loadPublishedTasksFromAdmin() {
+  if (typeof document === 'undefined') return;
+
+  let publishedTasks = [];
+  try {
+    const res = await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks?status=eq.published&order=sort_order.asc", {
+      headers: {
+        apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+        Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn"
+      }
+    });
+    if (res.ok) {
+      publishedTasks = await res.json();
+    }
+  } catch (e) {
+    console.warn("Could not fetch published tasks from Supabase, checking local cache", e);
+  }
+
+  if (!publishedTasks || publishedTasks.length === 0) {
+    try {
+      const cached = localStorage.getItem('wosandi_admin_wosandi_tasks');
+      if (cached) {
+        const list = JSON.parse(cached);
+        publishedTasks = list.filter(t => t.status === 'published');
+      }
+    } catch(e) {}
+  }
+
+  if (!Array.isArray(publishedTasks) || publishedTasks.length === 0) return;
+  window.publishedAdminTasks = publishedTasks;
+
+  const targetLists = {
+    academic: document.getElementById('study-tasks-list'),
+    study: document.getElementById('study-tasks-list'),
+    physical: document.getElementById('fitness-tasks-list'),
+    fitness: document.getElementById('fitness-tasks-list'),
+    chores: document.getElementById('chores-tasks-list'),
+    habits: document.getElementById('chores-tasks-list'),
+    general: document.getElementById('chores-tasks-list')
+  };
+
+  publishedTasks.forEach(task => {
+    const key = task.schema_definition?.linked_state_key || task.id;
+    const existing = document.querySelector(`[data-task-id="${key}"]`) || document.querySelector(`[data-task-id="${task.id}"]`);
+    if (existing) return;
+
+    const cat = (task.category || 'general').toLowerCase();
+    const container = targetLists[cat] || targetLists.general;
+    if (!container) return;
+
+    if (state[task.id] === undefined) {
+      state[task.id] = false;
+    }
+
+    const row = document.createElement('label');
+    row.setAttribute('data-task-id', task.id);
+    row.className = 'flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer transition-all';
+    const timerBtn = task.has_timer ? `
+      <button type="button" onclick="startTimer(${task.timer_seconds || 600}, '${task.title_si || task.title_en || 'Timer'}')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">
+        ⏱ විනාඩි ${Math.round((task.timer_seconds || 600) / 60)} Timer එක දමන්න
+      </button>
+    ` : '';
+
+    const isChecked = Boolean(state[task.id]);
+    row.innerHTML = `
+      <div class="flex flex-col">
+        <span class="text-xs font-semibold font-['Noto_Sans_Sinhala']">${task.icon || '📋'} ${task.title_si || task.title_en}</span>
+        ${timerBtn}
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] font-bold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100">+${task.weight_points || 10}</span>
+        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleTask('${task.id}', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded">
+      </div>
+    `;
+
+    container.appendChild(row);
+  });
+
+  reorderAllTaskLists();
+  syncStateToUI();
+  if (typeof syncProgressWithServer === 'function') {
+    syncProgressWithServer(state, true);
+  }
+}
+
+// =========================================================================
 // Event Listeners & Interaction Handlers
 // =========================================================================
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   // Render Subjects Buttons
   const subGrid = document.getElementById("subjects-grid");
   if (subGrid) {
@@ -271,6 +467,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Sync loaded state to UI elements
   syncStateToUI();
+
+  // Load published tasks from Admin panel
+  await loadPublishedTasksFromAdmin();
 });
 
 // School Toggle Handler with Password Verification
@@ -386,6 +585,8 @@ async function toggleTask(key, val, el = null) {
   }
 
   state[key] = val;
+  reorderAllTaskLists();
+  updateSectionCollapseStates(state);
   syncProgressWithServer(state);
 }
 
@@ -492,4 +693,7 @@ if (typeof window !== "undefined") {
   window.isSectionCompleted = isSectionCompleted;
   window.updateSectionCollapseStates = updateSectionCollapseStates;
   window.toggleSectionCollapse = toggleSectionCollapse;
+  window.reorderTasksInList = reorderTasksInList;
+  window.reorderAllTaskLists = reorderAllTaskLists;
+  window.loadPublishedTasksFromAdmin = loadPublishedTasksFromAdmin;
 }

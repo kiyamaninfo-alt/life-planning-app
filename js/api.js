@@ -85,6 +85,18 @@ async function loadTodayData() {
   await estimateDayOfWeekBenchmark();
 
   const today = new Date().toISOString().split("T")[0];
+
+  // Instant zero-flicker restoration from same-day local cache
+  try {
+    const cached = localStorage.getItem('wosandi_routine_state_' + today);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      Object.assign(state, parsed);
+      if (typeof syncStateToUI === 'function') syncStateToUI();
+      syncProgressWithServer(state, true);
+    }
+  } catch (e) {}
+
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs?select=*&log_date=eq.${today}`, {
       headers: {
@@ -97,6 +109,9 @@ async function loadTodayData() {
     if (data && data.length > 0) {
       const dbState = data[0].completed_tasks;
       Object.assign(state, dbState);
+      try {
+        localStorage.setItem('wosandi_routine_state_' + today, JSON.stringify(state));
+      } catch (e) {}
       if (typeof syncStateToUI === 'function') syncStateToUI();
       syncProgressWithServer(state, true); // UI පමණක් යාවත්කාලීන කරයි
     } else {
@@ -164,6 +179,20 @@ async function syncProgressWithServer(state, skipSave = false) {
   if (state.sweep_floor) earnedPoints += 5;
   if (state.dispose_garbage) earnedPoints += 5;
 
+  // Dynamic Published Tasks from Admin Panel (wosandi_tasks)
+  if (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks)) {
+    const builtinKeys = new Set(['maths_practice', 'gemini_english', 'vocab_words', 'dance_workout', 'exercise_schedule', 'clean_room', 'water_plants', 'sweep_floor', 'dispose_garbage', 'hair_care', 'clean_wardrobe', 'wake_up', 'school_attended']);
+    window.publishedAdminTasks.forEach(task => {
+      const key = task.schema_definition?.linked_state_key || task.id;
+      if (builtinKeys.has(key)) return; // already counted in standard tier above
+      const pts = Number(task.weight_points) || 10;
+      totalPossiblePoints += pts;
+      if (state[key] === true || state[task.id] === true) {
+        earnedPoints += pts;
+      }
+    });
+  }
+
   // Published Flow Points from Flow Player
   if (state.flow_points && !isNaN(state.flow_points)) {
     earnedPoints += Number(state.flow_points);
@@ -171,6 +200,11 @@ async function syncProgressWithServer(state, skipSave = false) {
   if (state.flow_total_points && !isNaN(state.flow_total_points)) {
     totalPossiblePoints += Number(state.flow_total_points);
   }
+
+  // Save same-day state to localStorage immediately for zero reload delay
+  try {
+    localStorage.setItem('wosandi_routine_state_' + todayDate, JSON.stringify(state));
+  } catch (e) {}
 
   // 2.2 Defensive Zero / Division-by-Zero Guard
   const validTotal = (totalPossiblePoints > 0) ? totalPossiblePoints : 0;

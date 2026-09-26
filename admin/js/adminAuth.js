@@ -28,27 +28,27 @@ export class AdminAuth {
 
     renderLoginScreen(containerEl, onSuccess) {
         containerEl.innerHTML = `
-            <div class="mb-6">
-                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+            <div class="mb-6 font-['Noto_Sans_Sinhala']">
+                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">
                     <i class="fas fa-lock"></i>
                 </div>
-                <h2 class="text-2xl font-bold text-slate-800">Admin Access</h2>
-                <p class="text-sm text-slate-500 mt-2">Enter your PIN to continue</p>
+                <h2 class="text-2xl font-bold text-slate-800">පරිපාලන ප්‍රවේශය (Admin Access)</h2>
+                <p class="text-xs text-slate-500 mt-2">ඉදිරියට යාමට ඔබගේ Admin PIN අංකය ඇතුළත් කරන්න</p>
             </div>
             
-            <form id="login-form" class="space-y-4">
+            <form id="login-form" class="space-y-4 font-['Noto_Sans_Sinhala']">
                 <div>
                     <input type="password" id="pin-input" 
-                        class="w-full text-center text-2xl tracking-[0.5em] py-3 px-4 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" 
+                        class="w-full text-center text-2xl tracking-[0.5em] py-3 px-4 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none font-mono" 
                         placeholder="••••" 
-                        maxlength="4" 
+                        maxlength="8" 
                         autocomplete="off" 
                         required>
                 </div>
-                <div id="login-error" class="text-red-500 text-sm hidden">Invalid PIN. Please try again.</div>
+                <div id="login-error" class="text-red-500 text-xs font-semibold hidden">මුරපදය වැරදියි! කරුණාකර නැවත උත්සාහ කරන්න.</div>
                 <button type="submit" 
-                    class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Unlock
+                    class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-indigo-700 transition-colors shadow-md focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 text-sm">
+                    ඇතුළු වන්න (Unlock)
                 </button>
             </form>
         `;

@@ -23,10 +23,10 @@
     <!-- Main App Container -->
     <div id="app-container" class="flex h-screen hidden">
         <!-- Sidebar -->
-        <aside class="w-64 bg-slate-800 text-slate-300 flex flex-col transition-transform duration-300 transform -translate-x-full md:translate-x-0 fixed md:relative z-40 h-full" id="sidebar">
+        <aside class="w-64 bg-slate-800 text-slate-300 flex flex-col transition-transform duration-300 transform -translate-x-full md:translate-x-0 fixed md:relative z-40 h-full font-['Noto_Sans_Sinhala']" id="sidebar">
             <div class="p-6 flex items-center justify-between border-b border-slate-700">
                 <h1 class="text-xl font-bold text-white flex items-center gap-2">
-                    <i class="fas fa-cogs"></i> Admin Panel
+                    <i class="fas fa-cogs text-indigo-400"></i> පරිපාලන පුවරුව
                 </h1>
                 <button id="close-sidebar" class="md:hidden text-slate-400 hover:text-white">
                     <i class="fas fa-times text-xl"></i>
@@ -37,37 +37,37 @@
                 <ul class="space-y-1 px-3" id="sidebar-nav">
                     <li>
                         <a href="#" data-tab="overview" class="tab-link active flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors bg-indigo-600 text-white">
-                            <i class="fas fa-chart-pie w-5"></i> Overview
+                            <i class="fas fa-chart-pie w-5"></i> දළ විශ්ලේෂණය (Overview)
                         </a>
                     </li>
                     <li>
                         <a href="#" data-tab="tasks" class="tab-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
-                            <i class="fas fa-tasks w-5"></i> Tasks
+                            <i class="fas fa-tasks w-5"></i> කාර්යයන් (Tasks)
                         </a>
                     </li>
                     <li>
                         <a href="#" data-tab="timers" class="tab-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
-                            <i class="fas fa-stopwatch w-5"></i> Timers
+                            <i class="fas fa-stopwatch w-5"></i> වේලාවන් (Timers)
                         </a>
                     </li>
                     <li>
                         <a href="#" data-tab="flows" class="tab-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
-                            <i class="fas fa-project-diagram w-5"></i> Flows
+                            <i class="fas fa-project-diagram w-5"></i> ප්‍රශ්නාවලී චක්‍ර (Flows)
                         </a>
                     </li>
                     <li>
                         <a href="#" data-tab="routine-order" class="tab-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
-                            <i class="fas fa-sort-amount-down-alt w-5 text-indigo-400"></i> Routine Order
+                            <i class="fas fa-sort-amount-down-alt w-5 text-indigo-400"></i> දින චර්යාවේ පිළිවෙල
                         </a>
                     </li>
                     <li>
                         <a href="#" data-tab="widgets" class="tab-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
-                            <i class="fas fa-layer-group w-5"></i> UI Widgets
+                            <i class="fas fa-layer-group w-5"></i> මුහුණත සැකසුම් (UI)
                         </a>
                     </li>
                     <li>
                         <a href="#" data-tab="settings" class="tab-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
-                            <i class="fas fa-cog w-5"></i> Settings
+                            <i class="fas fa-cog w-5"></i> සැකසුම් (Settings)
                         </a>
                     </li>
                 </ul>
@@ -76,35 +76,35 @@
             <div class="p-4 border-t border-slate-700">
                 <div class="flex flex-col gap-2 mb-4">
                     <a href="../index.html" class="text-sm text-slate-400 hover:text-white flex items-center gap-2">
-                        <i class="fas fa-external-link-alt"></i> Student App
+                        <i class="fas fa-external-link-alt text-xs"></i> ශිෂ්‍ය මුහුණත (Student App)
                     </a>
                     <a href="../wosandi/index.html" class="text-sm text-slate-400 hover:text-white flex items-center gap-2">
-                        <i class="fas fa-external-link-alt"></i> Wosandi App
+                        <i class="fas fa-external-link-alt text-xs"></i> වසඳි මුහුණත (Wosandi App)
                     </a>
                 </div>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <div class="w-3 h-3 rounded-full bg-green-500" id="connection-status"></div>
-                        <span class="text-sm text-slate-400">Connected</span>
+                        <span class="text-xs text-slate-400">සම්බන්ධයි (Online)</span>
                     </div>
                 </div>
             </div>
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col h-full overflow-hidden w-full bg-slate-50 relative z-10">
+        <main class="flex-1 flex flex-col h-full overflow-hidden w-full bg-slate-50 relative z-10 font-['Noto_Sans_Sinhala']">
             <!-- Header -->
             <header class="bg-white shadow-sm h-16 flex items-center justify-between px-6 z-20">
                 <div class="flex items-center gap-4">
-                    <button id="open-sidebar" class="text-slate-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-slate-100 transition flex items-center justify-center" title="Toggle Sidebar (Collapse/Expand)">
+                    <button id="open-sidebar" class="text-slate-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-slate-100 transition flex items-center justify-center" title="Toggle Sidebar">
                         <i class="fas fa-bars text-xl"></i>
                     </button>
-                    <h2 class="text-xl font-semibold text-slate-800" id="header-title">Overview</h2>
+                    <h2 class="text-lg font-bold text-slate-800" id="header-title">දළ විශ්ලේෂණය (Overview)</h2>
                 </div>
                 
                 <div class="flex items-center gap-4">
-                    <button id="logout-btn" class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 hover:text-red-600 transition-colors">
-                        <i class="fas fa-sign-out-alt"></i> <span class="hidden sm:inline">Sign Out</span>
+                    <button id="logout-btn" class="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 hover:text-red-600 transition-colors">
+                        <i class="fas fa-sign-out-alt"></i> <span class="hidden sm:inline">ඉවත් වන්න (Sign Out)</span>
                     </button>
                 </div>
             </header>
@@ -120,7 +120,7 @@
                                 <i class="fas fa-tasks"></i>
                             </div>
                             <div>
-                                <h3 class="text-slate-500 text-sm font-medium">Total Tasks</h3>
+                                <h3 class="text-slate-500 text-xs font-semibold">මුළු කාර්යයන් (Total Tasks)</h3>
                                 <p class="text-2xl font-bold text-slate-800" id="stat-tasks">0</p>
                             </div>
                         </div>
@@ -129,7 +129,7 @@
                                 <i class="fas fa-stopwatch"></i>
                             </div>
                             <div>
-                                <h3 class="text-slate-500 text-sm font-medium">Total Timers</h3>
+                                <h3 class="text-slate-500 text-xs font-semibold">මුළු Timers</h3>
                                 <p class="text-2xl font-bold text-slate-800" id="stat-timers">0</p>
                             </div>
                         </div>
@@ -138,7 +138,7 @@
                                 <i class="fas fa-project-diagram"></i>
                             </div>
                             <div>
-                                <h3 class="text-slate-500 text-sm font-medium">Total Flows</h3>
+                                <h3 class="text-slate-500 text-xs font-semibold">මුළු Flows</h3>
                                 <p class="text-2xl font-bold text-slate-800" id="stat-flows">0</p>
                             </div>
                         </div>
@@ -147,7 +147,7 @@
                                 <i class="fas fa-paper-plane"></i>
                             </div>
                             <div>
-                                <h3 class="text-slate-500 text-sm font-medium">Published Items</h3>
+                                <h3 class="text-slate-500 text-xs font-semibold">ප්‍රකාශිත අයිතම (Published)</h3>
                                 <p class="text-2xl font-bold text-slate-800" id="stat-published">0</p>
                             </div>
                         </div>
@@ -155,46 +155,46 @@
 
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                            <h3 class="text-lg font-semibold text-slate-800 mb-4">Quick Actions</h3>
+                            <h3 class="text-base font-bold text-slate-800 mb-4">ක්ෂණික ක්‍රියාමාර්ග (Quick Actions)</h3>
                             <div class="grid grid-cols-2 gap-4">
                                 <button onclick="document.querySelector('[data-tab=\'tasks\']').click()" class="p-4 border border-slate-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition-colors text-left flex flex-col gap-2">
                                     <i class="fas fa-plus-circle text-indigo-500 text-xl"></i>
-                                    <span class="font-medium text-slate-700">Add New Task</span>
+                                    <span class="font-bold text-xs text-slate-700">නව කාර්යයක් එක් කරන්න (Add Task)</span>
                                 </button>
                                 <button onclick="document.querySelector('[data-tab=\'timers\']').click()" class="p-4 border border-slate-200 rounded-lg hover:bg-emerald-50 hover:border-emerald-200 transition-colors text-left flex flex-col gap-2">
                                     <i class="fas fa-clock text-emerald-500 text-xl"></i>
-                                    <span class="font-medium text-slate-700">Create Timer</span>
+                                    <span class="font-bold text-xs text-slate-700">නව Timer එකක් (Create Timer)</span>
                                 </button>
                                 <button onclick="document.querySelector('[data-tab=\'flows\']').click()" class="p-4 border border-slate-200 rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors text-left flex flex-col gap-2">
                                     <i class="fas fa-sitemap text-amber-500 text-xl"></i>
-                                    <span class="font-medium text-slate-700">Build Flow</span>
+                                    <span class="font-bold text-xs text-slate-700">Flow නිර්මාණය (Build Flow)</span>
                                 </button>
                                 <button onclick="document.querySelector('[data-tab=\'routine-order\']').click()" class="p-4 border border-slate-200 rounded-lg hover:bg-purple-50 hover:border-purple-200 transition-colors text-left flex flex-col gap-2">
                                     <i class="fas fa-sort-amount-down-alt text-purple-600 text-xl"></i>
-                                    <span class="font-medium text-slate-700">Routine Order</span>
+                                    <span class="font-bold text-xs text-slate-700">දින චර්යාව පිළිවෙල (Routine Order)</span>
                                 </button>
                                 <button onclick="document.querySelector('[data-tab=\'widgets\']').click()" class="p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-colors text-left flex flex-col gap-2">
                                     <i class="fas fa-palette text-blue-500 text-xl"></i>
-                                    <span class="font-medium text-slate-700">Manage UI</span>
+                                    <span class="font-bold text-xs text-slate-700">මුහුණත සැකසුම් (Manage UI)</span>
                                 </button>
                             </div>
                         </div>
                         <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                            <h3 class="text-lg font-semibold text-slate-800 mb-4">System Status</h3>
+                            <h3 class="text-base font-bold text-slate-800 mb-4">පද්ධති තත්ත්වය (System Status)</h3>
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                                     <div class="flex items-center gap-3">
                                         <i class="fas fa-database text-slate-400"></i>
-                                        <span class="text-slate-700 font-medium">Database Connection</span>
+                                        <span class="text-slate-700 font-medium text-xs">දත්ත සමුදාය (Database Connection)</span>
                                     </div>
-                                    <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Online</span>
+                                    <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">සක්‍රියයි (Online)</span>
                                 </div>
                                 <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                                     <div class="flex items-center gap-3">
                                         <i class="fas fa-shield-alt text-slate-400"></i>
-                                        <span class="text-slate-700 font-medium">Authentication</span>
+                                        <span class="text-slate-700 font-medium text-xs">ආරක්ෂාව සහ අවසර (Authentication)</span>
                                     </div>
-                                    <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Secure</span>
+                                    <span class="px-2.5 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">ආරක්ෂිතයි (Secure)</span>
                                 </div>
                             </div>
                         </div>
@@ -209,7 +209,7 @@
                 <div id="tab-widgets" class="tab-pane hidden"></div>
                 <div id="tab-settings" class="tab-pane hidden">
                     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                        <h3 class="text-lg font-semibold text-slate-800 mb-4">Publish Management</h3>
+                        <h3 class="text-base font-bold text-slate-800 mb-4">ප්‍රකාශන කළමනාකරණය (Publish Management)</h3>
                         <div id="publish-container"></div>
                     </div>
                 </div>

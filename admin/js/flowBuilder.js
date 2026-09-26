@@ -60,17 +60,19 @@ export class FlowBuilder {
     await this.loadActiveTasks();
 
     this.containerEl.innerHTML = `
-      <div class="flex justify-between items-center mb-6">
+      <div class="flex justify-between items-center mb-6 font-['Noto_Sans_Sinhala']">
         <div>
-          <h2 class="text-2xl font-bold text-gray-800">Questionnaire Flows & Visual Branching Engine</h2>
-          <p class="text-sm text-gray-500 mt-1">Design DAG flows with per-option scoring, negative marks, and conditional routing</p>
+          <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+            <i class="fas fa-project-diagram text-indigo-600"></i> ප්‍රශ්නාවලී චක්‍ර සහ Visual Flow නිර්මාණය
+          </h2>
+          <p class="text-xs text-gray-500 mt-1">ප්‍රශ්න, කාර්යයන්, ලකුණු, ඍණ ලකුණු සහ කොන්දේසි සහිත දිශානත ප්‍රස්ථාර (Flows) නිර්මාණය කරන්න</p>
         </div>
-        <button id="fb-new-flow" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded shadow flex items-center gap-2">
-          <i class="fas fa-plus"></i> New Flow
+        <button id="fb-new-flow" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg shadow-sm text-xs flex items-center gap-2 transition">
+          <i class="fas fa-plus"></i> නව Flow එකක් (New Flow)
         </button>
       </div>
-      <div id="fb-flows-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="text-center text-gray-500 py-10 w-full col-span-full">Loading flows...</div>
+      <div id="fb-flows-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-['Noto_Sans_Sinhala']">
+        <div class="text-center text-gray-500 py-10 w-full col-span-full">Flows පූරණය වෙමින් පවතී...</div>
       </div>
     `;
 
@@ -81,7 +83,7 @@ export class FlowBuilder {
       const listContainer = document.getElementById('fb-flows-list');
       
       if (!data || data.length === 0) {
-        listContainer.innerHTML = '<div class="text-center text-gray-500 py-10 w-full col-span-full">No flows found. Create one!</div>';
+        listContainer.innerHTML = '<div class="text-center text-gray-500 py-10 w-full col-span-full">කිසිදු Flow එකක් හමු නොවීය. අලුතින් සාදන්න!</div>';
         return;
       }
 
@@ -89,27 +91,27 @@ export class FlowBuilder {
         const nodeCount = flow.flow_data?.nodes?.length || 0;
         const edgeCount = flow.flow_data?.edges?.length || 0;
         const isPublished = flow.status === 'published';
-        const flowTitle = flow.title_si || flow.title || 'Untitled Flow';
+        const flowTitle = flow.title_si || flow.title || 'නම් නොකළ Flow එකක්';
         const flowType = flow.flow_type || flow.type || 'questionnaire';
         const scoreFloorZero = flow.flow_data?.settings?.score_floor_zero !== false && flow.flow_data?.settings?.allow_negative_score !== true;
 
         return `
-          <div class="bg-white rounded-lg shadow-md p-5 border-t-4 border-blue-500 cursor-pointer hover:shadow-lg transition-shadow" data-id="${flow.id}">
+          <div class="bg-white rounded-xl shadow-xs p-5 border-t-4 border-indigo-500 cursor-pointer hover:shadow-md transition" data-id="${flow.id}">
             <div class="flex justify-between items-start mb-2">
-              <h3 class="text-lg font-bold text-gray-800">${flowTitle}</h3>
-              <span class="text-xs font-semibold px-2 py-1 rounded ${isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
-                ${isPublished ? 'Published' : 'Draft'}
+              <h3 class="text-base font-bold text-gray-800">${flowTitle}</h3>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                ${isPublished ? 'ප්‍රකාශිතයි (Published)' : 'කෙටුම්පතක් (Draft)'}
               </span>
             </div>
-            <p class="text-sm text-gray-600 mb-3 capitalize">Type: ${flowType}</p>
+            <p class="text-xs text-gray-500 mb-3 capitalize">වර්ගය: ${flowType}</p>
             <div class="flex items-center gap-2 mb-4">
-              <span class="text-xs px-2 py-0.5 rounded-full ${scoreFloorZero ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
-                ${scoreFloorZero ? '🛡️ Floor ≥ 0' : '⚠️ Negative Score Allowed'}
+              <span class="text-[11px] px-2 py-0.5 rounded-full ${scoreFloorZero ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
+                ${scoreFloorZero ? '🛡️ අවම ලකුණු ≥ 0' : '⚠️ ඍණ ලකුණු වලංගුයි'}
               </span>
             </div>
-            <div class="flex justify-between items-center text-sm text-gray-500 border-t pt-3">
-              <span><i class="fas fa-project-diagram mr-1 text-blue-500"></i> ${nodeCount} Nodes</span>
-              <span><i class="fas fa-random mr-1 text-indigo-500"></i> ${edgeCount} Connectors</span>
+            <div class="flex justify-between items-center text-xs text-gray-500 border-t pt-3">
+              <span><i class="fas fa-project-diagram mr-1 text-indigo-500"></i> කොටු ${nodeCount} ක්</span>
+              <span><i class="fas fa-random mr-1 text-purple-500"></i> සම්බන්ධක ${edgeCount} ක්</span>
             </div>
           </div>
         `;
@@ -206,55 +208,55 @@ export class FlowBuilder {
     const scoreFloorZero = !allowNegativeScore;
 
     this.containerEl.innerHTML = `
-      <div class="flex flex-col h-full bg-gray-50 relative">
+      <div class="flex flex-col h-full bg-gray-50 relative font-['Noto_Sans_Sinhala']">
         <!-- Top Bar -->
         <div class="bg-white border-b px-6 py-3 flex justify-between items-center shadow-sm z-20">
           <div class="flex items-center space-x-3">
-            <button id="fb-back" class="text-gray-500 hover:text-gray-800 p-1.5 rounded hover:bg-gray-100 transition">
+            <button id="fb-back" class="text-gray-500 hover:text-gray-800 p-1.5 rounded-lg hover:bg-gray-100 transition" title="ආපසු">
               <i class="fas fa-arrow-left"></i>
             </button>
-            <input type="text" id="fb-title" value="${this.currentFlow.title || ''}" placeholder="Flow Title (Sinhala/English)" class="font-bold text-lg border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-0 bg-transparent px-1 py-0.5" />
-            <select id="fb-type" class="text-sm border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500">
-              <option value="questionnaire" ${this.currentFlow.type === 'questionnaire' ? 'selected' : ''}>Questionnaire</option>
-              <option value="assessment" ${this.currentFlow.type === 'assessment' ? 'selected' : ''}>Assessment</option>
-              <option value="survey" ${this.currentFlow.type === 'survey' ? 'selected' : ''}>Survey</option>
-              <option value="checklist" ${this.currentFlow.type === 'checklist' ? 'selected' : ''}>Checklist</option>
+            <input type="text" id="fb-title" value="${this.currentFlow.title || ''}" placeholder="ප්‍රශ්නාවලී නම (Flow Title)" class="font-bold text-base border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:ring-0 bg-transparent px-1 py-0.5" />
+            <select id="fb-type" class="text-xs border-gray-300 rounded shadow-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+              <option value="questionnaire" ${this.currentFlow.type === 'questionnaire' ? 'selected' : ''}>ප්‍රශ්නාවලිය (Questionnaire)</option>
+              <option value="assessment" ${this.currentFlow.type === 'assessment' ? 'selected' : ''}>ඇගයීම (Assessment)</option>
+              <option value="survey" ${this.currentFlow.type === 'survey' ? 'selected' : ''}>සමීක්ෂණය (Survey)</option>
+              <option value="checklist" ${this.currentFlow.type === 'checklist' ? 'selected' : ''}>ලැයිස්තුව (Checklist)</option>
             </select>
-            <span class="text-xs font-semibold px-2 py-1 rounded ${this.currentFlow.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
-              ${this.currentFlow.status === 'published' ? 'Published' : 'Draft'}
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${this.currentFlow.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+              ${this.currentFlow.status === 'published' ? 'ප්‍රකාශිතයි (Published)' : 'කෙටුම්පතක් (Draft)'}
             </span>
 
-            <!-- Section 4.3: Negative Score Floor Safeguard Toggle: "Allow Negative Total Score" -->
-            <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 select-none ml-2" title="Toggle negative total score. When disabled, runtime calculator clamps final score at 0: Final Score = max(0, Total Points)">
+            <!-- Negative Score Floor Safeguard Toggle -->
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg border border-slate-300 select-none ml-2" title="අවම ලකුණු සීමාව: සක්‍රිය කළ විට එකතුව 0 ට වඩා අඩු නොවේ">
               <input type="checkbox" id="fb-allow-negative-toggle" ${allowNegativeScore ? 'checked' : ''} class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
-              <span id="fb-score-floor-label">${allowNegativeScore ? '⚠️ Negative Score Allowed' : '🛡️ Score Floor ≥ 0'}</span>
+              <span id="fb-score-floor-label">${allowNegativeScore ? '⚠️ ඍණ ලකුණු වලංගුයි' : '🛡️ අවම ලකුණු සීමාව ≥ 0'}</span>
             </label>
           </div>
 
           <div class="flex items-center space-x-2">
             <!-- Properties & Full Workspace Controls -->
-            <button id="fb-toggle-props-top" class="px-2.5 py-1.5 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-1.5 transition" title="Toggle Node Properties Panel">
-              <i class="fas fa-sliders-h"></i> <span class="hidden md:inline">Properties</span>
+            <button id="fb-toggle-props-top" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-1.5 transition" title="ගුණාංග පුවරුව පෙන්වන්න/සඟවන්න">
+              <i class="fas fa-sliders-h"></i> <span class="hidden md:inline">ගුණාංග (Properties)</span>
             </button>
-            <button id="fb-maximize-workspace" class="px-2.5 py-1.5 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-1.5 transition" title="Full Workspace Mode (Collapse sidebars for maximum canvas floor)">
-              <i class="fas fa-expand"></i> <span class="hidden md:inline">Full Workspace</span>
+            <button id="fb-maximize-workspace" class="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-1.5 transition" title="සම්පූර්ණ තිරය (Full Workspace)">
+              <i class="fas fa-expand"></i> <span class="hidden md:inline">සම්පූර්ණ තිරය</span>
             </button>
 
             <!-- Undo / Redo Toolbar -->
-            <button id="fb-undo-btn" class="px-2.5 py-1.5 text-sm rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Undo (Ctrl+Z)">
+            <button id="fb-undo-btn" class="px-2.5 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed" title="පෙර තත්ත්වයට (Undo Ctrl+Z)">
               <i class="fas fa-undo"></i>
             </button>
-            <button id="fb-redo-btn" class="px-2.5 py-1.5 text-sm rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Redo (Ctrl+Y)">
+            <button id="fb-redo-btn" class="px-2.5 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed" title="නැවත පෙර තත්ත්වයට (Redo Ctrl+Y)">
               <i class="fas fa-redo"></i>
             </button>
             
-            <button id="fb-simulate-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 text-sm font-medium rounded shadow-sm transition flex items-center gap-1.5">
-              <i class="fas fa-play"></i> Simulate Flow
+            <button id="fb-simulate-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5">
+              <i class="fas fa-play"></i> අත්හදා බලන්න (Simulate)
             </button>
 
-            ${flowId ? `<button id="fb-delete" class="text-red-600 hover:bg-red-50 px-3 py-1.5 text-sm rounded transition"><i class="fas fa-trash-alt mr-1"></i> Delete</button>` : ''}
-            <button id="fb-save" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-1.5 text-sm font-medium rounded shadow-sm transition"><i class="fas fa-save mr-1"></i> Save</button>
-            <button id="fb-publish" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 text-sm font-medium rounded shadow-sm transition"><i class="fas fa-paper-plane mr-1"></i> Publish</button>
+            ${flowId ? `<button id="fb-delete" class="text-red-600 hover:bg-red-50 px-3 py-1.5 text-xs font-bold rounded-lg transition"><i class="fas fa-trash-alt mr-1"></i> ඉවත් කරන්න</button>` : ''}
+            <button id="fb-save" class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-1.5 text-xs font-bold rounded-lg shadow-sm transition"><i class="fas fa-save mr-1"></i> සුරකින්න</button>
+            <button id="fb-publish" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 text-xs font-bold rounded-lg shadow-sm transition"><i class="fas fa-paper-plane mr-1"></i> ප්‍රකාශ කරන්න</button>
           </div>
         </div>
 
@@ -264,31 +266,31 @@ export class FlowBuilder {
           <div id="fb-canvas-wrapper" class="w-3/5 bg-slate-100 overflow-hidden relative border-r flex flex-col transition-all duration-300">
             <div class="p-2.5 bg-white border-b flex items-center justify-between shadow-xs">
               <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Add Nodes:</span>
-                <button id="fb-add-question" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="Input-driven question node">
-                  <i class="fas fa-question-circle"></i> Question
+                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">කොටු එක් කරන්න:</span>
+                <button id="fb-add-question" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="ප්‍රශ්න කොටුවක් එක් කරන්න">
+                  <i class="fas fa-question-circle"></i> ප්‍රශ්නයක්
                 </button>
-                <button id="fb-add-task" class="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="Task node linked to wosandi_tasks">
-                  <i class="fas fa-tasks"></i> Task
+                <button id="fb-add-task" class="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="කාර්ය කොටුවක් එක් කරන්න">
+                  <i class="fas fa-tasks"></i> කාර්යයක්
                 </button>
-                <button id="fb-add-branch" class="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="Conditional routing splitter">
-                  <i class="fas fa-code-branch"></i> Branch
+                <button id="fb-add-branch" class="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="කොන්දේසි බෙදුම්කරුවෙක්">
+                  <i class="fas fa-code-branch"></i> ශාඛාවක්
                 </button>
-                <button id="fb-add-end" class="bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="Flow completion terminal">
-                  <i class="fas fa-flag-checkered"></i> End
+                <button id="fb-add-end" class="bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="අවසන් කිරීමේ කොටුවක්">
+                  <i class="fas fa-flag-checkered"></i> අවසානය
                 </button>
               </div>
 
               <!-- Integrity Indicator & Viewport / Properties Controls -->
               <div class="flex items-center gap-2">
-                <button id="fb-scroll-top-left" type="button" class="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1 transition" title="Scroll Canvas to Origin (0,0)">
-                  <i class="fas fa-crosshairs"></i> Reset View
+                <button id="fb-scroll-top-left" type="button" class="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1 transition" title="කැන්වසය මුල් පිහිටුමට ගෙන යන්න (0,0)">
+                  <i class="fas fa-crosshairs"></i> මුල් තිරයට
                 </button>
-                <button id="fb-toggle-properties-canvas" type="button" class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1.5 transition" title="Collapse / Expand Properties Panel">
-                  <i class="fas fa-columns"></i> <span id="fb-toggle-properties-text">Hide Panel</span>
+                <button id="fb-toggle-properties-canvas" type="button" class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1.5 transition" title="ගුණාංග පුවරුව සඟවන්න / පෙන්වන්න">
+                  <i class="fas fa-columns"></i> <span id="fb-toggle-properties-text">පුවරුව සඟවන්න</span>
                 </button>
-                <div id="fb-dag-status" class="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-green-100 text-green-800 font-semibold cursor-pointer" title="Click to view DAG validation report">
-                  <i class="fas fa-check-circle"></i> DAG Valid
+                <div id="fb-dag-status" class="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-green-100 text-green-800 font-semibold cursor-pointer" title="DAG සම්බන්ධතා වාර්තාව බැලීමට ක්ලික් කරන්න">
+                  <i class="fas fa-check-circle"></i> සම්බන්ධතා නිවැරදියි
                 </div>
               </div>
             </div>
@@ -298,23 +300,23 @@ export class FlowBuilder {
             </div>
 
             <!-- Floating Button to Re-Open Properties When Collapsed -->
-            <button id="fb-floating-props-btn" type="button" class="hidden absolute top-14 right-4 bg-white/95 backdrop-blur-xs shadow-md border border-slate-300 text-slate-700 hover:text-indigo-600 hover:bg-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 z-20 transition" title="Expand Properties Panel">
-              <i class="fas fa-sliders-h text-indigo-500"></i> Properties
+            <button id="fb-floating-props-btn" type="button" class="hidden absolute top-14 right-4 bg-white/95 backdrop-blur-xs shadow-md border border-slate-300 text-slate-700 hover:text-indigo-600 hover:bg-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 z-20 transition" title="ගුණාංග පුවරුව පෙන්වන්න">
+              <i class="fas fa-sliders-h text-indigo-500"></i> ගුණාංග (Properties)
             </button>
 
             <!-- Floating On-the-Spot Floor Tools -->
             <div class="absolute bottom-5 left-5 bg-white/95 backdrop-blur-xs p-2 rounded-xl shadow-lg border border-slate-200 flex items-center gap-2 z-10 select-none">
-              <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider px-1">Floor:</span>
+              <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider px-1">කැන්වසය:</span>
               <button id="fb-floor-add-q" type="button" class="px-3 py-1.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
-                <i class="fas fa-plus text-[10px]"></i> + Question Box
+                <i class="fas fa-plus text-[10px]"></i> + ප්‍රශ්න කොටුව
               </button>
               <button id="fb-floor-add-t" type="button" class="px-3 py-1.5 text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
-                <i class="fas fa-plus text-[10px]"></i> + Task Box
+                <i class="fas fa-plus text-[10px]"></i> + කාර්ය කොටුව
               </button>
               <button id="fb-floor-add-e" type="button" class="px-3 py-1.5 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
-                <i class="fas fa-plus text-[10px]"></i> + End Box
+                <i class="fas fa-plus text-[10px]"></i> + අවසන් කොටුව
               </button>
-              <span class="text-[10px] text-slate-400 border-l pl-2 italic">Double-click floor to add box</span>
+              <span class="text-[10px] text-slate-400 border-l pl-2 italic">කොටුවක් එක් කිරීමට කැන්වසය මත double-click කරන්න</span>
             </div>
           </div>
           
@@ -322,7 +324,7 @@ export class FlowBuilder {
           <div class="w-2/5 bg-white overflow-y-auto border-l shadow-sm transition-all duration-300 relative" id="fb-node-editor">
             <div class="p-8 text-center text-gray-400 mt-20">
               <i class="fas fa-mouse-pointer text-4xl mb-4 text-gray-300"></i>
-              <p class="font-medium">Select a node on the canvas to configure options, scoring, and conditional branching</p>
+              <p class="font-medium">විකල්ප, ලකුණු සහ කොන්දේසි සැකසීමට කැන්වසය මත ඇති කොටුවක් තෝරන්න</p>
             </div>
           </div>
         </div>
@@ -1164,20 +1166,20 @@ export class FlowBuilder {
           <span class="text-xs font-mono font-bold text-slate-400 w-5">#${idx + 1}</span>
           <input type="text" placeholder="පිළිතුර (e.g. ඔව් / සම්පූර්ණයි / 05:30ට පෙර)" value="${opt.text_si || opt.text_en || ''}" class="opt-text-si flex-1 text-xs border-gray-300 rounded p-1.5 focus:border-indigo-500 font-['Noto_Sans_Sinhala'] font-medium text-slate-800" />
           
-          <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200" title="Marks for this answer (can be positive e.g. 10, negative e.g. -20, or 0)">
-            <span class="text-[10px] text-slate-500 font-bold whitespace-nowrap">Marks:</span>
+          <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200" title="මෙම පිළිතුර සඳහා ලකුණු (ධන, ඍණ හෝ 0)">
+            <span class="text-[10px] text-slate-500 font-bold whitespace-nowrap">ලකුණු:</span>
             <input type="number" step="1" placeholder="0" value="${optPoints}" class="opt-points w-16 text-xs font-bold border-gray-300 rounded p-1 text-center ${optPoints < 0 ? 'text-red-600 bg-red-50' : (optPoints > 0 ? 'text-green-600 bg-green-50' : 'text-slate-600 bg-white')}" />
-            <button type="button" class="opt-clear-marks text-slate-400 hover:text-amber-600 p-1 text-xs transition" title="Clear / Remove Marks (set to 0)">
+            <button type="button" class="opt-clear-marks text-slate-400 hover:text-amber-600 p-1 text-xs transition" title="ලකුණු 0 කරන්න">
               <i class="fas fa-eraser"></i>
             </button>
           </div>
 
-          <label class="flex items-center gap-1 cursor-pointer text-[10px] text-slate-600 select-none px-1" title="Enable or disable this answer choice">
+          <label class="flex items-center gap-1 cursor-pointer text-[10px] text-slate-600 select-none px-1" title="මෙම පිළිතුර සක්‍රිය හෝ අක්‍රිය කරන්න">
             <input type="checkbox" class="opt-enabled-toggle rounded text-indigo-600 h-3.5 w-3.5" ${opt.disabled ? '' : 'checked'} data-opt-id="${opt.id}">
-            <span class="${opt.disabled ? 'text-red-500 line-through font-semibold' : 'text-slate-500 font-medium'}">${opt.disabled ? 'Off' : 'Active'}</span>
+            <span class="${opt.disabled ? 'text-red-500 line-through font-semibold' : 'text-slate-500 font-medium'}">${opt.disabled ? 'අක්‍රියයි' : 'සක්‍රියයි'}</span>
           </label>
 
-          <button type="button" class="opt-delete text-gray-400 hover:text-red-600 p-1.5 text-xs rounded hover:bg-red-50 transition" title="Delete this answer option">
+          <button type="button" class="opt-delete text-gray-400 hover:text-red-600 p-1.5 text-xs rounded hover:bg-red-50 transition" title="මෙම පිළිතුර ඉවත් කරන්න">
             <i class="fas fa-trash-alt"></i>
           </button>
         </div>
@@ -1187,10 +1189,10 @@ export class FlowBuilder {
           <div class="mt-0.5 pt-2 border-t border-indigo-100 flex flex-col gap-2 pl-7 p-2.5 rounded-lg bg-indigo-50/80 border border-indigo-200 shadow-2xs">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-bold text-indigo-900 flex items-center gap-1.5">
-                <i class="fas fa-code-branch text-indigo-600"></i> Flow for "${displayOptLabel}":
+                <i class="fas fa-code-branch text-indigo-600"></i> "${displayOptLabel}" සඳහා Flow එක:
               </span>
               <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
-                <i class="fas fa-check text-[9px]"></i> Connected
+                <i class="fas fa-check text-[9px]"></i> සම්බන්ධයි
               </span>
             </div>
 
@@ -1200,20 +1202,20 @@ export class FlowBuilder {
               </div>
               <div class="flex items-center gap-1.5 shrink-0">
                 ${linkedTargetNode ? `
-                  <button type="button" class="opt-view-target-btn text-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 flex items-center gap-1 font-medium transition" data-target-id="${linkedTargetNode.id}" title="Select and edit this target node">
-                    <i class="fas fa-arrow-right text-[9px]"></i> View Node
+                  <button type="button" class="opt-view-target-btn text-[11px] bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 flex items-center gap-1 font-medium transition" data-target-id="${linkedTargetNode.id}" title="මෙම කොටස තෝරා සංස්කරණය කරන්න">
+                    <i class="fas fa-arrow-right text-[9px]"></i> බලන්න
                   </button>
                 ` : ''}
-                <button type="button" class="opt-disconnect-btn text-[11px] bg-red-50 hover:bg-red-100 text-red-600 px-2 py-0.5 rounded border border-red-200 flex items-center gap-1 transition" data-opt-id="${opt.id}" title="Disconnect this flow branch">
-                  <i class="fas fa-unlink text-[10px]"></i> Disconnect
+                <button type="button" class="opt-disconnect-btn text-[11px] bg-red-50 hover:bg-red-100 text-red-600 px-2 py-0.5 rounded border border-red-200 flex items-center gap-1 transition" data-opt-id="${opt.id}" title="මෙම සම්බන්ධතාව ඉවත් කරන්න">
+                  <i class="fas fa-unlink text-[10px]"></i> ඉවත් කරන්න
                 </button>
               </div>
             </div>
 
             <div class="flex items-center gap-1.5 pt-1">
-              <span class="text-[10px] text-slate-500 whitespace-nowrap">Change to:</span>
+              <span class="text-[10px] text-slate-500 whitespace-nowrap">වෙනස් කරන්න:</span>
               <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500 flex-1" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}">
-                <option value="">-- Change Target Node --</option>
+                <option value="">-- ඊළඟ කොටුව තෝරන්න --</option>
                 ${availableNodes.map(an => `
                   <option value="${an.id}" ${currentEdge?.toId === an.id ? 'selected' : ''}>
                     ${an.type.toUpperCase()}: ${(an.text_si || an.text_en || an.id).substring(0, 24)}
@@ -1226,30 +1228,30 @@ export class FlowBuilder {
           <div class="mt-0.5 pt-2 border-t border-slate-100 flex flex-col gap-2 pl-7 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                <i class="fas fa-code-branch text-indigo-600"></i> Flow for "${displayOptLabel}":
+                <i class="fas fa-code-branch text-indigo-600"></i> "${displayOptLabel}" සඳහා Flow එක:
               </span>
-              <span class="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">No branch set</span>
+              <span class="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Flow එකක් තෝරා නොමැත</span>
             </div>
 
             <!-- Direct 1-Click Action Buttons to create next flow step -->
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="text-[10px] font-medium text-slate-500 mr-0.5">Add next step:</span>
-              <button type="button" class="opt-add-step-btn text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="question" title="Create a new question following this answer">
-                <i class="fas fa-question-circle text-[10px]"></i> + Question
+              <span class="text-[10px] font-medium text-slate-500 mr-0.5">ඊළඟ පියවර:</span>
+              <button type="button" class="opt-add-step-btn text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="question" title="මෙම පිළිතුරෙන් පසු නව ප්‍රශ්නයක් සාදන්න">
+                <i class="fas fa-question-circle text-[10px]"></i> + ප්‍රශ්නයක්
               </button>
-              <button type="button" class="opt-add-step-btn text-[11px] bg-purple-600 hover:bg-purple-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="task" title="Create a new task step following this answer">
-                <i class="fas fa-tasks text-[10px]"></i> + Task
+              <button type="button" class="opt-add-step-btn text-[11px] bg-purple-600 hover:bg-purple-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="task" title="මෙම පිළිතුරෙන් පසු නව කාර්යයක් සාදන්න">
+                <i class="fas fa-tasks text-[10px]"></i> + කාර්යයක්
               </button>
-              <button type="button" class="opt-add-step-btn text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="end" title="Create an end/completion terminal following this answer">
-                <i class="fas fa-flag-checkered text-[10px]"></i> + End Step
+              <button type="button" class="opt-add-step-btn text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="end" title="මෙම පිළිතුරෙන් පසු අවසන් පියවරක් සාදන්න">
+                <i class="fas fa-flag-checkered text-[10px]"></i> + අවසානය
               </button>
             </div>
 
             <!-- Or Route to Existing Node in flow -->
             <div class="flex items-center gap-1.5 pt-1 border-t border-slate-200">
-              <span class="text-[10px] text-slate-500 whitespace-nowrap">Or link existing:</span>
+              <span class="text-[10px] text-slate-500 whitespace-nowrap">පවතින එකක්:</span>
               <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500 flex-1" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}">
-                <option value="">-- Choose Existing Node in Flow --</option>
+                <option value="">-- පවතින කොටුවක් තෝරන්න --</option>
                 ${availableNodes.map(an => `
                   <option value="${an.id}">
                     ${an.type.toUpperCase()}: ${(an.text_si || an.text_en || an.id).substring(0, 24)}
@@ -1457,17 +1459,17 @@ export class FlowBuilder {
       specificFields = `
         <div class="mb-5 bg-purple-50 p-3.5 rounded-lg border border-purple-200">
           <div class="flex items-center gap-2 mb-2">
-            <span class="text-xs font-bold text-purple-900 uppercase tracking-wider"><i class="fas fa-tasks mr-1"></i> Link to wosandi_tasks Record</span>
+            <span class="text-xs font-bold text-purple-900 uppercase tracking-wider"><i class="fas fa-tasks mr-1"></i> wosandi_tasks කාර්යයක් සමඟ සම්බන්ධ කිරීම</span>
           </div>
-          <p class="text-xs text-purple-700 mb-3">Embed active task from wosandi_tasks as an actionable step or assignment payload in this flow</p>
+          <p class="text-xs text-purple-700 mb-3">මෙම Flow එක තුළ සජීවී කාර්යයක් හෝ පැවරුම් පියවරක් ලෙස ඇතුළත් කරන්න</p>
           
           <div class="mb-3">
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Select Active Task</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">සක්‍රිය කාර්යය තෝරන්න (Select Task)</label>
             <select id="ne-task-selector" class="w-full text-xs border-purple-300 rounded shadow-xs focus:ring-purple-500 focus:border-purple-500 bg-white">
-              <option value="">-- Choose Task from wosandi_tasks --</option>
+              <option value="">-- wosandi_tasks වලින් කාර්යයක් තෝරන්න --</option>
               ${activeTasks.map(t => `
                 <option value="${t.id}" ${node.task_id === t.id ? 'selected' : ''}>
-                  [${t.category || 'General'}] ${t.title_en || t.title_si} (+${t.weight_points || 0} pts)
+                  [${t.category || 'General'}] ${t.title_si || t.title_en} (+${t.weight_points || 0} pts)
                 </option>
               `).join('')}
             </select>
@@ -1476,22 +1478,22 @@ export class FlowBuilder {
           ${currentTask ? `
             <div class="p-2.5 bg-white rounded border border-purple-200 text-xs space-y-1.5 shadow-2xs">
               <div class="flex justify-between">
-                <span class="text-slate-500 font-medium">Category / Tier:</span>
+                <span class="text-slate-500 font-medium">කාණ්ඩය / මට්ටම:</span>
                 <span class="font-semibold text-slate-800 uppercase">${currentTask.category || 'academic'} (${currentTask.tier || 'core'})</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-slate-500 font-medium">Weight Points:</span>
-                <span class="font-bold text-green-600">+${currentTask.weight_points || 0} pts</span>
+                <span class="text-slate-500 font-medium">හිමිවන ලකුණු:</span>
+                <span class="font-bold text-green-600">+${currentTask.weight_points || 0} ලකුණු</span>
               </div>
               ${currentTask.schema_definition?.description ? `
                 <div class="pt-1 border-t border-purple-100">
-                  <span class="text-slate-500 block text-[11px]">Instructions:</span>
+                  <span class="text-slate-500 block text-[11px]">උපදෙස්:</span>
                   <p class="text-slate-700 text-[11px]">${currentTask.schema_definition.description}</p>
                 </div>
               ` : ''}
               ${currentTask.has_timer ? `
                 <div class="flex items-center gap-1.5 text-indigo-600 font-medium text-[11px]">
-                  <i class="fas fa-stopwatch"></i> Timer: ${Math.round((currentTask.timer_seconds || 0) / 60)} mins
+                  <i class="fas fa-stopwatch"></i> කාල සීමාව: විනාඩි ${Math.round((currentTask.timer_seconds || 0) / 60)} යි
                 </div>
               ` : ''}
             </div>
@@ -1499,9 +1501,9 @@ export class FlowBuilder {
 
           <div class="mt-3">
             <div class="flex justify-between items-center mb-1">
-              <label class="block text-xs font-semibold text-slate-700">Step Completion Marks / සම්පූර්ණ කිරීමේ ලකුණු</label>
-              <button type="button" id="ne-task-clear-step-points" class="text-[10px] text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1" title="Clear step marks (set to 0)">
-                <i class="fas fa-eraser"></i> Clear (0 Marks)
+              <label class="block text-xs font-semibold text-slate-700">සම්පූර්ණ කිරීමේ ලකුණු (Completion Marks)</label>
+              <button type="button" id="ne-task-clear-step-points" class="text-[10px] text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1" title="ලකුණු 0 කරන්න">
+                <i class="fas fa-eraser"></i> ලකුණු 0 කරන්න
               </button>
             </div>
             <div class="flex items-center gap-2">
@@ -1520,29 +1522,29 @@ export class FlowBuilder {
           <div class="flex justify-between items-center mb-2.5">
             <div>
               <h4 class="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
-                <i class="fas fa-code-branch text-purple-600"></i> Task Answers / Outcomes & Flows
+                <i class="fas fa-code-branch text-purple-600"></i> කාර්ය පිළිතුරු සහ Flows (Outcomes & Flows)
               </h4>
-              <p class="text-xs text-purple-700">Add answer outcomes for this task (e.g. Completed vs Missed) and branch a flow for each answer</p>
+              <p class="text-xs text-purple-700">මෙම කාර්යයේ ප්‍රතිඵල එකතු කර එක් එක් පිළිතුරට වෙනම Flow සම්බන්ධ කරන්න</p>
             </div>
             <button type="button" id="ne-add-option-btn" class="text-xs bg-purple-600 hover:bg-purple-700 text-white px-2.5 py-1 rounded font-semibold transition flex items-center gap-1 shadow-2xs">
-              <i class="fas fa-plus text-[10px]"></i> + Add Task Answer
+              <i class="fas fa-plus text-[10px]"></i> + කාර්ය පිළිතුරක්
             </button>
           </div>
 
           <!-- Presets & Marks Management -->
           <div class="mb-3 flex items-center justify-between gap-2 flex-wrap">
             <div class="flex items-center gap-1.5 flex-wrap">
-              <span class="text-[11px] text-purple-700 font-medium">Presets:</span>
+              <span class="text-[11px] text-purple-700 font-medium">පෙරනිමි:</span>
               <button type="button" id="ne-task-preset-done-missed" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100 font-medium shadow-2xs">
-                Completed (+15) / Missed (0)
+                සම්පූර්ණයි (+15) / මගහැරුණි (0)
               </button>
               <button type="button" id="ne-task-preset-tiers" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100 font-medium shadow-2xs">
-                Done / Partial / Missed
+                සම්පූර්ණ / අර්ධ / නොකරන ලදී
               </button>
             </div>
             <div class="flex items-center gap-1">
-              <button type="button" id="ne-task-remove-all-marks" class="text-[11px] px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium shadow-2xs flex items-center gap-1" title="Set marks on all task outcomes to 0">
-                <i class="fas fa-eraser text-[10px]"></i> Clear All Marks (0)
+              <button type="button" id="ne-task-remove-all-marks" class="text-[11px] px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium shadow-2xs flex items-center gap-1" title="සියලු පිළිතුරු වල ලකුණු 0 කරන්න">
+                <i class="fas fa-eraser text-[10px]"></i> සියලු ලකුණු 0 කරන්න
               </button>
             </div>
           </div>
@@ -1566,47 +1568,47 @@ export class FlowBuilder {
 
       specificFields = `
         <div class="mb-5">
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">Question Format</label>
-          <select id="ne-input-type" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 font-medium">
-            <option value="choice" ${node.input_type === 'choice' ? 'selected' : ''}>Multiple Choice (With Answers & Flows)</option>
-            <option value="select" ${node.input_type === 'select' ? 'selected' : ''}>Select Dropdown (With Answers & Flows)</option>
-            <option value="radio" ${node.input_type === 'radio' ? 'selected' : ''}>Radio Buttons (With Answers & Flows)</option>
-            <option value="time-range" ${node.input_type === 'time-range' ? 'selected' : ''}>Time Range (With Answers & Flows)</option>
-            <option value="boolean" ${node.input_type === 'boolean' ? 'selected' : ''}>Yes / No (With Answers & Flows)</option>
-            <option value="text" ${node.input_type === 'text' ? 'selected' : ''}>Text Input (Single Open-Ended)</option>
-            <option value="scale" ${node.input_type === 'scale' ? 'selected' : ''}>Scale 1-10 (Numeric Rating)</option>
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">ප්‍රශ්නයේ ආකෘතිය (Question Format)</label>
+          <select id="ne-input-type" class="w-full text-xs border-gray-300 rounded shadow-xs focus:ring-indigo-500 focus:border-indigo-500 font-medium">
+            <option value="choice" ${node.input_type === 'choice' ? 'selected' : ''}>බහුවරණ (Multiple Choice - පිළිතුරු සහ Flows සමඟ)</option>
+            <option value="select" ${node.input_type === 'select' ? 'selected' : ''}>Dropdown ලැයිස්තුව (පිළිතුරු සහ Flows සමඟ)</option>
+            <option value="radio" ${node.input_type === 'radio' ? 'selected' : ''}>Radio තේරීම් (පිළිතුරු සහ Flows සමඟ)</option>
+            <option value="time-range" ${node.input_type === 'time-range' ? 'selected' : ''}>වේලා පරාසය (පිළිතුරු සහ Flows සමඟ)</option>
+            <option value="boolean" ${node.input_type === 'boolean' ? 'selected' : ''}>ඔව් / නැත (පිළිතුරු සහ Flows සමඟ)</option>
+            <option value="text" ${node.input_type === 'text' ? 'selected' : ''}>විවෘත පෙළ ආදානය (Open Text)</option>
+            <option value="scale" ${node.input_type === 'scale' ? 'selected' : ''}>1-10 ශ්‍රේණිගත කිරීම (Rating Scale)</option>
           </select>
         </div>
 
         ${isOptionInput ? `
-          <!-- Section 4.1 & 4.2 Per-Option Dynamic Scoring Matrix & Step 1 Direct Inline Branching -->
+          <!-- Per-Option Dynamic Scoring Matrix & Step 1 Direct Inline Branching -->
           <div class="mb-5 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
             <div class="flex justify-between items-center mb-2.5">
               <div>
                 <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                  <i class="fas fa-list-ul text-indigo-600"></i> Answers / Choices & Next Flows
+                  <i class="fas fa-list-ul text-indigo-600"></i> පිළිතුරු විකල්ප සහ ඊළඟ Flows (Answers & Flows)
                 </h4>
-                <p class="text-xs text-slate-500">Define answers for this question, assign points, and branch flows for each answer</p>
+                <p class="text-xs text-slate-500">මෙම ප්‍රශ්නයට පිළිතුරු සකසා, ලකුණු ලබා දී, එක් එක් පිළිතුරට අදාළ ඊළඟ පියවර සම්බන්ධ කරන්න</p>
               </div>
               <button type="button" id="ne-add-option-btn" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded font-semibold transition flex items-center gap-1 shadow-2xs">
-                <i class="fas fa-plus text-[10px]"></i> + Add Answer
+                <i class="fas fa-plus text-[10px]"></i> + පිළිතුරක් එක් කරන්න
               </button>
             </div>
 
             <!-- Presets & Marks Management -->
             <div class="mb-3 flex items-center justify-between gap-2 flex-wrap">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-[11px] text-gray-500 font-medium">Presets:</span>
+                <span class="text-[11px] text-gray-500 font-medium">පෙරනිමි:</span>
                 <button type="button" id="ne-preset-yesno" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium shadow-2xs">
-                  Yes (+10) / No (0)
+                  ඔව් (+10) / නැත (0)
                 </button>
                 <button type="button" id="ne-preset-morning" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium shadow-2xs">
-                  Wakeup (-20 After 6:30)
+                  අවදි වීම (6:30 පසු -20)
                 </button>
               </div>
               <div class="flex items-center gap-1">
-                <button type="button" id="ne-remove-all-marks" class="text-[11px] px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium shadow-2xs flex items-center gap-1" title="Set marks on all options to 0">
-                  <i class="fas fa-eraser text-[10px]"></i> Clear All Marks (0)
+                <button type="button" id="ne-remove-all-marks" class="text-[11px] px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium shadow-2xs flex items-center gap-1" title="සියලු පිළිතුරු වල ලකුණු 0 කරන්න">
+                  <i class="fas fa-eraser text-[10px]"></i> සියලු ලකුණු 0 කරන්න
                 </button>
               </div>
             </div>
@@ -1616,30 +1618,30 @@ export class FlowBuilder {
             </div>
           </div>
         ` : `
-          <!-- Fallback when Text Input or Scale: Provide clear 1-click switch to Answers & Flows -->
+          <!-- Fallback when Text Input or Scale -->
           <div class="mb-5 bg-indigo-50/80 p-3.5 rounded-lg border border-indigo-200">
             <div class="flex items-center gap-2 mb-1.5">
               <i class="fas fa-info-circle text-indigo-600"></i>
-              <span class="text-xs font-bold text-indigo-900 uppercase">Single Open-Ended Mode</span>
+              <span class="text-xs font-bold text-indigo-900 uppercase">විවෘත පෙළ ප්‍රකාරය (Open Text Mode)</span>
             </div>
             <p class="text-xs text-indigo-800 mb-2.5">
-              This question currently accepts open text without answer choices. To add answers (like Yes/No or custom choices) and branch different flows for each answer:
+              මෙම ප්‍රශ්නය සඳහා විකල්ප (Answers) සහ එක් එක් විකල්පයට අදාළ වෙනම Flows සකස් කිරීමට:
             </p>
             <button type="button" id="ne-switch-to-choice" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-1.5 rounded shadow-sm flex items-center gap-1.5 transition">
-              <i class="fas fa-list-ul"></i> Enable Answer Choices & Flows
+              <i class="fas fa-list-ul"></i> පිළිතුරු විකල්ප සහ Flows සක්‍රිය කරන්න
             </button>
           </div>
 
           <!-- Static Points Input -->
           <div class="mb-5">
             <div class="flex justify-between items-center mb-1">
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Static Points / ලකුණු</label>
-              <button type="button" id="ne-clear-static-points" class="text-[10px] text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1" title="Clear static marks (set to 0)">
-                <i class="fas fa-eraser"></i> Clear (0 Marks)
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">ලකුණු ප්‍රමාණය (Points)</label>
+              <button type="button" id="ne-clear-static-points" class="text-[10px] text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1" title="ලකුණු 0 කරන්න">
+                <i class="fas fa-eraser"></i> ලකුණු 0 කරන්න
               </button>
             </div>
             <div class="flex items-center gap-2">
-              <input type="number" id="ne-points" value="${node.points || 0}" class="flex-1 text-sm border-gray-300 rounded-md shadow-sm font-bold" />
+              <input type="number" id="ne-points" value="${node.points || 0}" class="flex-1 text-xs border-gray-300 rounded shadow-xs font-bold" />
               <div class="flex items-center gap-1">
                 <button type="button" class="ne-quick-pt-btn px-2 py-1 text-[11px] font-bold rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800" data-pts="5">+5</button>
                 <button type="button" class="ne-quick-pt-btn px-2 py-1 text-[11px] font-bold rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800" data-pts="10">+10</button>
@@ -1655,30 +1657,32 @@ export class FlowBuilder {
     const edgesHtml = `
       <div class="mt-6 border-t pt-4">
         <div class="flex justify-between items-center mb-2">
-          <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Outgoing Connectors & Conditions</h4>
-          <span class="text-xs text-gray-400">${outgoingEdges.length} active</span>
+          <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fas fa-random text-indigo-600"></i> පිටතට යන සම්බන්ධතා සහ කොන්දේසි (Connectors)
+          </h4>
+          <span class="text-xs text-gray-400">${outgoingEdges.length} සක්‍රියයි</span>
         </div>
-        <p class="text-xs text-gray-500 mb-3">Multi-branch conditional routing: edge executes when Answer == Option_ID. A single question/task can branch to distinct target nodes.</p>
+        <p class="text-xs text-gray-500 mb-3">තෝරන පිළිතුරට අනුව ඊළඟට යොමුවන පියවර මෙහිදී සම්බන්ධ කරගත හැක.</p>
 
         <div class="space-y-2.5 mb-3">
           ${outgoingEdges.map((e, idx) => {
             const targetNode = availableNodes.find(n => n.id === e.toId);
             const allOpts = FlowEngine.normalizeOptions(node.options);
             return `
-              <div class="p-2.5 bg-gray-50 rounded border border-gray-200 shadow-2xs space-y-2">
+              <div class="p-2.5 bg-gray-50 rounded-lg border border-gray-200 shadow-2xs space-y-2">
                 <div class="flex items-center justify-between gap-2">
-                  <span class="text-xs font-bold text-slate-700">Connector #${idx + 1}</span>
-                  <button type="button" class="text-red-500 hover:text-red-700 edge-remove p-1 text-xs" data-to="${e.toId}" title="Remove Connector">
-                    <i class="fas fa-times mr-1"></i> Remove
+                  <span class="text-xs font-bold text-slate-700">සම්බන්ධකය #${idx + 1}</span>
+                  <button type="button" class="text-red-500 hover:text-red-700 edge-remove p-1 text-xs" data-to="${e.toId}" title="සම්බන්ධකය ඉවත් කරන්න">
+                    <i class="fas fa-times mr-1"></i> ඉවත් කරන්න
                   </button>
                 </div>
 
                 <!-- Condition Binding -->
                 <div class="flex items-center gap-2">
-                  <span class="text-[11px] text-gray-500 w-16">Condition:</span>
+                  <span class="text-[11px] text-gray-500 w-16">කොන්දේසිය:</span>
                   ${allOpts.length > 0 ? `
                     <select class="edge-condition-picker flex-1 text-xs border-gray-300 rounded p-1 font-semibold" data-to="${e.toId}">
-                      <option value="" ${!e.condition && !e.condition_option_id ? 'selected' : ''}>Default / Unconditional</option>
+                      <option value="" ${!e.condition && !e.condition_option_id ? 'selected' : ''}>පෙරනිමි / කොන්දේසි විරහිත මාවත</option>
                       ${allOpts.map(opt => `
                         <option value="${opt.id}" data-text="${opt.text_si || opt.text_en}" ${(e.condition_option_id === opt.id || e.condition === (opt.text_si || opt.text_en) || e.condition === opt.id) ? 'selected' : ''}>
                           [${opt.id}] ${opt.text_si || opt.text_en} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
@@ -1686,13 +1690,13 @@ export class FlowBuilder {
                       `).join('')}
                     </select>
                   ` : `
-                    <input type="text" placeholder="Condition text" value="${e.condition || ''}" class="edge-condition flex-1 text-xs border-gray-300 rounded p-1 font-semibold" data-to="${e.toId}" />
+                    <input type="text" placeholder="කොන්දේසි පෙළ" value="${e.condition || ''}" class="edge-condition flex-1 text-xs border-gray-300 rounded p-1 font-semibold" data-to="${e.toId}" />
                   `}
                 </div>
 
-                <!-- Re-linking Target Node (Section 3.4) -->
+                <!-- Re-linking Target Node -->
                 <div class="flex items-center gap-2">
-                  <span class="text-[11px] text-gray-500 w-16">Routes to:</span>
+                  <span class="text-[11px] text-gray-500 w-16">යොමු වන්නේ:</span>
                   <select class="edge-relink-target flex-1 text-xs border-gray-300 rounded p-1 font-semibold text-indigo-700 bg-white" data-from="${node.id}" data-current-to="${e.toId}">
                     ${availableNodes.map(an => `
                       <option value="${an.id}" ${an.id === e.toId ? 'selected' : ''}>
@@ -1707,14 +1711,14 @@ export class FlowBuilder {
         </div>
         
         <!-- Add New Edge Controls -->
-        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-md">
-          <span class="block text-xs font-bold text-gray-600 mb-1.5">Add Outgoing Connector</span>
+        <div class="p-2.5 bg-slate-50 border border-slate-200 rounded-lg">
+          <span class="block text-xs font-bold text-gray-600 mb-1.5">නව සම්බන්ධකයක් එක් කරන්න (Add Connector)</span>
           <div class="space-y-2">
             ${FlowEngine.normalizeOptions(node.options).length > 0 ? `
               <div>
-                <label class="block text-[11px] text-gray-500 mb-1">Bind Condition (Answer == Option_ID):</label>
+                <label class="block text-[11px] text-gray-500 mb-1">පිළිතුරට අනුව කොන්දේසිය තෝරන්න:</label>
                 <select id="ne-option-condition-picker" class="w-full text-xs border-gray-300 rounded shadow-xs">
-                  <option value="">Default / Unconditional Path</option>
+                  <option value="">පෙරනිමි / කොන්දේසි විරහිත මාවත</option>
                   ${FlowEngine.normalizeOptions(node.options).map(opt => `
                     <option value="${opt.id}" data-text="${opt.text_si || opt.text_en}">
                       [${opt.id}] ${opt.text_si || opt.text_en} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
@@ -1726,10 +1730,10 @@ export class FlowBuilder {
 
             <div class="flex gap-2">
               <select id="ne-new-edge-to" class="flex-1 text-xs border-gray-300 rounded shadow-xs">
-                <option value="">Select Target Node...</option>
+                <option value="">ඊළඟ කොටුව තෝරන්න...</option>
                 ${availableNodes.map(n => `<option value="${n.id}">${n.type.toUpperCase()}: ${(n.text_si || n.text_en || n.id).substring(0, 24)}</option>`).join('')}
               </select>
-              <button id="ne-add-edge" type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-medium shadow-xs">Connect</button>
+              <button id="ne-add-edge" type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-medium shadow-xs">සම්බන්ධ කරන්න</button>
             </div>
           </div>
         </div>
@@ -1740,16 +1744,16 @@ export class FlowBuilder {
       <div class="p-6">
         <div class="flex justify-between items-center mb-5 pb-3 border-b">
           <div class="flex items-center gap-2">
-            <span class="text-sm font-bold text-gray-800">Configure Node</span>
+            <span class="text-sm font-bold text-gray-800">කොටසේ සැකසුම් (Configure)</span>
             <span class="text-xs px-2 py-0.5 rounded font-mono font-semibold uppercase bg-slate-100 text-slate-700">${node.type}</span>
-            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded border border-slate-300 select-none ml-2" title="Enable or disable this entire node in the flow">
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded border border-slate-300 select-none ml-2" title="මෙම කොටස සක්‍රිය හෝ අක්‍රිය කරන්න">
               <input type="checkbox" id="ne-node-disabled-toggle" ${node.disabled ? 'checked' : ''} class="rounded text-red-600 focus:ring-red-500 h-3.5 w-3.5">
-              <span class="${node.disabled ? 'text-red-600 font-bold' : 'text-slate-600 font-medium'}">${node.disabled ? '⛔ Node Disabled' : '✓ Node Active'}</span>
+              <span class="${node.disabled ? 'text-red-600 font-bold' : 'text-slate-600 font-medium'}">${node.disabled ? '⛔ අක්‍රියයි' : '✓ සක්‍රියයි'}</span>
             </label>
           </div>
           <div class="flex items-center gap-2">
             <span class="text-xs text-gray-400 font-mono">${node.id}</span>
-            <button id="fb-collapse-props-btn" type="button" class="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" title="Collapse Properties Panel">
+            <button id="fb-collapse-props-btn" type="button" class="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" title="පුවරුව සඟවන්න">
               <i class="fas fa-chevron-right text-sm"></i>
             </button>
           </div>
@@ -1771,8 +1775,8 @@ export class FlowBuilder {
         ${node.type !== 'end' ? edgesHtml : ''}
 
         <div class="mt-8 pt-4 border-t flex justify-end">
-          <button id="ne-delete" type="button" class="text-red-600 hover:text-red-800 font-medium text-xs flex items-center gap-1.5 p-2 rounded hover:bg-red-50 transition">
-            <i class="fas fa-trash-alt"></i> Delete Node
+          <button id="ne-delete" type="button" class="text-red-600 hover:text-red-800 font-bold text-xs flex items-center gap-1.5 p-2 rounded hover:bg-red-50 transition">
+            <i class="fas fa-trash-alt"></i> මෙම කොටුව ඉවත් කරන්න
           </button>
         </div>
       </div>

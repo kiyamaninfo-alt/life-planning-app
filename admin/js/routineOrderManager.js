@@ -10,27 +10,27 @@ export class RoutineOrderManager {
 
   async render() {
     this.containerEl.innerHTML = `
-      <div class="p-6 max-w-4xl mx-auto space-y-6">
+      <div class="p-6 max-w-4xl mx-auto space-y-6 font-['Noto_Sans_Sinhala']">
         <div class="flex justify-between items-center pb-4 border-b border-slate-200">
           <div>
             <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
-              <i class="fas fa-sort-amount-down-alt text-indigo-600"></i> Routine Order & Progressive Unlocking
+              <i class="fas fa-sort-amount-down-alt text-indigo-600"></i> දින චර්යාවේ පිළිවෙල සහ අනුක්‍රමික විවෘත කිරීම
             </h2>
             <p class="text-xs text-slate-500 mt-1">
-              Arrange what appears 1st, 2nd, 3rd, etc. on the homepage (<a href="../index.html" target="_blank" class="text-indigo-600 underline">life-planning-app.pages.dev</a>) and set rules to show tasks only after completing prerequisite tasks.
+              ප්‍රධාන පිටුවේ (<a href="../index.html" target="_blank" class="text-indigo-600 underline">life-planning-app.pages.dev</a>) 1 වන, 2 වන, 3 වන ආදී වශයෙන් දිස්වන අනුපිළිවෙල සකසන්න සහ පූර්ව කාර්යයන් සම්පූර්ණ කළ පසු පමණක් කාර්යයන් පෙන්වීමේ කොන්දේසි සකසන්න.
             </p>
           </div>
           <div class="flex items-center gap-2">
             <button id="rom-reset-btn" type="button" class="px-3 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition flex items-center gap-1.5">
-              <i class="fas fa-rotate-left"></i> Reset Defaults
+              <i class="fas fa-rotate-left"></i> යථා තත්ත්වයට (Reset)
             </button>
             <button id="rom-save-btn" type="button" class="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex items-center gap-1.5">
-              <i class="fas fa-save"></i> Save Arrangement
+              <i class="fas fa-save"></i> පිළිවෙල සුරකින්න (Save)
             </button>
           </div>
         </div>
 
-        <div id="rom-content" class="text-center py-12 text-slate-400">Loading settings...</div>
+        <div id="rom-content" class="text-center py-12 text-slate-400">සැකසුම් පූරණය වෙමින් පවතී...</div>
       </div>
     `;
 
@@ -64,15 +64,15 @@ export class RoutineOrderManager {
           <label class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${displayMode === 'hidden' ? 'border-indigo-500 bg-indigo-50/40 text-indigo-900 font-semibold' : 'border-slate-200 text-slate-600'}">
             <input type="radio" name="rom-display-mode" value="hidden" ${displayMode === 'hidden' ? 'checked' : ''} class="text-indigo-600 focus:ring-indigo-500">
             <div>
-              <span class="text-xs font-bold block">1. Completely Hide (සම්පූර්ණයෙන්ම සඟවන්න)</span>
-              <span class="text-[11px] text-slate-500">Locked tasks remain hidden until their prerequisite tasks are done</span>
+              <span class="text-xs font-bold block">1. සම්පූර්ණයෙන්ම සඟවන්න (Completely Hide)</span>
+              <span class="text-[11px] text-slate-500">පූර්ව කාර්යයන් සම්පූර්ණ කරන තෙක් අගුළු දැමූ කාර්යයන් සම්පූර්ණයෙන්ම සැඟවී පවතී</span>
             </div>
           </label>
           <label class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${displayMode === 'locked_banner' ? 'border-indigo-500 bg-indigo-50/40 text-indigo-900 font-semibold' : 'border-slate-200 text-slate-600'}">
             <input type="radio" name="rom-display-mode" value="locked_banner" ${displayMode === 'locked_banner' ? 'checked' : ''} class="text-indigo-600 focus:ring-indigo-500">
             <div>
-              <span class="text-xs font-bold block">2. Show Locked Banner (අගුළු දමා පෙන්වන්න)</span>
-              <span class="text-[11px] text-slate-500">Displays a neat locked placeholder card explaining what task is required</span>
+              <span class="text-xs font-bold block">2. අගුළු දමා පෙන්වන්න (Show Locked Banner)</span>
+              <span class="text-[11px] text-slate-500">අවශ්‍ය කාර්යය කුමක්දැයි පැහැදිලි කරමින් අගුළු දැමූ කාඩ්පතක් පෙන්වයි</span>
             </div>
           </label>
         </div>
@@ -83,18 +83,18 @@ export class RoutineOrderManager {
         <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
           <div>
             <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <i class="fas fa-layer-group text-indigo-600"></i> Main Routine Sections (1st, 2nd, 3rd, etc.)
+              <i class="fas fa-layer-group text-indigo-600"></i> ප්‍රධාන චර්යා කොටස් (1, 2, 3 පිළිවෙල)
             </h3>
-            <p class="text-[11px] text-slate-500">Move items up/down to arrange their order on the homepage, and set when each section unlocks.</p>
+            <p class="text-[11px] text-slate-500">මුල් පිටුවේ පිළිවෙල වෙනස් කිරීමට ඉහළට/පහළට ගෙනයන්න, සහ එක් එක් කොටස විවෘත වන අවස්ථාව තෝරන්න.</p>
           </div>
-          <span class="text-xs font-mono font-bold bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">${sections.length} Sections</span>
+          <span class="text-xs font-mono font-bold bg-indigo-100 text-indigo-700 px-2.5 py-0.5 rounded-full">${sections.length} කොටස්</span>
         </div>
 
         <div id="rom-sections-list" class="divide-y divide-slate-100">
           ${sections.map((sec, idx) => {
             const isFirst = idx === 0;
             const isLast = idx === sections.length - 1;
-            const ordinal = idx === 0 ? '1st' : (idx === 1 ? '2nd' : (idx === 2 ? '3rd' : `${idx + 1}th`));
+            const ordinal = idx === 0 ? '1 වන' : (idx === 1 ? '2 වන' : (idx === 2 ? '3 වන' : `${idx + 1} වන`));
             const isFlow = sec.id === 'flow';
 
             return `
@@ -111,10 +111,10 @@ export class RoutineOrderManager {
 
                   <!-- Move Up / Down Buttons -->
                   <div class="flex flex-col gap-1">
-                    <button type="button" class="rom-move-up p-1 rounded bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-500 text-xs transition disabled:opacity-30 disabled:cursor-not-allowed" data-id="${sec.id}" ${isFirst ? 'disabled' : ''} title="Move Up (What is first/earlier)">
+                    <button type="button" class="rom-move-up p-1 rounded bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-500 text-xs transition disabled:opacity-30 disabled:cursor-not-allowed" data-id="${sec.id}" ${isFirst ? 'disabled' : ''} title="ඉහළට ගෙනයන්න (කලින් පෙන්වන්න)">
                       <i class="fas fa-chevron-up"></i>
                     </button>
-                    <button type="button" class="rom-move-down p-1 rounded bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-500 text-xs transition disabled:opacity-30 disabled:cursor-not-allowed" data-id="${sec.id}" ${isLast ? 'disabled' : ''} title="Move Down (What is later)">
+                    <button type="button" class="rom-move-down p-1 rounded bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-500 text-xs transition disabled:opacity-30 disabled:cursor-not-allowed" data-id="${sec.id}" ${isLast ? 'disabled' : ''} title="පහළට ගෙනයන්න (පසුව පෙන්වන්න)">
                       <i class="fas fa-chevron-down"></i>
                     </button>
                   </div>
@@ -125,14 +125,14 @@ export class RoutineOrderManager {
                       <i class="${sec.icon || 'fas fa-circle text-slate-400'} text-xs"></i>
                       ${sec.title_si}
                     </h4>
-                    <span class="text-[11px] font-mono text-slate-400">Section ID: ${sec.id}</span>
+                    <span class="text-[11px] font-mono text-slate-400">අංකය: ${sec.id}</span>
                   </div>
                 </div>
 
                 <!-- Right: Prerequisite Condition Dropdown & Enable/Disable -->
                 <div class="flex items-center gap-3">
                   <div class="flex flex-col">
-                    <label class="text-[10px] font-bold text-slate-500 mb-0.5">Show only after completing (පෙන්වීමේ කොන්දේසිය):</label>
+                    <label class="text-[10px] font-bold text-slate-500 mb-0.5">පෙන්වීමේ කොන්දේසිය (Show after completing):</label>
                     <select class="rom-depends-select text-xs border-slate-300 rounded-lg p-1.5 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500" data-id="${sec.id}">
                       ${PREREQUISITE_RULES.map(rule => `
                         <option value="${rule.id}" ${sec.depends_on === rule.id ? 'selected' : ''}>
@@ -142,9 +142,9 @@ export class RoutineOrderManager {
                     </select>
                   </div>
 
-                  <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-700 select-none pt-4" title="Enable or disable this section on homepage">
+                  <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-700 select-none pt-4" title="ප්‍රධාන මුහුණතේ සක්‍රිය/අක්‍රිය කිරීම">
                     <input type="checkbox" class="rom-enabled-toggle rounded text-indigo-600 h-4 w-4" ${sec.enabled !== false ? 'checked' : ''} data-id="${sec.id}">
-                    <span class="${sec.enabled !== false ? 'text-indigo-600 font-bold' : 'text-slate-400'}">${sec.enabled !== false ? 'Active' : 'Off'}</span>
+                    <span class="${sec.enabled !== false ? 'text-indigo-600 font-bold' : 'text-slate-400'}">${sec.enabled !== false ? 'සක්‍රියයි' : 'අක්‍රියයි'}</span>
                   </label>
                 </div>
               </div>
@@ -158,11 +158,11 @@ export class RoutineOrderManager {
         <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
           <div>
             <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-              <i class="fas fa-tasks text-purple-600"></i> Individual Task Dependencies (කාර්ය මට්ටමේ කොන්දේසි)
+              <i class="fas fa-tasks text-purple-600"></i> කාර්ය මට්ටමේ කොන්දේසි (Task Dependencies)
             </h3>
-            <p class="text-[11px] text-slate-500">Optionally show specific tasks only after earlier tasks are completed (e.g. Clean wardrobe after Clean room, Gym after Dance)</p>
+            <p class="text-[11px] text-slate-500">පෙර කාර්යයන් අවසන් කළ පසු පමණක් නිශ්චිත කාර්යයන් පෙන්වීමට අවශ්‍ය නම් මෙහි සකසන්න.</p>
           </div>
-          <span class="text-xs font-mono font-bold bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full">${tasks.length} Tasks</span>
+          <span class="text-xs font-mono font-bold bg-purple-100 text-purple-700 px-2.5 py-0.5 rounded-full">${tasks.length} කාර්යයන්</span>
         </div>
 
         <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -173,7 +173,7 @@ export class RoutineOrderManager {
                 <span class="text-[10px] uppercase font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200 shrink-0 ml-2">${t.section}</span>
               </div>
               <div class="flex items-center gap-2">
-                <span class="text-[10px] text-slate-500 whitespace-nowrap">Show after:</span>
+                <span class="text-[10px] text-slate-500 whitespace-nowrap">පෙන්වන්නේ මින් පසු:</span>
                 <select class="rom-task-depends-select flex-1 text-[11px] border-slate-300 rounded p-1 bg-white font-medium text-slate-700" data-task-id="${t.id}">
                   ${PREREQUISITE_RULES.map(rule => `
                     <option value="${rule.id}" ${t.depends_on === rule.id ? 'selected' : ''}>
@@ -274,11 +274,11 @@ export class RoutineOrderManager {
   async save() {
     this.reindexOrders();
     await saveRoutineConfig(this.config);
-    this.toast('Routine order and dependency settings saved successfully!', 'success');
+    this.toast('දින චර්යාවේ පිළිවෙල සහ කොන්දේසි සාර්ථකව සුරකින ලදී!', 'success');
   }
 
   resetDefaults() {
-    if (confirm('Reset routine order and dependencies to original default sequence?')) {
+    if (confirm('දින චර්යාවේ පිළිවෙල මුල් පෙරනිමි තත්ත්වයට පත් කිරීමට ඔබට අවශ්‍යද?')) {
       this.config = JSON.parse(JSON.stringify(DEFAULT_ROUTINE_CONFIG));
       this.renderForm();
       this.save();

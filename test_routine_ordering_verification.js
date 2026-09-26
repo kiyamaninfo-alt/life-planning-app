@@ -355,11 +355,18 @@ async function runAllTests() {
       ]
     }));
 
-    applyRoutineOrderAndDependencies({ wake_up: "05:00" });
+    // Test 1: When nothing completed yet, sections follow exact config order
+    applyRoutineOrderAndDependencies({});
 
     const actualOrder = container.children.map(el => el.getAttribute('data-section-id'));
     assert.deepStrictEqual(actualOrder, ['chores', 'fitness', 'study', 'school', 'wake_up', 'flow'],
       "DOM elements must be physically reordered to match custom config");
+
+    // Test 2: When wake_up is completed, it must be sent to the bottom
+    applyRoutineOrderAndDependencies({ wake_up: "05:00" });
+    const orderWithWakeupCompleted = container.children.map(el => el.getAttribute('data-section-id'));
+    assert.deepStrictEqual(orderWithWakeupCompleted, ['chores', 'fitness', 'study', 'school', 'flow', 'wake_up'],
+      "Completed section must be sent to the bottom of the container");
   });
 
   test("Progressive unlocking hides locked sections when prerequisite is not met", () => {
@@ -505,7 +512,7 @@ async function runAllTests() {
 
     // Save changes
     await manager.save();
-    assert.ok(toastMsg.includes("saved successfully"), "Toast message confirmed");
+    assert.ok(toastMsg.includes("සාර්ථකව") || toastMsg.includes("saved successfully"), "Toast message confirmed");
     assert.ok(savedConfig, "Saved to local storage");
     assert.strictEqual(savedConfig.sections[0].id, secondId, "Saved order matches swapped arrangement");
   });
