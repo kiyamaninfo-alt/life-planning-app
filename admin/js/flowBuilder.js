@@ -1,4 +1,4 @@
-import { FlowEngine } from './flowEngine.js?v=20260925-v4';
+import { FlowEngine } from './flowEngine.js?v=20260926-v1';
 
 export class FlowBuilder {
   constructor(containerEl, api, toastFn) {
@@ -192,7 +192,8 @@ export class FlowBuilder {
     this.historyIndex = -1;
     this.pushHistory('Initial load');
 
-    this.selectedNodeId = null;
+    const firstNode = this.currentFlow.flow_data.nodes?.[0];
+    this.selectedNodeId = firstNode ? firstNode.id : null;
 
     const allowNegativeScore = this.currentFlow.flow_data.settings?.allow_negative_score === true;
     const scoreFloorZero = !allowNegativeScore;
@@ -293,6 +294,9 @@ export class FlowBuilder {
     this.attachEventListeners(flowId);
     this.attachKeyboardShortcuts();
     this.updateGraph();
+    if (firstNode) {
+      this.renderNodeEditor(firstNode);
+    }
     this.updateDagStatusBadge();
     this.updateUndoRedoButtons();
   }
@@ -515,73 +519,77 @@ export class FlowBuilder {
 
     container.innerHTML = this.renderFlowGraph(layoutNodes, edges);
     
-    setTimeout(() => {
-      const gNodes = container.querySelectorAll('.fb-node');
-      gNodes.forEach(g => {
-        const nodeId = g.dataset.id;
-        const node = nodes.find(n => n.id === nodeId);
-        if (!node) return;
+    // Attach selection click and drag listeners synchronously (no delay)
+    const gNodes = container.querySelectorAll('.fb-node');
+    gNodes.forEach(g => {
+      const nodeId = g.dataset.id;
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) return;
 
-        // Selection click
-        g.addEventListener('click', (e) => {
-          if (this._hasDragged) return;
-          this.selectedNodeId = nodeId;
-          this.updateGraph();
-          this.renderNodeEditor(node);
-        });
+      // Click selection
+      g.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.selectedNodeId = nodeId;
+        this.updateGraph();
+        this.renderNodeEditor(node);
+      });
 
-        // Interactive Drag-and-drop repositioning (Section 3.4)
-        g.addEventListener('mousedown', (e) => {
-          if (e.button !== 0) return; // Primary button only
-          this.isDragging = true;
-          this.dragNode = node;
-          this._hasDragged = false;
-          
-          const svgEl = container.querySelector('svg');
-          if (!svgEl) return;
-          const svgRect = svgEl.getBoundingClientRect();
-          this.dragOffset = {
-            x: (e.clientX - svgRect.left) - node.x,
-            y: (e.clientY - svgRect.top) - node.y
-          };
-          this.dragStartPos = { x: node.x, y: node.y };
+      // Interactive Drag-and-drop repositioning (Section 3.4)
+      g.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return; // Primary button only
+        this.isDragging = true;
+        this.dragNode = node;
+        this._hasDragged = false;
+        
+        const svgEl = container.querySelector('svg');
+        if (!svgEl) return;
+        const svgRect = svgEl.getBoundingClientRect();
+        this.dragOffset = {
+          x: (e.clientX - svgRect.left) - node.x,
+          y: (e.clientY - svgRect.top) - node.y
+        };
+        this.dragStartPos = { x: node.x, y: node.y };
 
-          const onMouseMove = (moveEvt) => {
-            if (!this.isDragging || !this.dragNode) return;
-            const curX = (moveEvt.clientX - svgRect.left) - this.dragOffset.x;
-            const curY = (moveEvt.clientY - svgRect.top) - this.dragOffset.y;
+        const onMouseMove = (moveEvt) => {
+          if (!this.isDragging || !this.dragNode) return;
+          const curX = (moveEvt.clientX - svgRect.left) - this.dragOffset.x;
+          const curY = (moveEvt.clientY - svgRect.top) - this.dragOffset.y;
 
-            const dx = Math.abs(curX - this.dragStartPos.x);
-            const dy = Math.abs(curY - this.dragStartPos.y);
-            if (dx > 4 || dy > 4) {
-              this._hasDragged = true;
-            }
-
+          const dx = Math.abs(curX - this.dragStartPos.x);
+          const dy = Math.abs(curY - this.dragStartPos.y);
+          if (dx > 6 || dy > 6) {
+            this._hasDragged = true;
             this.dragNode.x = Math.max(10, Math.round(curX));
             this.dragNode.y = Math.max(10, Math.round(curY));
-
             container.innerHTML = this.renderFlowGraph(nodes, edges);
-          };
+          }
+        };
 
-          const onMouseUp = () => {
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
+        const onMouseUp = () => {
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
 
-            if (this.isDragging && this.dragNode) {
-              if (this._hasDragged) {
-                this.pushHistory(`Reposition ${this.dragNode.type} node`);
-              }
-              this.isDragging = false;
-              this.dragNode = null;
-              this.updateGraph();
+          if (this.isDragging && this.dragNode) {
+            const wasDragged = this._hasDragged;
+            const targetNode = this.dragNode;
+            this.isDragging = false;
+            this.dragNode = null;
+
+            if (wasDragged) {
+              this.pushHistory(`Reposition ${targetNode.type} node`);
             }
-          };
+            // Always select the node and render its properties in sidebar!
+            this.selectedNodeId = targetNode.id;
+            this.updateGraph();
+            this.renderNodeEditor(targetNode);
+          }
+        };
 
-          window.addEventListener('mousemove', onMouseMove);
-          window.addEventListener('mouseup', onMouseUp);
-        });
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
       });
-    }, 0);
+    });
 
     this.updateDagStatusBadge();
   }
@@ -1058,6 +1066,9 @@ export class FlowBuilder {
     const availableNodes = this.currentFlow.flow_data.nodes.filter(n => n.id !== node.id);
     const outgoingEdges = this.currentFlow.flow_data.edges.filter(e => e.fromId === node.id);
 
+    if (node.type === 'question' && !node.input_type) {
+      node.input_type = 'choice';
+    }
     const isOptionInput = ['choice', 'select', 'radio', 'time-range', 'boolean'].includes(node.input_type);
     const normalizedOptions = FlowEngine.normalizeOptions(node.options);
 
@@ -1713,7 +1724,7 @@ export class FlowBuilder {
       });
     }
 
-    document.getElementById('ne-delete').addEventListener('click', () => {
+    document.getElementById('ne-delete')?.addEventListener('click', () => {
       this.removeNode(node.id);
       this.selectedNodeId = null;
       this.pushHistory(`Delete node ${node.id}`);
