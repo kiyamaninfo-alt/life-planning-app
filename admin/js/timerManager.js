@@ -267,9 +267,6 @@ export class TimerManager {
                 </div>
             </div>
         `;
-                </div>
-            </div>
-        `;
 
         const modalContainer = document.getElementById('timerModalContainer');
         modalContainer.innerHTML = modalHtml;

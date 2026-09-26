@@ -474,9 +474,6 @@ export class TaskManager {
                 </div>
             </div>
         `;
-                </div>
-            </div>
-        `;
 
         const modalContainer = document.getElementById('taskModalContainer');
         modalContainer.innerHTML = modalHtml;

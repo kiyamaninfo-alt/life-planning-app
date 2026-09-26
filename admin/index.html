@@ -5,7 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Life Planning App - Admin Panel</title>
     <link rel="icon" type="image/svg+xml" href="../favicon.svg">
-    <link rel="alternate icon" href="../favicon.svg">
+    <script>
+        const _origWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
+            _origWarn.apply(console, args);
+        };
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
