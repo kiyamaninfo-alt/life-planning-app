@@ -251,7 +251,13 @@ class FlowPlayer {
     this.handleAnswer('opt_done');
   }
 
-  restartFlow() {
+  async restartFlow() {
+    if (this.accumulatedScore > 0 || (typeof state !== 'undefined' && state.flow_points > 0)) {
+      if (typeof window !== 'undefined' && typeof window.requestPasswordConfirmation === 'function') {
+        const ok = await window.requestPasswordConfirmation("ප්‍රශ්නාවලිය නැවත ආරම්භ කිරීම");
+        if (!ok) return;
+      }
+    }
     this.startFlow();
   }
 }

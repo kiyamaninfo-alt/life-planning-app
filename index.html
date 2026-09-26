@@ -80,7 +80,7 @@
           <i class="fa-solid fa-school text-indigo-500"></i> අද පාසල් ගියාද?
         </span>
         <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" id="school-toggle" onchange="toggleSchool(this.checked)" class="sr-only peer">
+          <input type="checkbox" id="school-toggle" onchange="toggleSchool(this.checked, this)" class="sr-only peer">
           <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
         </label>
       </div>
@@ -100,18 +100,18 @@
       <div class="space-y-2.5">
         <label data-task-id="maths_practice" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <span class="text-xs font-semibold">දිනකට ගණන් 10ක් හැදුවාද?</span>
-          <input type="checkbox" onchange="toggleTask('maths_practice', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+          <input type="checkbox" onchange="toggleTask('maths_practice', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
         <label data-task-id="gemini_english" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <div class="flex flex-col">
             <span class="text-xs font-semibold">ජෙමිනි සමඟ විනාඩි 10ක් ඉංග්‍රීසියෙන් කතා කළාද?</span>
             <button type="button" onclick="startTimer(600, 'ජෙමිනි English Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 10 Timer එක දමන්න</button>
           </div>
-          <input type="checkbox" onchange="toggleTask('gemini_english', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+          <input type="checkbox" onchange="toggleTask('gemini_english', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
         <label data-task-id="vocab_words" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <span class="text-xs font-semibold">අලුත් ඉංග්‍රීසි වචන 5ක් පාඩම් කළාද?</span>
-          <input type="checkbox" onchange="toggleTask('vocab_words', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+          <input type="checkbox" onchange="toggleTask('vocab_words', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
       </div>
     </section>
@@ -127,14 +127,14 @@
             <span class="text-xs font-semibold">සින්දුවක් දමාගෙන විනාඩි 10ක් නැටුවාද?</span>
             <button type="button" onclick="startTimer(600, 'Dance & Ballet Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 10 Timer එක දමන්න</button>
           </div>
-          <input type="checkbox" onchange="toggleTask('dance_workout', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+          <input type="checkbox" onchange="toggleTask('dance_workout', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
         <label data-task-id="exercise_schedule" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <div class="flex flex-col">
             <span class="text-xs font-semibold">විනාඩි 20ක ව්‍යායාම / Gymnastics කළාද?</span>
             <button type="button" onclick="startTimer(1200, 'Gymnastics Workout Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 20 Timer එක දමන්න</button>
           </div>
-          <input type="checkbox" onchange="toggleTask('exercise_schedule', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
+          <input type="checkbox" onchange="toggleTask('exercise_schedule', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
       </div>
     </section>
@@ -145,12 +145,12 @@
         <i class="fa-solid fa-house text-emerald-500"></i> ගෙදර දොර සහ දෛනික පුරුදු
       </h2>
       <div class="space-y-2.5">
-        <label data-task-id="clean_room" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කාමරය අස් කළාද?</span><input type="checkbox" onchange="toggleTask('clean_room', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label data-task-id="water_plants" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">පැල වලට වතුර දැම්මාද?</span><input type="checkbox" onchange="toggleTask('water_plants', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label data-task-id="sweep_floor" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">යට තට්ටුව අතු ගෑවාද?</span><input type="checkbox" onchange="toggleTask('sweep_floor', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label data-task-id="dispose_garbage" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කුණු බාල්දි හිස් කර බඳුන් වලට දැම්මාද?</span><input type="checkbox" onchange="toggleTask('dispose_garbage', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label data-task-id="hair_care" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">උකුණෝ පීරුවාද?</span><input type="checkbox" onchange="toggleTask('hair_care', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label data-task-id="clean_wardrobe" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer bg-purple-50/50"><span class="text-xs font-semibold">අල්මාරිය පිළිවෙල කළාද? (Weekly)</span><input type="checkbox" onchange="toggleTask('clean_wardrobe', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="clean_room" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කාමරය අස් කළාද?</span><input type="checkbox" onchange="toggleTask('clean_room', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="water_plants" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">පැල වලට වතුර දැම්මාද?</span><input type="checkbox" onchange="toggleTask('water_plants', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="sweep_floor" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">යට තට්ටුව අතු ගෑවාද?</span><input type="checkbox" onchange="toggleTask('sweep_floor', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="dispose_garbage" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කුණු බාල්දි හිස් කර බඳුන් වලට දැම්මාද?</span><input type="checkbox" onchange="toggleTask('dispose_garbage', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="hair_care" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">උකුණෝ පීරුවාද?</span><input type="checkbox" onchange="toggleTask('hair_care', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="clean_wardrobe" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer bg-purple-50/50"><span class="text-xs font-semibold">අල්මාරිය පිළිවෙල කළාද? (Weekly)</span><input type="checkbox" onchange="toggleTask('clean_wardrobe', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded"></label>
       </div>
     </section>
   </main>
@@ -162,6 +162,44 @@
       <div id="timer-display" class="text-4xl font-extrabold text-pink-600 tracking-wider">10:00</div>
       <div class="flex justify-center gap-3">
         <button onclick="stopTimer()" class="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold text-slate-600">නවත්වන්න</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Completion Protection PIN Modal -->
+  <div id="change-pin-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-sm shadow-2xs">
+            <i class="fa-solid fa-lock"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 text-sm">මුරපදය අවශ්‍යයි (PIN Required)</h3>
+            <span class="text-[10px] text-slate-400 font-medium">සම්පූර්ණ කළ කාර්යයන් වෙනස් කිරීම වැළැක්වීම</span>
+          </div>
+        </div>
+        <button id="change-pin-close" type="button" class="text-slate-400 hover:text-slate-600 p-1 text-lg leading-none">&times;</button>
+      </div>
+
+      <div class="space-y-3 text-center">
+        <p id="change-pin-description" class="text-xs text-slate-600 font-medium leading-relaxed font-['Noto_Sans_Sinhala']">
+          මෙම කාර්යය දැනටමත් සම්පූර්ණ කර ඇත. එය වෙනස් කිරීමට හෝ ඉවත් කිරීමට කරුණාකර Admin PIN ඇතුළත් කරන්න:
+        </p>
+
+        <div class="space-y-1">
+          <input type="password" id="change-pin-input" inputmode="numeric" maxlength="8" placeholder="••••" class="w-full text-center tracking-[0.5em] font-mono font-bold text-2xl p-3 border-2 border-slate-200 rounded-2xl focus:border-pink-500 focus:outline-none transition">
+          <p id="change-pin-error" class="text-[11px] text-rose-500 font-semibold hidden font-['Noto_Sans_Sinhala']">මුරපදය වැරදියි! කරුණාකර නැවත උත්සාහ කරන්න.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button id="change-pin-cancel" type="button" class="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+            අවලංගු කරන්න
+          </button>
+          <button id="change-pin-confirm" type="button" class="w-full py-2.5 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl text-xs transition shadow-xs">
+            තහවුරු කරන්න
+          </button>
+        </div>
       </div>
     </div>
   </div>

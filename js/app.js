@@ -21,32 +21,195 @@ let state = {
 };
 if (typeof window !== "undefined") window.state = state;
 
-// Subjects Buttons සකස් කිරීම
-document.addEventListener("DOMContentLoaded", () => {
-  const subGrid = document.getElementById("subjects-grid");
-  if (!subGrid) return;
-  
-  subjects.forEach(sub => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "text-xs p-2 rounded-xl border border-slate-200 text-slate-600 transition text-center hover:border-pink-300";
-    btn.innerText = sub;
-    btn.onclick = () => toggleSubject(sub, btn);
-    subGrid.appendChild(btn);
+// =========================================================================
+// Completion Protection: PIN Verification Controller
+// =========================================================================
+let pendingPinResolve = null;
+
+function requestPasswordConfirmation(actionLabel = "මෙම කාර්යය වෙනස් කිරීම") {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("change-pin-modal");
+    const input = document.getElementById("change-pin-input");
+    const desc = document.getElementById("change-pin-description");
+    const errorEl = document.getElementById("change-pin-error");
+
+    if (!modal || !input) {
+      // Fallback for non-browser/headless environments or before modal DOM mounts
+      if (typeof window !== 'undefined' && typeof window.prompt === 'function') {
+        const answer = window.prompt(`${actionLabel} සඳහා කරුණාකර Admin PIN ඇතුළත් කරන්න:`);
+        const validPin = (typeof localStorage !== 'undefined' ? localStorage.getItem("wosandi_admin_pin") : null) || "1234";
+        resolve(answer === validPin);
+      } else {
+        resolve(false);
+      }
+      return;
+    }
+
+    pendingPinResolve = resolve;
+
+    if (desc) {
+      desc.innerText = `${actionLabel} සඳහා කරුණාකර Admin PIN ඇතුළත් කරන්න:`;
+    }
+    if (errorEl) errorEl.classList.add("hidden");
+    input.value = "";
+
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    setTimeout(() => {
+      try { input.focus(); } catch (e) {}
+    }, 60);
   });
+}
+
+function closePinModal(result = false) {
+  const modal = document.getElementById("change-pin-modal");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+  }
+  if (pendingPinResolve) {
+    const resolve = pendingPinResolve;
+    pendingPinResolve = null;
+    resolve(result);
+  }
+}
+
+function verifyChangePin() {
+  const input = document.getElementById("change-pin-input");
+  const errorEl = document.getElementById("change-pin-error");
+  const enteredPin = input ? input.value.trim() : "";
+  const validPin = (typeof localStorage !== 'undefined' ? localStorage.getItem("wosandi_admin_pin") : null) || "1234";
+
+  if (enteredPin === validPin) {
+    closePinModal(true);
+  } else {
+    if (errorEl) {
+      errorEl.classList.remove("hidden");
+      errorEl.innerText = "මුරපදය වැරදියි! කරුණාකර නැවත උත්සාහ කරන්න.";
+    }
+    if (input) {
+      input.value = "";
+      try { input.focus(); } catch (e) {}
+    }
+  }
+}
+
+// =========================================================================
+// UI Synchronization from Current State
+// =========================================================================
+function syncStateToUI() {
+  if (!state) return;
+
+  // 1. Wake buttons
+  document.querySelectorAll(".wake-btn").forEach(b => {
+    const isSelected = b.dataset.val === state.wake_up;
+    b.classList.toggle("bg-pink-500", isSelected);
+    b.classList.toggle("text-white", isSelected);
+    b.classList.toggle("border-pink-500", isSelected);
+  });
+
+  // 2. School attendance toggle
+  const schoolToggle = document.getElementById("school-toggle");
+  if (schoolToggle) {
+    schoolToggle.checked = Boolean(state.school_attended);
+  }
+  const subjContainer = document.getElementById("subjects-container");
+  if (subjContainer) {
+    subjContainer.classList.toggle("hidden", !state.school_attended);
+  }
+
+  // 3. School subjects buttons
+  const subGrid = document.getElementById("subjects-grid");
+  if (subGrid && state.school_subjects) {
+    subGrid.querySelectorAll("button").forEach(btn => {
+      const sub = btn.innerText.trim();
+      const isSelected = Boolean(state.school_subjects[sub]);
+      btn.classList.toggle("bg-pink-500", isSelected);
+      btn.classList.toggle("text-white", isSelected);
+      btn.classList.toggle("border-pink-500", isSelected);
+    });
+  }
+
+  // 4. Render homework details
+  renderHomework();
+
+  // 5. Individual task checkboxes
+  Object.keys(state).forEach(key => {
+    if (typeof state[key] === "boolean") {
+      const taskEl = document.querySelector(`[data-task-id="${key}"] input[type="checkbox"]`);
+      if (taskEl) {
+        taskEl.checked = Boolean(state[key]);
+      }
+    }
+  });
+}
+
+// =========================================================================
+// Event Listeners & Interaction Handlers
+// =========================================================================
+document.addEventListener("DOMContentLoaded", () => {
+  // Render Subjects Buttons
+  const subGrid = document.getElementById("subjects-grid");
+  if (subGrid) {
+    subGrid.innerHTML = "";
+    subjects.forEach(sub => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "text-xs p-2 rounded-xl border border-slate-200 text-slate-600 transition text-center hover:border-pink-300";
+      btn.innerText = sub;
+      btn.onclick = () => toggleSubject(sub, btn);
+      subGrid.appendChild(btn);
+    });
+  }
+
+  // Change PIN Modal Event Listeners
+  const closeBtn = document.getElementById("change-pin-close");
+  const cancelBtn = document.getElementById("change-pin-cancel");
+  const confirmBtn = document.getElementById("change-pin-confirm");
+  const pinInput = document.getElementById("change-pin-input");
+
+  if (closeBtn) closeBtn.onclick = () => closePinModal(false);
+  if (cancelBtn) cancelBtn.onclick = () => closePinModal(false);
+  if (confirmBtn) confirmBtn.onclick = () => verifyChangePin();
+  if (pinInput) {
+    pinInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") verifyChangePin();
+      if (e.key === "Escape") closePinModal(false);
+    });
+  }
+
+  // Sync loaded state to UI elements
+  syncStateToUI();
 });
 
-function toggleSchool(val) {
+// School Toggle Handler with Password Verification
+async function toggleSchool(val, el = null) {
+  // If school was ALREADY completed (true) and user tries to turn off (false):
+  if (state.school_attended === true && val === false) {
+    const ok = await requestPasswordConfirmation("පාසල් පැමිණීම ඉවත් කිරීම");
+    if (!ok) {
+      const toggle = el || document.getElementById("school-toggle");
+      if (toggle) toggle.checked = true;
+      return;
+    }
+  }
+
   state.school_attended = val;
-  document.getElementById("subjects-container").classList.toggle("hidden", !val);
+  const container = document.getElementById("subjects-container");
+  if (container) container.classList.toggle("hidden", !val);
   syncProgressWithServer(state);
 }
 
-function toggleSubject(sub, btn) {
-  if (state.school_subjects[sub]) {
+// School Subject Button Toggle with Password Verification
+async function toggleSubject(sub, btn) {
+  if (state.school_subjects && state.school_subjects[sub]) {
+    // Subject is already selected/completed. Trying to uncheck it:
+    const ok = await requestPasswordConfirmation(`"${sub}" විෂය ඉවත් කිරීම`);
+    if (!ok) return;
     delete state.school_subjects[sub];
     btn.classList.remove("bg-pink-500", "text-white", "border-pink-500");
   } else {
+    if (!state.school_subjects) state.school_subjects = {};
     state.school_subjects[sub] = { homework: false, studied: false };
     btn.classList.add("bg-pink-500", "text-white", "border-pink-500");
   }
@@ -54,20 +217,43 @@ function toggleSubject(sub, btn) {
   syncProgressWithServer(state);
 }
 
+// Homework / Studied Checkbox Toggle with Password Verification
+async function toggleSubjectDetail(sub, type, val, el = null) {
+  const currentVal = Boolean(state.school_subjects?.[sub]?.[type]);
+  if (currentVal === true && val === false) {
+    const label = type === 'homework' ? 'Homework' : 'පාඩම් කිරීම';
+    const ok = await requestPasswordConfirmation(`"${sub} - ${label}" ඉවත් කිරීම`);
+    if (!ok) {
+      if (el) el.checked = true;
+      return;
+    }
+  }
+  if (!state.school_subjects) state.school_subjects = {};
+  if (!state.school_subjects[sub]) state.school_subjects[sub] = {};
+  state.school_subjects[sub][type] = val;
+  syncProgressWithServer(state);
+}
+
 function renderHomework() {
   const container = document.getElementById("homework-details");
+  if (!container) return;
   container.innerHTML = "";
+  if (!state.school_subjects) return;
+
   Object.keys(state.school_subjects).forEach(sub => {
     const div = document.createElement("div");
     div.className = "p-2 bg-slate-50 rounded-xl text-xs space-y-1 border border-slate-100";
+    const hwChecked = Boolean(state.school_subjects[sub]?.homework);
+    const stChecked = Boolean(state.school_subjects[sub]?.studied);
+
     div.innerHTML = `
       <div class="font-bold text-slate-700">${sub}</div>
       <div class="flex gap-4">
         <label class="flex items-center gap-1 cursor-pointer">
-          <input type="checkbox" onchange="state.school_subjects['${sub}'].homework=this.checked; syncProgressWithServer(state);"> Homework කළාද?
+          <input type="checkbox" ${hwChecked ? 'checked' : ''} onchange="toggleSubjectDetail('${sub}', 'homework', this.checked, this)"> Homework කළාද?
         </label>
         <label class="flex items-center gap-1 cursor-pointer">
-          <input type="checkbox" onchange="state.school_subjects['${sub}'].studied=this.checked; syncProgressWithServer(state);"> පාඩම් කළාද?
+          <input type="checkbox" ${stChecked ? 'checked' : ''} onchange="toggleSubjectDetail('${sub}', 'studied', this.checked, this)"> පාඩම් කළාද?
         </label>
       </div>
     `;
@@ -75,21 +261,46 @@ function renderHomework() {
   });
 }
 
-function setWakeTime(slot) {
+// Wake Time Selection with Password Verification
+async function setWakeTime(slot) {
+  // If wake-up time was ALREADY set and user tries to switch to a different slot:
+  if (state.wake_up && state.wake_up !== slot) {
+    const ok = await requestPasswordConfirmation(`අවදි වූ වේලාව (${state.wake_up} ➔ ${slot}) වෙනස් කිරීම`);
+    if (!ok) return;
+  }
+
   state.wake_up = slot;
   document.querySelectorAll(".wake-btn").forEach(b => {
-    b.classList.toggle("bg-pink-500", b.dataset.val === slot);
-    b.classList.toggle("text-white", b.dataset.val === slot);
+    const isSelected = b.dataset.val === slot;
+    b.classList.toggle("bg-pink-500", isSelected);
+    b.classList.toggle("text-white", isSelected);
+    b.classList.toggle("border-pink-500", isSelected);
   });
   syncProgressWithServer(state);
 }
 
-function toggleTask(key, val) {
+// Task Checkbox Toggle with Password Verification
+async function toggleTask(key, val, el = null) {
+  // If task is ALREADY completed (true) and user tries to uncheck it (false):
+  if (state[key] === true && val === false) {
+    const taskRow = el?.closest('[data-task-id]') || document.querySelector(`[data-task-id="${key}"]`);
+    const taskLabel = taskRow?.querySelector('span')?.textContent?.trim() || key;
+    const ok = await requestPasswordConfirmation(`"${taskLabel}" කාර්යය ඉවත් කිරීම`);
+    if (!ok) {
+      // Revert checkbox state in UI
+      const targetInput = el || taskRow?.querySelector('input[type="checkbox"]');
+      if (targetInput) targetInput.checked = true;
+      return;
+    }
+  }
+
   state[key] = val;
   syncProgressWithServer(state);
 }
 
+// =========================================================================
 // Admin Panel Dialog
+// =========================================================================
 function openAdminModal() {
   document.getElementById("admin-modal").classList.remove("hidden");
   document.getElementById("admin-modal").classList.add("flex");
@@ -98,14 +309,16 @@ function openAdminModal() {
 function closeAdminModal() {
   document.getElementById("admin-modal").classList.add("hidden");
   document.getElementById("admin-modal").classList.remove("flex");
-  // Reset PIN state so re-opening requires PIN again
   document.getElementById("admin-pin-screen").classList.remove("hidden");
   document.getElementById("admin-content").classList.add("hidden");
   document.getElementById("admin-pin").value = "";
 }
 
 function checkAdminPin() {
-  if (document.getElementById("admin-pin").value === "1234") {
+  const enteredPin = document.getElementById("admin-pin").value;
+  const validPin = (typeof localStorage !== 'undefined' ? localStorage.getItem("wosandi_admin_pin") : null) || "1234";
+
+  if (enteredPin === validPin) {
     document.getElementById("admin-pin-screen").classList.add("hidden");
     document.getElementById("admin-content").classList.remove("hidden");
   } else {
@@ -118,7 +331,6 @@ async function adminResetToday() {
   if (!confirm("අද දින සියලුම කාර්යයන් සහ ලකුණු Reset කිරීමට අවශ්‍ය බව තහවුරු කරන්නද?")) return;
   
   try {
-    // Reset ALL state keys including string and object types
     state.wake_up = null;
     state.school_attended = false;
     state.school_subjects = {};
@@ -126,22 +338,18 @@ async function adminResetToday() {
       if (typeof state[key] === "boolean") state[key] = false;
     });
 
-    // Uncheck all UI checkboxes and reset school toggle
     document.querySelectorAll("input[type='checkbox']").forEach(cb => cb.checked = false);
 
-    // Reset wake time button UI
     document.querySelectorAll(".wake-btn").forEach(b => {
       b.classList.remove("bg-pink-500", "text-white", "border-pink-500");
     });
 
-    // Hide subjects container and clear homework details
     const subjectsContainer = document.getElementById("subjects-container");
     if (subjectsContainer) subjectsContainer.classList.add("hidden");
 
     const homeworkDetails = document.getElementById("homework-details");
     if (homeworkDetails) homeworkDetails.innerHTML = "";
 
-    // Reset subject buttons
     const subjectsGrid = document.getElementById("subjects-grid");
     if (subjectsGrid) {
       subjectsGrid.querySelectorAll("button").forEach(btn => {
@@ -149,7 +357,6 @@ async function adminResetToday() {
       });
     }
 
-    // Sync reset state to Supabase via existing sync function
     if (typeof syncProgressWithServer === "function") {
       await syncProgressWithServer(state);
     }
@@ -164,7 +371,6 @@ async function adminResetToday() {
 
 async function adminReloadData() {
   try {
-    // Call the actual data loading function from api.js
     if (typeof loadTodayData === "function") {
       await loadTodayData();
     }
@@ -174,4 +380,22 @@ async function adminReloadData() {
     console.error("Sync error:", err);
     alert("දත්ත Sync කිරීමේදී දෝෂයක් ඇති විය: " + err.message);
   }
+}
+
+// Expose functions globally for HTML event attributes and tests
+if (typeof window !== "undefined") {
+  window.requestPasswordConfirmation = requestPasswordConfirmation;
+  window.verifyChangePin = verifyChangePin;
+  window.closePinModal = closePinModal;
+  window.syncStateToUI = syncStateToUI;
+  window.toggleSchool = toggleSchool;
+  window.toggleSubject = toggleSubject;
+  window.toggleSubjectDetail = toggleSubjectDetail;
+  window.setWakeTime = setWakeTime;
+  window.toggleTask = toggleTask;
+  window.openAdminModal = openAdminModal;
+  window.closeAdminModal = closeAdminModal;
+  window.checkAdminPin = checkAdminPin;
+  window.adminResetToday = adminResetToday;
+  window.adminReloadData = adminReloadData;
 }

@@ -97,12 +97,15 @@ async function loadTodayData() {
     if (data && data.length > 0) {
       const dbState = data[0].completed_tasks;
       Object.assign(state, dbState);
+      if (typeof syncStateToUI === 'function') syncStateToUI();
       syncProgressWithServer(state, true); // UI පමණක් යාවත්කාලීන කරයි
     } else {
+      if (typeof syncStateToUI === 'function') syncStateToUI();
       syncProgressWithServer(state, true);
     }
   } catch (err) {
     console.error("දත්ත ලබා ගැනීමේ දෝෂයක්:", err);
+    if (typeof syncStateToUI === 'function') syncStateToUI();
     syncProgressWithServer(state, true);
   }
 }
