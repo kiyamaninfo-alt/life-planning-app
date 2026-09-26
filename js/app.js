@@ -19,6 +19,7 @@ let state = {
   hair_care: false,
   clean_wardrobe: false
 };
+if (typeof window !== "undefined") window.state = state;
 
 // Subjects Buttons සකස් කිරීම
 document.addEventListener("DOMContentLoaded", () => {

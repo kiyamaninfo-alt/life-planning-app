@@ -54,15 +54,15 @@
   </header>
 
   <!-- Main Routine Form -->
-  <main class="max-w-md mx-auto px-4 space-y-4">
+  <main id="routine-main-container" class="max-w-md mx-auto px-4 space-y-4">
     
     <!-- Published Interactive Flow Section -->
-    <section id="published-flow-section" class="hidden">
+    <section id="published-flow-section" data-section-id="flow" class="hidden">
       <div id="flow-player-card" class="bg-white rounded-2xl shadow-md border border-purple-100 overflow-hidden transition-all"></div>
     </section>
 
     <!-- 1. අවදි වූ වේලාව -->
-    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50">
+    <section data-section-id="wake_up" class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50">
       <h2 class="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
         <i class="fa-regular fa-clock text-pink-500"></i> අද උදේ අවදි වූ වේලාව?
       </h2>
@@ -74,7 +74,7 @@
     </section>
 
     <!-- 2. පාසල් පැමිණීම & Dynamic Subjects -->
-    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
+    <section data-section-id="school" class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
       <div class="flex justify-between items-center">
         <span class="text-sm font-bold text-slate-700 flex items-center gap-2">
           <i class="fa-solid fa-school text-indigo-500"></i> අද පාසල් ගියාද?
@@ -93,23 +93,23 @@
     </section>
 
     <!-- 3. අධ්‍යයන කාර්යයන් (Study Tasks) -->
-    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
+    <section data-section-id="study" class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
       <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
         <i class="fa-solid fa-book-open text-purple-500"></i> අධ්‍යාපන කටයුතු (Study)
       </h2>
       <div class="space-y-2.5">
-        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+        <label data-task-id="maths_practice" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <span class="text-xs font-semibold">දිනකට ගණන් 10ක් හැදුවාද?</span>
           <input type="checkbox" onchange="toggleTask('maths_practice', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
-        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+        <label data-task-id="gemini_english" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <div class="flex flex-col">
             <span class="text-xs font-semibold">ජෙමිනි සමඟ විනාඩි 10ක් ඉංග්‍රීසියෙන් කතා කළාද?</span>
             <button type="button" onclick="startTimer(600, 'ජෙමිනි English Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 10 Timer එක දමන්න</button>
           </div>
           <input type="checkbox" onchange="toggleTask('gemini_english', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
-        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+        <label data-task-id="vocab_words" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <span class="text-xs font-semibold">අලුත් ඉංග්‍රීසි වචන 5ක් පාඩම් කළාද?</span>
           <input type="checkbox" onchange="toggleTask('vocab_words', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
@@ -117,19 +117,19 @@
     </section>
 
     <!-- 4. නැටුම් & ව්‍යායාම (Ballet & Fitness) -->
-    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
+    <section data-section-id="fitness" class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
       <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
         <i class="fa-solid fa-music text-pink-500"></i> නැටුම් සහ ව්‍යායාම (Ballet & Workout)
       </h2>
       <div class="space-y-2.5">
-        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+        <label data-task-id="dance_workout" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <div class="flex flex-col">
             <span class="text-xs font-semibold">සින්දුවක් දමාගෙන විනාඩි 10ක් නැටුවාද?</span>
             <button type="button" onclick="startTimer(600, 'Dance & Ballet Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 10 Timer එක දමන්න</button>
           </div>
           <input type="checkbox" onchange="toggleTask('dance_workout', this.checked)" class="w-5 h-5 accent-pink-500 rounded">
         </label>
-        <label class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
+        <label data-task-id="exercise_schedule" class="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer">
           <div class="flex flex-col">
             <span class="text-xs font-semibold">විනාඩි 20ක ව්‍යායාම / Gymnastics කළාද?</span>
             <button type="button" onclick="startTimer(1200, 'Gymnastics Workout Timer')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">⏱ විනාඩි 20 Timer එක දමන්න</button>
@@ -140,17 +140,17 @@
     </section>
 
     <!-- 5. නිවසේ සහ පෞද්ගලික වැඩ (Chores & Habits) -->
-    <section class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
+    <section data-section-id="chores" class="bg-white p-4 rounded-2xl shadow-sm border border-purple-50 space-y-3">
       <h2 class="text-sm font-bold text-slate-700 flex items-center gap-2">
         <i class="fa-solid fa-house text-emerald-500"></i> ගෙදර දොර සහ දෛනික පුරුදු
       </h2>
       <div class="space-y-2.5">
-        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කාමරය අස් කළාද?</span><input type="checkbox" onchange="toggleTask('clean_room', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">පැල වලට වතුර දැම්මාද?</span><input type="checkbox" onchange="toggleTask('water_plants', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">යට තට්ටුව අතු ගෑවාද?</span><input type="checkbox" onchange="toggleTask('sweep_floor', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කුණු බාල්දි හිස් කර බඳුන් වලට දැම්මාද?</span><input type="checkbox" onchange="toggleTask('dispose_garbage', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">උකුණෝ පීරුවාද?</span><input type="checkbox" onchange="toggleTask('hair_care', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
-        <label class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer bg-purple-50/50"><span class="text-xs font-semibold">අල්මාරිය පිළිවෙල කළාද? (Weekly)</span><input type="checkbox" onchange="toggleTask('clean_wardrobe', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="clean_room" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කාමරය අස් කළාද?</span><input type="checkbox" onchange="toggleTask('clean_room', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="water_plants" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">පැල වලට වතුර දැම්මාද?</span><input type="checkbox" onchange="toggleTask('water_plants', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="sweep_floor" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">යට තට්ටුව අතු ගෑවාද?</span><input type="checkbox" onchange="toggleTask('sweep_floor', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="dispose_garbage" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">කුණු බාල්දි හිස් කර බඳුන් වලට දැම්මාද?</span><input type="checkbox" onchange="toggleTask('dispose_garbage', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="hair_care" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer"><span class="text-xs font-semibold">උකුණෝ පීරුවාද?</span><input type="checkbox" onchange="toggleTask('hair_care', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
+        <label data-task-id="clean_wardrobe" class="flex items-center justify-between p-2 rounded-xl border border-slate-100 cursor-pointer bg-purple-50/50"><span class="text-xs font-semibold">අල්මාරිය පිළිවෙල කළාද? (Weekly)</span><input type="checkbox" onchange="toggleTask('clean_wardrobe', this.checked)" class="w-5 h-5 accent-pink-500 rounded"></label>
       </div>
     </section>
   </main>
@@ -187,6 +187,9 @@
           <a href="./admin/index.html" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-xs">
             <i class="fa-solid fa-gauge-high"></i> සම්පූර්ණ Admin Panel වෙත පිවිසෙන්න
           </a>
+          <a href="./admin/index.html#routine-order" class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
+            <i class="fa-solid fa-sort-amount-down-alt"></i> Routine Order & Unlocking (පිළිවෙල සකසන්න)
+          </a>
           <button type="button" onclick="adminResetToday()" class="w-full bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all">
             <i class="fa-solid fa-rotate-left"></i> අද දින දත්ත Reset කරන්න
           </button>
@@ -202,8 +205,9 @@
   <script src="js/audio.js"></script>
   <script src="js/timer.js"></script>
   <script type="module" src="js/circularProgress.js"></script>
-  <script src="js/api.js"></script>
-  <script src="js/flowPlayer.js"></script>
-  <script src="js/app.js"></script>
+  <script type="module" src="js/routineOrdering.js?v=20260926-v3"></script>
+  <script src="js/api.js?v=20260926-v3"></script>
+  <script src="js/flowPlayer.js?v=20260926-v3"></script>
+  <script src="js/app.js?v=20260926-v3"></script>
 </body>
 </html>

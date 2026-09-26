@@ -181,6 +181,11 @@ async function syncProgressWithServer(state, skipSave = false) {
 
   updateUI(percentage, validEarned, validTotal, rank);
 
+  // Apply routine ordering and progressive unlocking rules based on current state
+  if (typeof window !== 'undefined' && window.routineOrdering && typeof window.routineOrdering.applyRoutineOrderAndDependencies === 'function') {
+    window.routineOrdering.applyRoutineOrderAndDependencies(state);
+  }
+
   if (!skipSave) {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs`, {
