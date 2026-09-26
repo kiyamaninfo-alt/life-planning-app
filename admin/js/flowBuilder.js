@@ -232,6 +232,14 @@ export class FlowBuilder {
           </div>
 
           <div class="flex items-center space-x-2">
+            <!-- Properties & Full Workspace Controls -->
+            <button id="fb-toggle-props-top" class="px-2.5 py-1.5 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-1.5 transition" title="Toggle Node Properties Panel">
+              <i class="fas fa-sliders-h"></i> <span class="hidden md:inline">Properties</span>
+            </button>
+            <button id="fb-maximize-workspace" class="px-2.5 py-1.5 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-100 flex items-center gap-1.5 transition" title="Full Workspace Mode (Collapse sidebars for maximum canvas floor)">
+              <i class="fas fa-expand"></i> <span class="hidden md:inline">Full Workspace</span>
+            </button>
+
             <!-- Undo / Redo Toolbar -->
             <button id="fb-undo-btn" class="px-2.5 py-1.5 text-sm rounded border border-gray-300 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed" title="Undo (Ctrl+Z)">
               <i class="fas fa-undo"></i>
@@ -253,7 +261,7 @@ export class FlowBuilder {
         <!-- Split Layout -->
         <div class="flex flex-1 overflow-hidden relative">
           <!-- LEFT: SVG Canvas -->
-          <div class="w-3/5 bg-slate-100 overflow-auto relative border-r flex flex-col">
+          <div id="fb-canvas-wrapper" class="w-3/5 bg-slate-100 overflow-hidden relative border-r flex flex-col transition-all duration-300">
             <div class="p-2.5 bg-white border-b flex items-center justify-between shadow-xs">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">Add Nodes:</span>
@@ -271,15 +279,28 @@ export class FlowBuilder {
                 </button>
               </div>
 
-              <!-- Integrity Indicator -->
-              <div id="fb-dag-status" class="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-green-100 text-green-800 font-semibold cursor-pointer" title="Click to view DAG validation report">
-                <i class="fas fa-check-circle"></i> DAG Valid
+              <!-- Integrity Indicator & Viewport / Properties Controls -->
+              <div class="flex items-center gap-2">
+                <button id="fb-scroll-top-left" type="button" class="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1 transition" title="Scroll Canvas to Origin (0,0)">
+                  <i class="fas fa-crosshairs"></i> Reset View
+                </button>
+                <button id="fb-toggle-properties-canvas" type="button" class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1.5 transition" title="Collapse / Expand Properties Panel">
+                  <i class="fas fa-columns"></i> <span id="fb-toggle-properties-text">Hide Panel</span>
+                </button>
+                <div id="fb-dag-status" class="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-green-100 text-green-800 font-semibold cursor-pointer" title="Click to view DAG validation report">
+                  <i class="fas fa-check-circle"></i> DAG Valid
+                </div>
               </div>
             </div>
 
-            <div id="fb-svg-container" class="flex-1 w-full h-full p-4 min-w-[800px] min-h-[600px] overflow-auto flow-graph-container select-none">
+            <div id="fb-svg-container" class="flex-1 w-full h-full p-4 overflow-auto flow-graph-container select-none">
               <!-- SVG will be injected here -->
             </div>
+
+            <!-- Floating Button to Re-Open Properties When Collapsed -->
+            <button id="fb-floating-props-btn" type="button" class="hidden absolute top-14 right-4 bg-white/95 backdrop-blur-xs shadow-md border border-slate-300 text-slate-700 hover:text-indigo-600 hover:bg-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 z-20 transition" title="Expand Properties Panel">
+              <i class="fas fa-sliders-h text-indigo-500"></i> Properties
+            </button>
 
             <!-- Floating On-the-Spot Floor Tools -->
             <div class="absolute bottom-5 left-5 bg-white/95 backdrop-blur-xs p-2 rounded-xl shadow-lg border border-slate-200 flex items-center gap-2 z-10 select-none">
@@ -298,7 +319,7 @@ export class FlowBuilder {
           </div>
           
           <!-- RIGHT: Node Editor Sidebar -->
-          <div class="w-2/5 bg-white overflow-y-auto border-l shadow-sm" id="fb-node-editor">
+          <div class="w-2/5 bg-white overflow-y-auto border-l shadow-sm transition-all duration-300 relative" id="fb-node-editor">
             <div class="p-8 text-center text-gray-400 mt-20">
               <i class="fas fa-mouse-pointer text-4xl mb-4 text-gray-300"></i>
               <p class="font-medium">Select a node on the canvas to configure options, scoring, and conditional branching</p>
@@ -347,6 +368,16 @@ export class FlowBuilder {
     document.getElementById('fb-floor-add-t')?.addEventListener('click', () => this.addNode('task'));
     document.getElementById('fb-floor-add-e')?.addEventListener('click', () => this.addNode('end'));
 
+    // Workspace & Properties Panel Controls
+    document.getElementById('fb-toggle-props-top')?.addEventListener('click', () => this.togglePropertiesPanel());
+    document.getElementById('fb-maximize-workspace')?.addEventListener('click', () => this.toggleFullWorkspace());
+    document.getElementById('fb-toggle-properties-canvas')?.addEventListener('click', () => this.togglePropertiesPanel());
+    document.getElementById('fb-floating-props-btn')?.addEventListener('click', () => this.togglePropertiesPanel(false));
+    document.getElementById('fb-scroll-top-left')?.addEventListener('click', () => {
+      const scrollEl = document.getElementById('fb-svg-container');
+      if (scrollEl) scrollEl.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    });
+
     document.getElementById('fb-title').addEventListener('change', (e) => {
       this.currentFlow.title = e.target.value;
       this.currentFlow.title_si = e.target.value;
@@ -369,6 +400,50 @@ export class FlowBuilder {
       this.pushHistory(`Toggle Allow Negative Score: ${allowNeg ? 'Enabled' : 'Disabled'}`);
       this.toast(`Score floor safeguard: ${allowNeg ? 'Negative scores permitted' : 'Clamped to 0 minimum'}`, 'info');
     });
+  }
+
+  togglePropertiesPanel(forceCollapse = null) {
+    const wrapper = document.getElementById('fb-canvas-wrapper');
+    const editor = document.getElementById('fb-node-editor');
+    const floatingBtn = document.getElementById('fb-floating-props-btn');
+    const toggleText = document.getElementById('fb-toggle-properties-text');
+    if (!wrapper || !editor) return;
+
+    const isCollapsed = editor.classList.contains('editor-collapsed');
+    const shouldCollapse = (forceCollapse !== null) ? forceCollapse : !isCollapsed;
+
+    if (shouldCollapse) {
+      editor.classList.add('editor-collapsed');
+      wrapper.classList.remove('w-3/5');
+      wrapper.classList.add('w-full', 'canvas-full-width');
+      if (floatingBtn) floatingBtn.classList.remove('hidden');
+      if (toggleText) toggleText.innerText = 'Show Panel';
+    } else {
+      editor.classList.remove('editor-collapsed');
+      wrapper.classList.remove('w-full', 'canvas-full-width');
+      wrapper.classList.add('w-3/5');
+      if (floatingBtn) floatingBtn.classList.add('hidden');
+      if (toggleText) toggleText.innerText = 'Hide Panel';
+    }
+  }
+
+  toggleFullWorkspace() {
+    const isSidebarCollapsed = document.getElementById('sidebar')?.classList.contains('sidebar-collapsed');
+    const isPropsCollapsed = document.getElementById('fb-node-editor')?.classList.contains('editor-collapsed');
+
+    if (!isSidebarCollapsed || !isPropsCollapsed) {
+      if (!isSidebarCollapsed && typeof window.toggleAdminSidebar === 'function') {
+        window.toggleAdminSidebar();
+      }
+      this.togglePropertiesPanel(true);
+      this.toast('Full Workspace: all side menus collapsed', 'info');
+    } else {
+      if (isSidebarCollapsed && typeof window.toggleAdminSidebar === 'function') {
+        window.toggleAdminSidebar();
+      }
+      this.togglePropertiesPanel(false);
+      this.toast('Standard Workspace restored', 'info');
+    }
   }
 
   attachKeyboardShortcuts() {
@@ -544,8 +619,8 @@ export class FlowBuilder {
       };
     });
 
-    this.svgWidth = Math.max(900, ...layoutNodes.map(n => n.x + n.width + 120));
-    this.svgHeight = Math.max(700, ...layoutNodes.map(n => n.y + n.height + 120));
+    this.svgWidth = Math.max(2600, ...layoutNodes.map(n => n.x + n.width + 300));
+    this.svgHeight = Math.max(1800, ...layoutNodes.map(n => n.y + n.height + 300));
 
     container.innerHTML = this.renderFlowGraph(layoutNodes, edges);
     
@@ -581,6 +656,7 @@ export class FlowBuilder {
         e.stopPropagation();
         this.selectedNodeId = nodeId;
         this.selectedOptionId = null;
+        this.togglePropertiesPanel(false);
         this.updateGraph();
         this.renderNodeEditor(node);
       });
@@ -1671,7 +1747,12 @@ export class FlowBuilder {
               <span class="${node.disabled ? 'text-red-600 font-bold' : 'text-slate-600 font-medium'}">${node.disabled ? '⛔ Node Disabled' : '✓ Node Active'}</span>
             </label>
           </div>
-          <span class="text-xs text-gray-400 font-mono">${node.id}</span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400 font-mono">${node.id}</span>
+            <button id="fb-collapse-props-btn" type="button" class="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition" title="Collapse Properties Panel">
+              <i class="fas fa-chevron-right text-sm"></i>
+            </button>
+          </div>
         </div>
 
         ${node.type !== 'end' ? `
@@ -1712,6 +1793,8 @@ export class FlowBuilder {
   }
 
   attachNodeEditorListeners(node) {
+    document.getElementById('fb-collapse-props-btn')?.addEventListener('click', () => this.togglePropertiesPanel(true));
+
     document.getElementById('ne-node-disabled-toggle')?.addEventListener('change', (e) => {
       node.disabled = e.target.checked;
       this.pushHistory(node.disabled ? 'Disable node' : 'Enable node');

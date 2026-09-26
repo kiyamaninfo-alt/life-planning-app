@@ -189,6 +189,11 @@ async function syncProgressWithServer(state, skipSave = false) {
     window.routineOrdering.applyRoutineOrderAndDependencies(state);
   }
 
+  // Update routine sections auto-collapse state
+  if (typeof updateSectionCollapseStates === 'function') {
+    updateSectionCollapseStates(state);
+  }
+
   if (!skipSave) {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs`, {

@@ -61,9 +61,15 @@ class AdminApp {
         const closeSidebarBtn = document.getElementById('close-sidebar');
 
         const toggleSidebar = () => {
-            sidebar.classList.toggle('-translate-x-full');
-            mobileOverlay.classList.toggle('hidden');
+            if (window.innerWidth < 768) {
+                sidebar.classList.toggle('-translate-x-full');
+                mobileOverlay.classList.toggle('hidden');
+            } else {
+                sidebar.classList.toggle('sidebar-collapsed');
+            }
         };
+
+        window.toggleAdminSidebar = toggleSidebar;
 
         openSidebarBtn.addEventListener('click', toggleSidebar);
         closeSidebarBtn.addEventListener('click', toggleSidebar);

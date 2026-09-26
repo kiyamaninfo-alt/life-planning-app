@@ -10,3 +10,33 @@ body {
   transform-origin: 50% 50%;
   will-change: stroke-dashoffset;
 }
+
+/* Section Collapse & Completed States */
+.routine-section {
+  transition: all 0.25s ease-in-out;
+}
+
+.routine-section.is-completed {
+  border-color: #a7f3d0 !important; /* emerald-200 */
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%) !important;
+}
+
+.routine-section.is-completed .completion-badge {
+  display: inline-flex !important;
+}
+
+.routine-section.is-collapsed .section-body {
+  display: none !important;
+}
+
+.routine-section.is-collapsed .collapse-toggle-btn i {
+  transform: rotate(-90deg);
+}
+
+.collapse-toggle-btn i {
+  transition: transform 0.2s ease-in-out;
+}
+
+.section-header {
+  user-select: none;
+}

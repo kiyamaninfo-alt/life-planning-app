@@ -100,11 +100,71 @@ body {
     color: #334155;
 }
 
-/* Flow Graph Container */
+/* Flow Graph Container with Prominent, Accessible Scrollbars */
 .flow-graph-container {
     background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
     background-size: 20px 20px;
     background-color: #f8fafc;
+    overflow: auto !important;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.flow-graph-container::-webkit-scrollbar {
+    width: 14px;
+    height: 14px;
+}
+
+.flow-graph-container::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+}
+
+.flow-graph-container::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+    border-radius: 7px;
+    border: 3px solid #f1f5f9;
+}
+
+.flow-graph-container::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.flow-graph-container::-webkit-scrollbar-corner {
+    background: #e2e8f0;
+}
+
+/* Collapsible Sidebars for Flow Design Floor Space Saving */
+#sidebar.sidebar-collapsed {
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    border: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#fb-node-editor.editor-collapsed {
+    display: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+}
+
+#fb-canvas-wrapper.canvas-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 1 1 100% !important;
 }
 
 /* Table Styles */

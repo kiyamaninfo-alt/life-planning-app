@@ -95,6 +95,74 @@ function verifyChangePin() {
 }
 
 // =========================================================================
+// Routine Section Completion & Auto-Collapsing Controller
+// =========================================================================
+const manualExpandedSections = new Set();
+
+function isSectionCompleted(sectionId, stateObj = state) {
+  if (!stateObj) return false;
+  switch (sectionId) {
+    case 'wake_up':
+      return Boolean(stateObj.wake_up);
+    case 'school':
+      return Boolean(stateObj.school_attended);
+    case 'study':
+      return Boolean(stateObj.maths_practice && stateObj.gemini_english && stateObj.vocab_words);
+    case 'fitness':
+      return Boolean(stateObj.dance_workout && stateObj.exercise_schedule);
+    case 'chores':
+      return Boolean(stateObj.clean_room && stateObj.water_plants && stateObj.sweep_floor && stateObj.dispose_garbage && stateObj.hair_care && stateObj.clean_wardrobe);
+    case 'flow':
+      return Boolean(stateObj.flow_completed || (Number(stateObj.flow_points) > 0 && window.flowPlayer?.currentNode?.type === 'end'));
+    default:
+      return false;
+  }
+}
+
+function updateSectionCollapseStates(stateObj = state) {
+  if (!stateObj || typeof document === 'undefined') return;
+
+  const sections = document.querySelectorAll('.routine-section');
+  sections.forEach(sec => {
+    const secId = sec.getAttribute('data-section-id');
+    if (!secId) return;
+
+    const completed = isSectionCompleted(secId, stateObj);
+    const badge = sec.querySelector('.completion-badge');
+
+    if (completed) {
+      sec.classList.add('is-completed');
+      if (badge) badge.classList.remove('hidden');
+
+      if (!manualExpandedSections.has(secId)) {
+        sec.classList.add('is-collapsed');
+      } else {
+        sec.classList.remove('is-collapsed');
+      }
+    } else {
+      sec.classList.remove('is-completed');
+      if (badge) badge.classList.add('hidden');
+      sec.classList.remove('is-collapsed');
+      manualExpandedSections.delete(secId);
+    }
+  });
+}
+
+function toggleSectionCollapse(sectionId) {
+  const sec = document.querySelector(`.routine-section[data-section-id="${sectionId}"]`);
+  if (!sec) return;
+
+  const currentlyCollapsed = sec.classList.contains('is-collapsed');
+  if (currentlyCollapsed) {
+    sec.classList.remove('is-collapsed');
+    manualExpandedSections.add(sectionId);
+  } else {
+    sec.classList.add('is-collapsed');
+    manualExpandedSections.delete(sectionId);
+  }
+}
+
+// =========================================================================
 // UI Synchronization from Current State
 // =========================================================================
 function syncStateToUI() {
@@ -142,6 +210,9 @@ function syncStateToUI() {
       }
     }
   });
+
+  // 6. Section Completion & Collapse State
+  updateSectionCollapseStates(state);
 }
 
 // =========================================================================
@@ -177,6 +248,26 @@ document.addEventListener("DOMContentLoaded", () => {
       if (e.key === "Escape") closePinModal(false);
     });
   }
+
+  // Routine Section Header & Toggle Click Listeners
+  document.querySelectorAll('.routine-section').forEach(sec => {
+    const secId = sec.getAttribute('data-section-id');
+    const header = sec.querySelector('.section-header');
+    if (header && secId) {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('button.collapse-toggle-btn') || !e.target.closest('button, input, label, a')) {
+          toggleSectionCollapse(secId);
+        }
+      });
+    }
+    const btn = sec.querySelector('.collapse-toggle-btn');
+    if (btn && secId) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSectionCollapse(secId);
+      });
+    }
+  });
 
   // Sync loaded state to UI elements
   syncStateToUI();
@@ -398,4 +489,7 @@ if (typeof window !== "undefined") {
   window.checkAdminPin = checkAdminPin;
   window.adminResetToday = adminResetToday;
   window.adminReloadData = adminReloadData;
+  window.isSectionCompleted = isSectionCompleted;
+  window.updateSectionCollapseStates = updateSectionCollapseStates;
+  window.toggleSectionCollapse = toggleSectionCollapse;
 }
