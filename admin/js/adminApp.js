@@ -7,6 +7,7 @@ import { FlowBuilder } from './flowBuilder.js?v=20260926-v2';
 import { UiConfigurator } from './uiConfigurator.js?v=20260926-v2';
 import { PublishManager } from './publishManager.js?v=20260926-v2';
 import { RoutineOrderManager } from './routineOrderManager.js?v=20260926-v3';
+import { UserManager } from './userManager.js?v=20260926-v4';
 
 class AdminApp {
     constructor() {
@@ -135,6 +136,9 @@ class AdminApp {
             if (pathname.includes('/admin/routine-order') || hash === 'routine-order' || queryTab === 'routine-order') {
                 return 'routine-order';
             }
+            if (pathname.includes('/admin/users') || hash === 'users' || queryTab === 'users') {
+                return 'users';
+            }
             if (pathname.includes('/admin/tasks') || hash === 'tasks' || queryTab === 'tasks') {
                 return 'tasks';
             }
@@ -167,6 +171,7 @@ class AdminApp {
             this.managers.timers = new TimerManager(document.getElementById('tab-timers'), this.api, toastFn);
             this.managers.flows = new FlowBuilder(document.getElementById('tab-flows'), this.api, toastFn);
             this.managers['routine-order'] = new RoutineOrderManager(document.getElementById('tab-routine-order'), this.api, toastFn);
+            this.managers.users = new UserManager(document.getElementById('tab-users'), this.api, toastFn);
             this.managers.widgets = new UiConfigurator(document.getElementById('tab-widgets'), this.api, toastFn);
             this.managers.publish = new PublishManager(this.api, toastFn);
         } catch (e) {

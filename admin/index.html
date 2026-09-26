@@ -67,6 +67,11 @@
                         </a>
                     </li>
                     <li>
+                        <a href="#" data-tab="users" class="tab-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
+                            <i class="fas fa-users w-5 text-indigo-400"></i> පරිශීලකයන් (Users)
+                        </a>
+                    </li>
+                    <li>
                         <a href="#" data-tab="widgets" class="tab-link flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 hover:text-white transition-colors">
                             <i class="fas fa-layer-group w-5"></i> මුහුණත සැකසුම් (UI)
                         </a>
@@ -179,6 +184,10 @@
                                     <i class="fas fa-sort-amount-down-alt text-purple-600 text-xl"></i>
                                     <span class="font-bold text-xs text-slate-700">දින චර්යාව පිළිවෙල (Routine Order)</span>
                                 </button>
+                                <button onclick="document.querySelector('[data-tab=\'users\']').click()" class="p-4 border border-slate-200 rounded-lg hover:bg-pink-50 hover:border-pink-200 transition-colors text-left flex flex-col gap-2">
+                                    <i class="fas fa-users text-pink-500 text-xl"></i>
+                                    <span class="font-bold text-xs text-slate-700">පරිශීලකයන් (Manage Users)</span>
+                                </button>
                                 <button onclick="document.querySelector('[data-tab=\'widgets\']').click()" class="p-4 border border-slate-200 rounded-lg hover:bg-blue-50 hover:border-blue-200 transition-colors text-left flex flex-col gap-2">
                                     <i class="fas fa-palette text-blue-500 text-xl"></i>
                                     <span class="font-bold text-xs text-slate-700">මුහුණත සැකසුම් (Manage UI)</span>
@@ -212,6 +221,7 @@
                 <div id="tab-timers" class="tab-pane hidden"></div>
                 <div id="tab-flows" class="tab-pane hidden"></div>
                 <div id="tab-routine-order" class="tab-pane hidden"></div>
+                <div id="tab-users" class="tab-pane hidden"></div>
                 <div id="tab-widgets" class="tab-pane hidden"></div>
                 <div id="tab-settings" class="tab-pane hidden">
                     <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">

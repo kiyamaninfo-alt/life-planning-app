@@ -78,9 +78,10 @@ function verifyChangePin() {
   const input = document.getElementById("change-pin-input");
   const errorEl = document.getElementById("change-pin-error");
   const enteredPin = input ? input.value.trim() : "";
-  const validPin = (typeof localStorage !== 'undefined' ? localStorage.getItem("wosandi_admin_pin") : null) || "1234";
+  const adminPin = (typeof localStorage !== 'undefined' ? localStorage.getItem("wosandi_admin_pin") : null) || "1234";
+  const userPin = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser) ? window.userManagerClient.getCurrentUser()?.pin : null;
 
-  if (enteredPin === validPin) {
+  if (enteredPin === adminPin || (userPin && enteredPin === userPin)) {
     closePinModal(true);
   } else {
     if (errorEl) {
@@ -470,7 +471,56 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Load published tasks from Admin panel
   await loadPublishedTasksFromAdmin();
+
+  // Initialize Multi-User Management (Default: Wosa)
+  if (typeof window !== "undefined" && window.userManagerClient) {
+    await window.userManagerClient.init();
+    window.userManagerClient.updateUserHeaderPill();
+  }
 });
+
+// Multi-User Switch Handler (Requirement 3: Separate dashboard for each user)
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("wosandi-user-changed", async (e) => {
+    const newUser = e.detail;
+    // Reset state to empty base
+    const defaultState = {
+      wake_up: null,
+      school_attended: false,
+      school_subjects: {},
+      maths_practice: false,
+      gemini_english: false,
+      vocab_words: false,
+      dance_workout: false,
+      exercise_schedule: false,
+      clean_room: false,
+      water_plants: false,
+      sweep_floor: false,
+      dispose_garbage: false,
+      hair_care: false,
+      clean_wardrobe: false
+    };
+    Object.keys(state).forEach(k => delete state[k]);
+    Object.assign(state, defaultState);
+
+    // Load today's data for this user
+    if (typeof loadTodayData === "function") {
+      await loadTodayData();
+    }
+    if (typeof syncStateToUI === "function") {
+      syncStateToUI();
+    }
+    if (typeof syncProgressWithServer === "function") {
+      syncProgressWithServer(state, true);
+    }
+    if (typeof window.routineOrdering?.applyRoutineOrderAndDependencies === "function") {
+      window.routineOrdering.applyRoutineOrderAndDependencies(state);
+    }
+    if (typeof reorderAllTaskLists === "function") {
+      reorderAllTaskLists();
+    }
+  });
+}
 
 // School Toggle Handler with Password Verification
 async function toggleSchool(val, el = null) {

@@ -85,10 +85,13 @@ async function loadTodayData() {
   await estimateDayOfWeekBenchmark();
 
   const today = new Date().toISOString().split("T")[0];
+  const userKey = (typeof window !== 'undefined' && window.userManagerClient?.getRoutineStateKey)
+    ? window.userManagerClient.getRoutineStateKey(today)
+    : ('wosandi_routine_state_' + today);
 
   // Instant zero-flicker restoration from same-day local cache
   try {
-    const cached = localStorage.getItem('wosandi_routine_state_' + today);
+    const cached = localStorage.getItem(userKey) || localStorage.getItem('wosandi_routine_state_' + today);
     if (cached) {
       const parsed = JSON.parse(cached);
       Object.assign(state, parsed);
@@ -203,7 +206,15 @@ async function syncProgressWithServer(state, skipSave = false) {
 
   // Save same-day state to localStorage immediately for zero reload delay
   try {
-    localStorage.setItem('wosandi_routine_state_' + todayDate, JSON.stringify(state));
+    const userSaveKey = (typeof window !== 'undefined' && window.userManagerClient?.getRoutineStateKey)
+      ? window.userManagerClient.getRoutineStateKey(todayDate)
+      : ('wosandi_routine_state_' + todayDate);
+    localStorage.setItem(userSaveKey, JSON.stringify(state));
+    // For Wosa, ensure canonical fallback key is also maintained
+    const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser) ? window.userManagerClient.getCurrentUser() : null;
+    if (!currentUser || currentUser.username === 'Wosa' || currentUser.id === 'user_wosa') {
+      localStorage.setItem('wosandi_routine_state_' + todayDate, JSON.stringify(state));
+    }
   } catch (e) {}
 
   // 2.2 Defensive Zero / Division-by-Zero Guard

@@ -65,8 +65,15 @@ class FlowPlayer {
     if (nodes.length === 0) return;
 
     const todayDate = new Date().toISOString().split('T')[0];
+    const flowCompletedKey = (typeof window !== 'undefined' && window.userManagerClient?.getFlowCompletedKey)
+      ? window.userManagerClient.getFlowCompletedKey(todayDate)
+      : ('wosandi_flow_completed_' + todayDate);
+    const flowPointsKey = (typeof window !== 'undefined' && window.userManagerClient?.getFlowPointsKey)
+      ? window.userManagerClient.getFlowPointsKey(todayDate)
+      : ('wosandi_flow_points_' + todayDate);
+
     const isAlreadyCompleted = 
-      (typeof localStorage !== 'undefined' && localStorage.getItem('wosandi_flow_completed_' + todayDate) === 'true') ||
+      (typeof localStorage !== 'undefined' && (localStorage.getItem(flowCompletedKey) === 'true' || localStorage.getItem('wosandi_flow_completed_' + todayDate) === 'true')) ||
       (typeof state !== 'undefined' && state.flow_completed === true);
 
     if (isAlreadyCompleted) {
@@ -78,7 +85,7 @@ class FlowPlayer {
         };
       }
       this.currentNode = endNode;
-      const savedPoints = (typeof localStorage !== 'undefined' && localStorage.getItem('wosandi_flow_points_' + todayDate)) ||
+      const savedPoints = (typeof localStorage !== 'undefined' && (localStorage.getItem(flowPointsKey) || localStorage.getItem('wosandi_flow_points_' + todayDate))) ||
                           (typeof state !== 'undefined' && state.flow_points) || 0;
       this.accumulatedScore = Number(savedPoints) || 0;
 
@@ -286,9 +293,22 @@ class FlowPlayer {
 
     // If no next node, show completion
     const todayDate = new Date().toISOString().split('T')[0];
+    const flowCompletedKey = (typeof window !== 'undefined' && window.userManagerClient?.getFlowCompletedKey)
+      ? window.userManagerClient.getFlowCompletedKey(todayDate)
+      : ('wosandi_flow_completed_' + todayDate);
+    const flowPointsKey = (typeof window !== 'undefined' && window.userManagerClient?.getFlowPointsKey)
+      ? window.userManagerClient.getFlowPointsKey(todayDate)
+      : ('wosandi_flow_points_' + todayDate);
+
     try {
-      localStorage.setItem('wosandi_flow_completed_' + todayDate, 'true');
-      localStorage.setItem('wosandi_flow_points_' + todayDate, String(this.accumulatedScore));
+      localStorage.setItem(flowCompletedKey, 'true');
+      localStorage.setItem(flowPointsKey, String(this.accumulatedScore));
+      // For Wosa, maintain fallback key
+      const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser) ? window.userManagerClient.getCurrentUser() : null;
+      if (!currentUser || currentUser.username === 'Wosa' || currentUser.id === 'user_wosa') {
+        localStorage.setItem('wosandi_flow_completed_' + todayDate, 'true');
+        localStorage.setItem('wosandi_flow_points_' + todayDate, String(this.accumulatedScore));
+      }
     } catch(e) {}
     if (typeof state !== 'undefined') {
       state.flow_completed = true;
@@ -333,7 +353,16 @@ class FlowPlayer {
       }
     }
     const todayDate = new Date().toISOString().split('T')[0];
+    const flowCompletedKey = (typeof window !== 'undefined' && window.userManagerClient?.getFlowCompletedKey)
+      ? window.userManagerClient.getFlowCompletedKey(todayDate)
+      : ('wosandi_flow_completed_' + todayDate);
+    const flowPointsKey = (typeof window !== 'undefined' && window.userManagerClient?.getFlowPointsKey)
+      ? window.userManagerClient.getFlowPointsKey(todayDate)
+      : ('wosandi_flow_points_' + todayDate);
+
     try {
+      localStorage.removeItem(flowCompletedKey);
+      localStorage.removeItem(flowPointsKey);
       localStorage.removeItem('wosandi_flow_completed_' + todayDate);
       localStorage.removeItem('wosandi_flow_points_' + todayDate);
     } catch(e) {}
@@ -352,7 +381,16 @@ class FlowPlayer {
 }
 
 // Global initialization
-window.addEventListener('DOMContentLoaded', () => {
-  window.flowPlayer = new FlowPlayer();
-  window.flowPlayer.init();
-});
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('DOMContentLoaded', () => {
+    window.flowPlayer = new FlowPlayer();
+    window.flowPlayer.init();
+  });
+
+  // Re-check flow completion when user switches (Requirement 3)
+  window.addEventListener('wosandi-user-changed', () => {
+    if (window.flowPlayer) {
+      window.flowPlayer.startFlow();
+    }
+  });
+}
