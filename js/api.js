@@ -161,6 +161,14 @@ async function syncProgressWithServer(state, skipSave = false) {
   if (state.sweep_floor) earnedPoints += 5;
   if (state.dispose_garbage) earnedPoints += 5;
 
+  // Published Flow Points from Flow Player
+  if (state.flow_points && !isNaN(state.flow_points)) {
+    earnedPoints += Number(state.flow_points);
+  }
+  if (state.flow_total_points && !isNaN(state.flow_total_points)) {
+    totalPossiblePoints += Number(state.flow_total_points);
+  }
+
   // 2.2 Defensive Zero / Division-by-Zero Guard
   const validTotal = (totalPossiblePoints > 0) ? totalPossiblePoints : 0;
   const validEarned = (earnedPoints > 0) ? earnedPoints : 0;

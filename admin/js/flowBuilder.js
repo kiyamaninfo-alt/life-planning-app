@@ -26,6 +26,13 @@ export class FlowBuilder {
     this.dragStartPos = { x: 0, y: 0 };
     this._hasDragged = false;
 
+    // Live interactive edge connection state on canvas
+    this.isConnecting = false;
+    this.connectingSourceNode = null;
+    this.connectingSourceOpt = null;
+    this.connectingStartPos = { x: 0, y: 0 };
+    this.selectedOptionId = null;
+
     // Bound keyboard shortcut listener
     this._handleKeyDown = this.handleKeyDown.bind(this);
   }
@@ -273,6 +280,21 @@ export class FlowBuilder {
             <div id="fb-svg-container" class="flex-1 w-full h-full p-4 min-w-[800px] min-h-[600px] overflow-auto flow-graph-container select-none">
               <!-- SVG will be injected here -->
             </div>
+
+            <!-- Floating On-the-Spot Floor Tools -->
+            <div class="absolute bottom-5 left-5 bg-white/95 backdrop-blur-xs p-2 rounded-xl shadow-lg border border-slate-200 flex items-center gap-2 z-10 select-none">
+              <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider px-1">Floor:</span>
+              <button id="fb-floor-add-q" type="button" class="px-3 py-1.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
+                <i class="fas fa-plus text-[10px]"></i> + Question Box
+              </button>
+              <button id="fb-floor-add-t" type="button" class="px-3 py-1.5 text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
+                <i class="fas fa-plus text-[10px]"></i> + Task Box
+              </button>
+              <button id="fb-floor-add-e" type="button" class="px-3 py-1.5 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
+                <i class="fas fa-plus text-[10px]"></i> + End Box
+              </button>
+              <span class="text-[10px] text-slate-400 border-l pl-2 italic">Double-click floor to add box</span>
+            </div>
           </div>
           
           <!-- RIGHT: Node Editor Sidebar -->
@@ -319,6 +341,11 @@ export class FlowBuilder {
     document.getElementById('fb-add-task')?.addEventListener('click', () => this.addNode('task'));
     document.getElementById('fb-add-branch').addEventListener('click', () => this.addNode('branch'));
     document.getElementById('fb-add-end').addEventListener('click', () => this.addNode('end'));
+
+    // Floating floor buttons
+    document.getElementById('fb-floor-add-q')?.addEventListener('click', () => this.addNode('question'));
+    document.getElementById('fb-floor-add-t')?.addEventListener('click', () => this.addNode('task'));
+    document.getElementById('fb-floor-add-e')?.addEventListener('click', () => this.addNode('end'));
 
     document.getElementById('fb-title').addEventListener('change', (e) => {
       this.currentFlow.title = e.target.value;
@@ -489,10 +516,11 @@ export class FlowBuilder {
       const l = levels[n.id] || 0;
       levelIndex[l] = (levelIndex[l] || 0) + 1;
       
-      const width = 175;
-      const height = 68;
-      const hGap = 210;
-      const vGap = 130;
+      const optsCount = Array.isArray(n.options) ? n.options.length : 0;
+      const width = 230;
+      const height = (n.type === 'question' || n.type === 'task') ? Math.max(68, 56 + (optsCount * 26) + 32) : 68;
+      const hGap = 280;
+      const vGap = Math.max(160, height + 60);
       
       const countInLevel = levelCounts[l];
       const idx = levelIndex[l] - 1;
@@ -504,6 +532,8 @@ export class FlowBuilder {
       const posY = (n.y !== undefined && n.y !== null) ? n.y : (40 + (l * vGap));
       n.x = posX;
       n.y = posY;
+      n.width = width;
+      n.height = height;
 
       return {
         ...n,
@@ -514,35 +544,55 @@ export class FlowBuilder {
       };
     });
 
-    this.svgWidth = Math.max(850, ...layoutNodes.map(n => n.x + n.width + 100));
-    this.svgHeight = Math.max(650, ...layoutNodes.map(n => n.y + n.height + 100));
+    this.svgWidth = Math.max(900, ...layoutNodes.map(n => n.x + n.width + 120));
+    this.svgHeight = Math.max(700, ...layoutNodes.map(n => n.y + n.height + 120));
 
     container.innerHTML = this.renderFlowGraph(layoutNodes, edges);
     
-    // Attach selection click and drag listeners synchronously (no delay)
+    const svgEl = container.querySelector('svg');
+
+    // 1. On-the-spot: Double click on canvas floor to add Question box right at cursor position
+    if (svgEl) {
+      svgEl.addEventListener('dblclick', (e) => {
+        if (e.target.tagName.toLowerCase() === 'svg' || e.target.classList.contains('fb-canvas-bg')) {
+          const svgRect = svgEl.getBoundingClientRect();
+          const clickX = e.clientX - svgRect.left;
+          const clickY = e.clientY - svgRect.top;
+          this.addNode('question', clickX - 110, clickY - 30);
+          this.toast('Added Question box on the spot!', 'success');
+        }
+      });
+    }
+
+    // 2. Attach selection click and drag listeners for nodes
     const gNodes = container.querySelectorAll('.fb-node');
     gNodes.forEach(g => {
       const nodeId = g.dataset.id;
       const node = nodes.find(n => n.id === nodeId);
       if (!node) return;
 
-      // Click selection
+      // Click selection on node header / body
       g.addEventListener('click', (e) => {
+        // If clicking an option or port pin or add-btn, ignore here
+        if (e.target.closest('.fb-port-pin') || e.target.closest('.fb-canvas-option') || e.target.closest('.fb-add-opt-canvas-btn')) {
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         this.selectedNodeId = nodeId;
+        this.selectedOptionId = null;
         this.updateGraph();
         this.renderNodeEditor(node);
       });
 
-      // Interactive Drag-and-drop repositioning (Section 3.4)
+      // Interactive Drag-and-drop repositioning
       g.addEventListener('mousedown', (e) => {
-        if (e.button !== 0) return; // Primary button only
+        if (e.button !== 0) return;
+        if (e.target.closest('.fb-port-pin') || e.target.closest('.fb-add-opt-canvas-btn')) return;
         this.isDragging = true;
         this.dragNode = node;
         this._hasDragged = false;
         
-        const svgEl = container.querySelector('svg');
         if (!svgEl) return;
         const svgRect = svgEl.getBoundingClientRect();
         this.dragOffset = {
@@ -579,7 +629,6 @@ export class FlowBuilder {
             if (wasDragged) {
               this.pushHistory(`Reposition ${targetNode.type} node`);
             }
-            // Always select the node and render its properties in sidebar!
             this.selectedNodeId = targetNode.id;
             this.updateGraph();
             this.renderNodeEditor(targetNode);
@@ -588,6 +637,155 @@ export class FlowBuilder {
 
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
+      });
+    });
+
+    // 3. Real-time connections on design floor: Drag from Answer Pin (●) to connect arrow in real time
+    container.querySelectorAll('.fb-port-pin').forEach(pin => {
+      pin.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const nodeId = pin.dataset.nodeId;
+        const optId = pin.dataset.optId;
+        const sourceNode = nodes.find(n => n.id === nodeId);
+        const opt = sourceNode?.options?.find(o => o.id === optId);
+        if (!sourceNode || !opt || !svgEl) return;
+
+        const svgRect = svgEl.getBoundingClientRect();
+        const pinCircle = pin.querySelector('circle');
+        const pinRect = pinCircle ? pinCircle.getBoundingClientRect() : pin.getBoundingClientRect();
+        const startX = (pinRect.left + pinRect.width / 2) - svgRect.left;
+        const startY = (pinRect.top + pinRect.height / 2) - svgRect.top;
+
+        this.isConnecting = true;
+        this.connectingSourceNode = sourceNode;
+        this.connectingSourceOpt = opt;
+        this.connectingStartPos = { x: startX, y: startY };
+
+        // Create live SVG path
+        let liveLine = svgEl.querySelector('#fb-live-edge');
+        if (!liveLine) {
+          liveLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          liveLine.setAttribute('id', 'fb-live-edge');
+          liveLine.setAttribute('fill', 'none');
+          liveLine.setAttribute('stroke', '#4F46E5');
+          liveLine.setAttribute('stroke-width', '2.5');
+          liveLine.setAttribute('stroke-dasharray', '5,4');
+          liveLine.setAttribute('marker-end', 'url(#arrow-selected)');
+          svgEl.appendChild(liveLine);
+        }
+
+        const onMouseMove = (moveEvt) => {
+          if (!this.isConnecting) return;
+          const curX = moveEvt.clientX - svgRect.left;
+          const curY = moveEvt.clientY - svgRect.top;
+          const dx = Math.max(30, (curX - startX) / 2);
+          liveLine.setAttribute('d', `M ${startX} ${startY} C ${startX + dx} ${startY}, ${curX} ${curY - 30}, ${curX} ${curY}`);
+        };
+
+        const onMouseUp = (upEvt) => {
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+          if (liveLine && liveLine.parentNode) liveLine.parentNode.removeChild(liveLine);
+
+          if (this.isConnecting) {
+            this.isConnecting = false;
+            const upX = upEvt.clientX - svgRect.left;
+            const upY = upEvt.clientY - svgRect.top;
+
+            // Target node under cursor
+            const targetNode = nodes.find(n => 
+              n.id !== sourceNode.id &&
+              upX >= n.x && upX <= (n.x + n.width) &&
+              upY >= n.y && upY <= (n.y + n.height)
+            );
+
+            if (targetNode) {
+              // Disconnect any existing edge for this option
+              this.currentFlow.flow_data.edges = this.currentFlow.flow_data.edges.filter(ed =>
+                !(ed.fromId === sourceNode.id && (
+                  ed.condition_option_id === opt.id ||
+                  ed.condition_value === opt.id ||
+                  ed.condition === opt.id ||
+                  (opt.text_en && ed.condition === opt.text_en) ||
+                  (opt.text_si && ed.condition === opt.text_si)
+                ))
+              );
+
+              // Connect new arrow in real time
+              const condLabel = opt.text_si || opt.text_en || opt.id;
+              this.addEdge(sourceNode.id, targetNode.id, condLabel, opt.id);
+              this.pushHistory(`Connect answer "${condLabel}" to ${targetNode.type}`);
+              this.updateGraph();
+              this.renderNodeEditor(sourceNode);
+              this.toast(`Connected answer "${condLabel}" to ${targetNode.type}!`, 'success');
+            }
+          }
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+    });
+
+    // 4. On-the-spot: Add Answer Box directly from button on canvas node
+    container.querySelectorAll('.fb-add-opt-canvas-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nodeId = btn.dataset.nodeId;
+        const targetNode = nodes.find(n => n.id === nodeId);
+        if (!targetNode) return;
+        if (!Array.isArray(targetNode.options)) targetNode.options = [];
+        const newOptId = `opt_${targetNode.options.length + 1}_${Math.random().toString(36).substr(2, 4)}`;
+        targetNode.options.push({
+          id: newOptId,
+          text_si: `පිළිතුර ${targetNode.options.length + 1}`,
+          text_en: `Answer ${targetNode.options.length + 1}`,
+          points: 10,
+          disabled: false
+        });
+        this.selectedNodeId = nodeId;
+        this.selectedOptionId = newOptId;
+        this.pushHistory('Add answer box on canvas');
+        this.updateGraph();
+        this.renderNodeEditor(targetNode);
+        this.toast('Added new answer box on the spot', 'success');
+      });
+    });
+
+    // 5. Click Answer Box on canvas to view/edit properties in sidebar
+    container.querySelectorAll('.fb-canvas-option').forEach(optEl => {
+      optEl.addEventListener('click', (e) => {
+        // If port pin was clicked, let pin listener handle it
+        if (e.target.closest('.fb-port-pin')) return;
+        e.stopPropagation();
+        const nodeId = optEl.dataset.nodeId;
+        const optId = optEl.dataset.optId;
+        const targetNode = nodes.find(n => n.id === nodeId);
+        if (targetNode) {
+          this.selectedNodeId = nodeId;
+          this.selectedOptionId = optId;
+          this.updateGraph();
+          this.renderNodeEditor(targetNode);
+        }
+      });
+    });
+
+    // 6. Real-time arrow deletion: 1-click ✕ on arrow badges on the floor
+    container.querySelectorAll('.fb-canvas-del-edge').forEach(delBtn => {
+      delBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const fromId = delBtn.dataset.from;
+        const toId = delBtn.dataset.to;
+        const condOpt = delBtn.dataset.condOpt;
+        this.currentFlow.flow_data.edges = this.currentFlow.flow_data.edges.filter(ed =>
+          !(ed.fromId === fromId && ed.toId === toId && (!condOpt || ed.condition_option_id === condOpt))
+        );
+        this.pushHistory(`Disconnect arrow on canvas`);
+        this.updateGraph();
+        const sourceNode = nodes.find(n => n.id === fromId);
+        if (sourceNode) this.renderNodeEditor(sourceNode);
+        this.toast('Arrow disconnected in real time', 'info');
       });
     });
 
@@ -622,12 +820,37 @@ export class FlowBuilder {
       const to = nodes.find(n => n.id === edge.toId);
       if (!from || !to) return '';
 
-      const x1 = from.x + from.width / 2;
-      const y1 = from.y + from.height;
+      // Determine if edge starts from a specific answer option
+      let optIdx = -1;
+      if (Array.isArray(from.options) && (edge.condition_option_id || edge.condition)) {
+        optIdx = from.options.findIndex(o => 
+          o.id === edge.condition_option_id || 
+          o.id === edge.condition_value || 
+          (o.text_si && o.text_si === edge.condition) || 
+          (o.text_en && o.text_en === edge.condition) ||
+          o.id === edge.condition
+        );
+      }
+
+      let x1, y1;
+      if (optIdx >= 0) {
+        x1 = from.x + from.width - 8;
+        y1 = from.y + 52 + (optIdx * 26) + 11;
+      } else {
+        x1 = from.x + from.width / 2;
+        y1 = from.y + from.height;
+      }
+
       const x2 = to.x + to.width / 2;
       const y2 = to.y;
 
-      const path = `M ${x1} ${y1} C ${x1} ${y1 + 45}, ${x2} ${y2 - 45}, ${x2} ${y2}`;
+      let path = '';
+      if (optIdx >= 0) {
+        const dx = Math.max(35, Math.abs(x2 - x1) / 2);
+        path = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2} ${y2 - 35}, ${x2} ${y2}`;
+      } else {
+        path = `M ${x1} ${y1} C ${x1} ${y1 + 45}, ${x2} ${y2 - 45}, ${x2} ${y2}`;
+      }
       
       const isSelected = this.selectedNodeId === from.id || this.selectedNodeId === to.id;
 
@@ -654,7 +877,6 @@ export class FlowBuilder {
         badgeStroke = '#EA580C';
         badgeText = '#C2410C';
       } else if (edge.condition || edge.condition_option_id) {
-        // Slate pill for specific multi-choice values
         color = isSelected ? '#4F46E5' : '#64748B';
         marker = isSelected ? 'url(#arrow-selected)' : 'url(#arrow-slate)';
         badgeBg = '#F1F5F9';
@@ -668,13 +890,18 @@ export class FlowBuilder {
         const mx = (x1 + x2) / 2;
         const my = (y1 + y2) / 2;
         const labelText = displayCondition.trim();
-        const pillWidth = Math.max(54, labelText.length * 7.5 + 18);
+        const pillWidth = Math.max(72, labelText.length * 7 + 28);
         const pillHeight = 22;
 
         labelHtml = `
           <g transform="translate(${mx - pillWidth / 2}, ${my - pillHeight / 2})">
             <rect width="${pillWidth}" height="${pillHeight}" rx="11" fill="${badgeBg}" stroke="${badgeStroke}" stroke-width="1.5" filter="drop-shadow(0 1px 2px rgba(0,0,0,0.06))"/>
-            <text x="${pillWidth / 2}" y="15" font-size="10.5" font-weight="bold" fill="${badgeText}" text-anchor="middle" font-family="'Poppins', sans-serif">${labelText}</text>
+            <text x="${(pillWidth - 18) / 2}" y="15" font-size="10" font-weight="bold" fill="${badgeText}" text-anchor="middle" font-family="'Poppins', 'Noto Sans Sinhala', sans-serif">${labelText}</text>
+            <!-- ✕ Real-time Disconnect Arrow Button -->
+            <g class="fb-canvas-del-edge cursor-pointer" data-from="${edge.fromId}" data-to="${edge.toId}" data-cond-opt="${edge.condition_option_id || ''}" transform="translate(${pillWidth - 17}, 3)" title="Disconnect this arrow">
+              <circle cx="8" cy="8" r="7" fill="#EF4444" />
+              <text x="8" y="11" font-size="9" font-weight="bold" fill="#FFFFFF" text-anchor="middle">×</text>
+            </g>
           </g>
         `;
       }
@@ -689,6 +916,7 @@ export class FlowBuilder {
 
     const renderNode = (node) => {
       const isSelected = node.id === this.selectedNodeId;
+      const isNodeDisabled = node.disabled === true;
       let bgColor = '#EFF6FF';
       let strokeColor = '#3B82F6';
       let icon = '❓';
@@ -710,6 +938,11 @@ export class FlowBuilder {
         strokeColor = '#10B981';
         icon = '🏁';
         typeLabel = 'END';
+      }
+
+      if (isNodeDisabled) {
+        bgColor = '#F8FAFC';
+        strokeColor = '#94A3B8';
       }
 
       // Section 3.5 Canvas Linter Warnings (Orphan & Dead-End reachability)
@@ -736,41 +969,87 @@ export class FlowBuilder {
       }
 
       const strokeWidth = isSelected ? '3' : '1.5';
-      const strokeDash = (isOrphan || isDeadEnd) && !isSelected ? 'stroke-dasharray="4,3"' : '';
+      const strokeDash = isNodeDisabled ? 'stroke-dasharray="5,4"' : ((isOrphan || isDeadEnd) && !isSelected ? 'stroke-dasharray="4,3"' : '');
       const shadow = isSelected ? 'filter="drop-shadow(0px 4px 8px rgba(79, 70, 229, 0.25))"' : 'filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.05))"';
 
       const text = node.text_si || node.text_en || node.type;
-      const truncated = text.length > 22 ? text.substring(0, 19) + '...' : text;
+      const truncated = text.length > 26 ? text.substring(0, 24) + '...' : text;
+
+      // Status / Disabled badge
+      let disabledBadge = '';
+      if (isNodeDisabled) {
+        disabledBadge = `<text x="${node.width - 10}" y="20" font-size="8.5" font-weight="bold" fill="#EF4444" text-anchor="end" font-family="'Poppins', sans-serif">⛔ Disabled</text>`;
+      }
 
       // Calculate option summary if matrix exists
       let pointsBadge = '';
-      if (node.type === 'question') {
-        if (Array.isArray(node.options) && node.options.length > 0) {
-          const pts = node.options.map(o => Number(o.points) || 0);
-          const minPt = Math.min(...pts);
-          const maxPt = Math.max(...pts);
-          pointsBadge = minPt === maxPt ? `${minPt} pts` : `${minPt} to ${maxPt > 0 ? '+' : ''}${maxPt} pts`;
-        } else if (typeof node.points === 'number') {
-          pointsBadge = `${node.points} pts`;
+      if (!isNodeDisabled) {
+        if (node.type === 'question') {
+          if (Array.isArray(node.options) && node.options.length > 0) {
+            const pts = node.options.map(o => Number(o.points) || 0);
+            const minPt = Math.min(...pts);
+            const maxPt = Math.max(...pts);
+            pointsBadge = minPt === maxPt ? `${minPt} pts` : `${minPt} to ${maxPt > 0 ? '+' : ''}${maxPt} pts`;
+          } else if (typeof node.points === 'number') {
+            pointsBadge = `${node.points} pts`;
+          }
+        } else if (node.type === 'task') {
+          pointsBadge = `+${node.points || 0} pts`;
         }
-      } else if (node.type === 'task') {
-        pointsBadge = `+${node.points || 0} pts`;
       }
 
-      let optionsSummaryBadge = '';
-      if (Array.isArray(node.options) && node.options.length > 0) {
-        const count = node.options.length;
-        const noun = node.type === 'task' ? 'outcomes' : 'answers';
-        optionsSummaryBadge = `${count} ${noun}`;
+      // Render Answer Boxes directly on the Question/Task canvas boxes
+      let optionsCanvasHtml = '';
+      if (node.type === 'question' || node.type === 'task') {
+        const opts = Array.isArray(node.options) ? node.options : [];
+        const optHtmlList = opts.map((opt, optIdx) => {
+          const optY = 52 + (optIdx * 26);
+          const optLabel = (opt.text_si || opt.text_en || opt.id);
+          const optTrunc = optLabel.length > 19 ? optLabel.substring(0, 17) + '...' : optLabel;
+          const optPts = (opt.points !== undefined && opt.points !== null) ? Number(opt.points) : 0;
+          const ptsBg = optPts > 0 ? '#DCFCE7' : (optPts < 0 ? '#FEE2E2' : '#F1F5F9');
+          const ptsColor = optPts > 0 ? '#15803D' : (optPts < 0 ? '#DC2626' : '#64748B');
+          const isOptDisabled = opt.disabled === true;
+          const isOptSelected = this.selectedOptionId === opt.id;
+          
+          return `
+            <g class="fb-canvas-option cursor-pointer" data-node-id="${node.id}" data-opt-id="${opt.id}" transform="translate(8, ${optY})">
+              <!-- Sub-box background -->
+              <rect width="${node.width - 16}" height="22" rx="4" fill="${isOptDisabled ? '#F1F5F9' : (isOptSelected ? '#EEF2FF' : '#FFFFFF')}" stroke="${isOptSelected ? '#6366F1' : (isOptDisabled ? '#CBD5E1' : '#E2E8F0')}" stroke-width="${isOptSelected ? '1.5' : '1'}" opacity="${isOptDisabled ? '0.6' : '1'}" />
+              
+              <!-- Option label -->
+              <text x="8" y="14.5" font-size="9.5" fill="${isOptDisabled ? '#94A3B8' : '#334155'}" font-weight="${isOptSelected ? 'bold' : '500'}" font-family="'Noto Sans Sinhala', 'Poppins', sans-serif" ${isOptDisabled ? 'text-decoration="line-through"' : ''}>${optTrunc}</text>
+              
+              <!-- Marks pill -->
+              <rect x="${node.width - 56}" y="3" width="28" height="15" rx="3" fill="${ptsBg}" />
+              <text x="${node.width - 42}" y="14" font-size="8" font-weight="bold" fill="${ptsColor}" text-anchor="middle" font-family="'Poppins', sans-serif">${optPts > 0 ? '+' : ''}${optPts}</text>
+              
+              <!-- Connector Pin (●) on right edge for real-time drag to connect -->
+              <g class="fb-port-pin cursor-crosshair" data-node-id="${node.id}" data-opt-id="${opt.id}" data-opt-idx="${optIdx}" title="Drag arrow from this answer to connect to another box">
+                <circle cx="${node.width - 16}" cy="11" r="5.5" fill="#4F46E5" stroke="#FFFFFF" stroke-width="1.5" />
+              </g>
+            </g>
+          `;
+        }).join('');
+
+        const addBtnY = 52 + (opts.length * 26) + 4;
+        const addAnswerBtnHtml = `
+          <g class="fb-add-opt-canvas-btn cursor-pointer" data-node-id="${node.id}" transform="translate(8, ${addBtnY})" title="Add a new answer box on the spot">
+            <rect width="${node.width - 16}" height="20" rx="4" fill="#F8FAFC" stroke="#93C5FD" stroke-width="1" stroke-dasharray="3,2" />
+            <text x="${(node.width - 16) / 2}" y="13.5" font-size="9" font-weight="bold" fill="#2563EB" text-anchor="middle" font-family="'Poppins', sans-serif">+ Add Answer Box</text>
+          </g>
+        `;
+
+        optionsCanvasHtml = optHtmlList + addAnswerBtnHtml;
       }
 
       return `
         <g class="fb-node cursor-grab transition-transform" data-id="${node.id}" transform="translate(${node.x}, ${node.y})">
           <rect width="${node.width}" height="${node.height}" rx="8" fill="${bgColor}" stroke="${isSelected ? '#4F46E5' : strokeColor}" stroke-width="${strokeWidth}" ${strokeDash} ${shadow} />
-          <text x="12" y="24" font-size="11.5" font-weight="bold" fill="#1E293B" font-family="'Poppins', sans-serif">${icon} ${typeLabel}</text>
-          ${pointsBadge ? `<text x="${node.width - 12}" y="24" font-size="9.5" font-weight="bold" fill="#64748B" text-anchor="end" font-family="'Poppins', sans-serif">${pointsBadge}</text>` : ''}
-          <text x="12" y="${linterBadge ? 42 : 45}" font-size="11" fill="#475569" font-family="'Noto Sans Sinhala', 'Poppins', sans-serif">${truncated}</text>
-          ${optionsSummaryBadge ? `<text x="${node.width - 12}" y="${node.height - 10}" font-size="8.5" font-weight="600" fill="#6366F1" text-anchor="end" font-family="'Poppins', sans-serif">🔀 ${optionsSummaryBadge}</text>` : ''}
+          <text x="10" y="20" font-size="11" font-weight="bold" fill="#1E293B" font-family="'Poppins', sans-serif">${icon} ${typeLabel}</text>
+          ${disabledBadge || (pointsBadge ? `<text x="${node.width - 10}" y="20" font-size="9" font-weight="bold" fill="#64748B" text-anchor="end" font-family="'Poppins', sans-serif">${pointsBadge}</text>` : '')}
+          <text x="10" y="38" font-size="10.5" font-weight="500" fill="#475569" font-family="'Noto Sans Sinhala', 'Poppins', sans-serif">${truncated}</text>
+          ${optionsCanvasHtml}
           ${linterBadge}
         </g>
       `;
@@ -779,6 +1058,7 @@ export class FlowBuilder {
     return `
       <svg width="${this.svgWidth}" height="${this.svgHeight}" style="background-color: transparent;">
         ${defs}
+        <rect class="fb-canvas-bg" width="100%" height="100%" fill="transparent" />
         ${edges.map(renderEdge).join('')}
         ${nodes.map(renderNode).join('')}
       </svg>
@@ -799,10 +1079,11 @@ export class FlowBuilder {
       : (currentEdge ? `[NODE] ${currentEdge.toId}` : '');
     const displayOptLabel = opt.text_si || opt.text_en || opt.id;
     const optPoints = (opt.points !== undefined && opt.points !== null) ? Number(opt.points) : 0;
+    const isSelectedOpt = this.selectedOptionId === opt.id;
 
     return `
-      <div class="p-3 bg-white rounded-lg border ${currentEdge ? 'border-indigo-300 shadow-xs' : 'border-slate-200 shadow-2xs'} option-row flex flex-col gap-2 hover:border-slate-300 transition" data-idx="${idx}" data-opt-id="${opt.id}">
-        <!-- Row 1: Index, Sinhala Label, Marks Input, Clear Marks, Delete Option -->
+      <div class="p-3 bg-white rounded-lg border ${isSelectedOpt ? 'border-indigo-500 ring-2 ring-indigo-200 bg-indigo-50/20' : (currentEdge ? 'border-indigo-300 shadow-xs' : 'border-slate-200 shadow-2xs')} option-row flex flex-col gap-2 hover:border-slate-300 transition" data-idx="${idx}" data-opt-id="${opt.id}">
+        <!-- Row 1: Index, Sinhala Label, Marks Input, Clear Marks, Enable/Disable, Delete Option -->
         <div class="flex items-center gap-2">
           <span class="text-xs font-mono font-bold text-slate-400 w-5">#${idx + 1}</span>
           <input type="text" placeholder="පිළිතුර (e.g. ඔව් / සම්පූර්ණයි / 05:30ට පෙර)" value="${opt.text_si || opt.text_en || ''}" class="opt-text-si flex-1 text-xs border-gray-300 rounded p-1.5 focus:border-indigo-500 font-['Noto_Sans_Sinhala'] font-medium text-slate-800" />
@@ -814,6 +1095,11 @@ export class FlowBuilder {
               <i class="fas fa-eraser"></i>
             </button>
           </div>
+
+          <label class="flex items-center gap-1 cursor-pointer text-[10px] text-slate-600 select-none px-1" title="Enable or disable this answer choice">
+            <input type="checkbox" class="opt-enabled-toggle rounded text-indigo-600 h-3.5 w-3.5" ${opt.disabled ? '' : 'checked'} data-opt-id="${opt.id}">
+            <span class="${opt.disabled ? 'text-red-500 line-through font-semibold' : 'text-slate-500 font-medium'}">${opt.disabled ? 'Off' : 'Active'}</span>
+          </label>
 
           <button type="button" class="opt-delete text-gray-400 hover:text-red-600 p-1.5 text-xs rounded hover:bg-red-50 transition" title="Delete this answer option">
             <i class="fas fa-trash-alt"></i>
@@ -1380,6 +1666,10 @@ export class FlowBuilder {
           <div class="flex items-center gap-2">
             <span class="text-sm font-bold text-gray-800">Configure Node</span>
             <span class="text-xs px-2 py-0.5 rounded font-mono font-semibold uppercase bg-slate-100 text-slate-700">${node.type}</span>
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded border border-slate-300 select-none ml-2" title="Enable or disable this entire node in the flow">
+              <input type="checkbox" id="ne-node-disabled-toggle" ${node.disabled ? 'checked' : ''} class="rounded text-red-600 focus:ring-red-500 h-3.5 w-3.5">
+              <span class="${node.disabled ? 'text-red-600 font-bold' : 'text-slate-600 font-medium'}">${node.disabled ? '⛔ Node Disabled' : '✓ Node Active'}</span>
+            </label>
           </div>
           <span class="text-xs text-gray-400 font-mono">${node.id}</span>
         </div>
@@ -1408,9 +1698,28 @@ export class FlowBuilder {
     `;
 
     this.attachNodeEditorListeners(node);
+
+    if (this.selectedOptionId) {
+      const targetOptRow = editorEl.querySelector(`.option-row[data-opt-id="${this.selectedOptionId}"]`);
+      if (targetOptRow) {
+        setTimeout(() => {
+          targetOptRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const textInput = targetOptRow.querySelector('.opt-text-si');
+          if (textInput) textInput.focus();
+        }, 50);
+      }
+    }
   }
 
   attachNodeEditorListeners(node) {
+    document.getElementById('ne-node-disabled-toggle')?.addEventListener('change', (e) => {
+      node.disabled = e.target.checked;
+      this.pushHistory(node.disabled ? 'Disable node' : 'Enable node');
+      this.updateGraph();
+      this.renderNodeEditor(node);
+      this.toast(`Node is now ${node.disabled ? 'disabled' : 'active'}`, 'info');
+    });
+
     if (document.getElementById('ne-text-si')) {
       document.getElementById('ne-text-si').addEventListener('input', (e) => {
         node.text_si = e.target.value;
@@ -1511,16 +1820,27 @@ export class FlowBuilder {
         const textEn = textEnInput ? textEnInput.value : textSi;
         const ptsVal = row.querySelector('.opt-points')?.value;
         const pts = (ptsVal !== undefined && ptsVal !== '' && !isNaN(Number(ptsVal))) ? Number(ptsVal) : 0;
+        const isEnabled = row.querySelector('.opt-enabled-toggle') ? row.querySelector('.opt-enabled-toggle').checked : true;
         updated.push({
           id: optId,
           text_si: textSi,
           text_en: textEn,
-          points: pts
+          points: pts,
+          disabled: !isEnabled
         });
       });
       node.options = updated;
       this.updateGraph();
     };
+
+    document.querySelectorAll('.opt-enabled-toggle').forEach(chk => {
+      chk.addEventListener('change', () => {
+        saveOptionsFromDom();
+        this.pushHistory('Toggle option enabled state');
+        this.updateGraph();
+        this.renderNodeEditor(node);
+      });
+    });
 
     document.querySelectorAll('.opt-text-si, .opt-points').forEach(input => {
       input.addEventListener('input', () => {
@@ -1854,7 +2174,7 @@ export class FlowBuilder {
     });
   }
 
-  addNode(type = 'question') {
+  addNode(type = 'question', posX = null, posY = null) {
     const id = 'node_' + Math.random().toString(36).substr(2, 9);
     let newNode = null;
 
@@ -1863,13 +2183,14 @@ export class FlowBuilder {
       newNode = {
         id,
         type: 'task',
+        disabled: false,
         task_id: firstTask ? firstTask.id : null,
         text_en: firstTask ? (firstTask.title_en || firstTask.title_si) : 'New Task Assignment Step',
         text_si: firstTask ? (firstTask.title_si || firstTask.title_en) : 'නව කාර්ය පැවරුම් පියවර',
         points: firstTask ? (firstTask.weight_points || 15) : 15,
         options: [
-          { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: firstTask ? (firstTask.weight_points || 15) : 15 },
-          { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed / Incomplete', points: 0 }
+          { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: firstTask ? (firstTask.weight_points || 15) : 15, disabled: false },
+          { id: 'opt_missed', text_si: 'නොකරන ලදී', text_en: 'Missed / Incomplete', points: 0, disabled: false }
         ],
         task_payload: firstTask ? {
           id: firstTask.id,
@@ -1885,18 +2206,25 @@ export class FlowBuilder {
       newNode = {
         id,
         type,
+        disabled: false,
         text_en: `New ${type.charAt(0).toUpperCase() + type.slice(1)}`,
         text_si: '',
         input_type: type === 'question' ? 'choice' : null,
         options: type === 'question' ? [
-          { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10 },
-          { id: 'opt_2', text_si: 'නැත', text_en: 'No',  points: 0 }
+          { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10, disabled: false },
+          { id: 'opt_2', text_si: 'නැත', text_en: 'No',  points: 0, disabled: false }
         ] : []
       };
     }
 
+    if (posX !== null && posY !== null) {
+      newNode.x = Math.max(10, Math.round(posX));
+      newNode.y = Math.max(10, Math.round(posY));
+    }
+
     this.currentFlow.flow_data.nodes.push(newNode);
     this.selectedNodeId = id;
+    this.selectedOptionId = null;
     this.pushHistory(`Add ${type} node`);
     this.updateGraph();
     this.renderNodeEditor(newNode);
@@ -1965,6 +2293,20 @@ export class FlowBuilder {
         }
         this.toast(`Flow ${isPublish ? 'published' : 'created'} successfully!`, 'success');
       }
+
+      // Synchronize to localStorage for instant offline & front-page player availability
+      try {
+        const localRaw = localStorage.getItem('wosandi_admin_wosandi_flows');
+        const localList = localRaw ? JSON.parse(localRaw) : [];
+        const updatedRecord = { ...this.currentFlow, ...payload, updated_at: new Date().toISOString() };
+        const exIdx = localList.findIndex(f => f.id === this.currentFlow.id);
+        if (exIdx >= 0) {
+          localList[exIdx] = updatedRecord;
+        } else {
+          localList.unshift(updatedRecord);
+        }
+        localStorage.setItem('wosandi_admin_wosandi_flows', JSON.stringify(localList));
+      } catch (e) {}
 
       this.render();
     } catch (e) {
