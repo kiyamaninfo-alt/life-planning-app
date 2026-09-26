@@ -739,7 +739,7 @@ export class FlowBuilder {
       const strokeDash = (isOrphan || isDeadEnd) && !isSelected ? 'stroke-dasharray="4,3"' : '';
       const shadow = isSelected ? 'filter="drop-shadow(0px 4px 8px rgba(79, 70, 229, 0.25))"' : 'filter="drop-shadow(0px 2px 4px rgba(0,0,0,0.05))"';
 
-      const text = node.text_en || node.text_si || node.type;
+      const text = node.text_si || node.text_en || node.type;
       const truncated = text.length > 22 ? text.substring(0, 19) + '...' : text;
 
       // Calculate option summary if matrix exists
@@ -788,43 +788,44 @@ export class FlowBuilder {
   renderOptionRowHtml(node, opt, idx, availableNodes, outgoingEdges) {
     const currentEdge = outgoingEdges.find(e => 
       e.condition_option_id === opt.id || 
-      e.condition_value === opt.id ||
-      e.condition === opt.id ||
+      e.condition_value === opt.id || 
+      e.condition === opt.id || 
       (opt.text_en && e.condition === opt.text_en) ||
       (opt.text_si && e.condition === opt.text_si)
     );
     const linkedTargetNode = currentEdge ? availableNodes.find(n => n.id === currentEdge.toId) : null;
     const targetLabel = linkedTargetNode 
-      ? `[${linkedTargetNode.type.toUpperCase()}] ${linkedTargetNode.text_en || linkedTargetNode.text_si || linkedTargetNode.id}`
+      ? `[${linkedTargetNode.type.toUpperCase()}] ${linkedTargetNode.text_si || linkedTargetNode.text_en || linkedTargetNode.id}`
       : (currentEdge ? `[NODE] ${currentEdge.toId}` : '');
+    const displayOptLabel = opt.text_si || opt.text_en || opt.id;
+    const optPoints = (opt.points !== undefined && opt.points !== null) ? Number(opt.points) : 0;
 
     return `
-      <div class="p-3 bg-white rounded-lg border ${currentEdge ? 'border-indigo-300 shadow-xs' : 'border-slate-200 shadow-2xs'} option-row flex flex-col gap-2.5 hover:border-slate-300 transition" data-idx="${idx}" data-opt-id="${opt.id}">
-        <!-- Row 1: Index, Sinhala Label, Points, Delete -->
+      <div class="p-3 bg-white rounded-lg border ${currentEdge ? 'border-indigo-300 shadow-xs' : 'border-slate-200 shadow-2xs'} option-row flex flex-col gap-2 hover:border-slate-300 transition" data-idx="${idx}" data-opt-id="${opt.id}">
+        <!-- Row 1: Index, Sinhala Label, Marks Input, Clear Marks, Delete Option -->
         <div class="flex items-center gap-2">
           <span class="text-xs font-mono font-bold text-slate-400 w-5">#${idx + 1}</span>
-          <input type="text" placeholder="Sinhala Label (e.g. ඔව් / 05:30ට පෙර / සම්පූර්ණයි)" value="${opt.text_si || ''}" class="opt-text-si flex-1 text-xs border-gray-300 rounded p-1.5 focus:border-indigo-500 font-['Noto_Sans_Sinhala']" />
-          <div class="flex items-center gap-1">
-            <span class="text-[10px] text-gray-400 font-medium">Pts:</span>
-            <input type="number" placeholder="Points" value="${opt.points !== undefined ? opt.points : 0}" class="opt-points w-16 text-xs font-bold border-gray-300 rounded p-1.5 ${opt.points < 0 ? 'text-red-600 bg-red-50' : (opt.points > 0 ? 'text-green-600' : 'text-gray-700')}" />
+          <input type="text" placeholder="පිළිතුර (e.g. ඔව් / සම්පූර්ණයි / 05:30ට පෙර)" value="${opt.text_si || opt.text_en || ''}" class="opt-text-si flex-1 text-xs border-gray-300 rounded p-1.5 focus:border-indigo-500 font-['Noto_Sans_Sinhala'] font-medium text-slate-800" />
+          
+          <div class="flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded border border-slate-200" title="Marks for this answer (can be positive e.g. 10, negative e.g. -20, or 0)">
+            <span class="text-[10px] text-slate-500 font-bold whitespace-nowrap">Marks:</span>
+            <input type="number" step="1" placeholder="0" value="${optPoints}" class="opt-points w-16 text-xs font-bold border-gray-300 rounded p-1 text-center ${optPoints < 0 ? 'text-red-600 bg-red-50' : (optPoints > 0 ? 'text-green-600 bg-green-50' : 'text-slate-600 bg-white')}" />
+            <button type="button" class="opt-clear-marks text-slate-400 hover:text-amber-600 p-1 text-xs transition" title="Clear / Remove Marks (set to 0)">
+              <i class="fas fa-eraser"></i>
+            </button>
           </div>
-          <button type="button" class="opt-delete text-gray-400 hover:text-red-600 p-1 text-xs transition" title="Remove Option">
+
+          <button type="button" class="opt-delete text-gray-400 hover:text-red-600 p-1.5 text-xs rounded hover:bg-red-50 transition" title="Delete this answer option">
             <i class="fas fa-trash-alt"></i>
           </button>
         </div>
 
-        <!-- Row 2: English Label & Option ID -->
-        <div class="flex items-center gap-2 pl-7">
-          <input type="text" placeholder="English Label (e.g. Yes / Before 05:30 / Completed)" value="${opt.text_en || ''}" class="opt-text-en flex-1 text-xs border-gray-200 rounded p-1 text-gray-600 focus:border-indigo-500" />
-          <span class="text-[10px] text-gray-400 font-mono bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">ID: ${opt.id}</span>
-        </div>
-
-        <!-- Row 3: Step 1 - Direct Inline Branching for this Answer -->
+        <!-- Direct Inline Branching for this Answer -->
         ${currentEdge ? `
-          <div class="mt-1 pt-2 border-t border-indigo-100 flex flex-col gap-2 pl-7 p-2.5 rounded-lg bg-indigo-50/80 border border-indigo-200 shadow-2xs">
+          <div class="mt-0.5 pt-2 border-t border-indigo-100 flex flex-col gap-2 pl-7 p-2.5 rounded-lg bg-indigo-50/80 border border-indigo-200 shadow-2xs">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-bold text-indigo-900 flex items-center gap-1.5">
-                <i class="fas fa-code-branch text-indigo-600"></i> Flow for "${opt.text_en || opt.text_si || opt.id}":
+                <i class="fas fa-code-branch text-indigo-600"></i> Flow for "${displayOptLabel}":
               </span>
               <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
                 <i class="fas fa-check text-[9px]"></i> Connected
@@ -849,21 +850,21 @@ export class FlowBuilder {
 
             <div class="flex items-center gap-1.5 pt-1">
               <span class="text-[10px] text-slate-500 whitespace-nowrap">Change to:</span>
-              <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500 flex-1" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}">
+              <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500 flex-1" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}">
                 <option value="">-- Change Target Node --</option>
                 ${availableNodes.map(an => `
                   <option value="${an.id}" ${currentEdge?.toId === an.id ? 'selected' : ''}>
-                    ${an.type.toUpperCase()}: ${(an.text_en || an.text_si || an.id).substring(0, 24)}
+                    ${an.type.toUpperCase()}: ${(an.text_si || an.text_en || an.id).substring(0, 24)}
                   </option>
                 `).join('')}
               </select>
             </div>
           </div>
         ` : `
-          <div class="mt-1 pt-2 border-t border-slate-100 flex flex-col gap-2 pl-7 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+          <div class="mt-0.5 pt-2 border-t border-slate-100 flex flex-col gap-2 pl-7 p-2.5 rounded-lg bg-slate-50 border border-slate-200">
             <div class="flex items-center justify-between">
               <span class="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                <i class="fas fa-code-branch text-indigo-600"></i> Flow for "${opt.text_en || opt.text_si || opt.id}":
+                <i class="fas fa-code-branch text-indigo-600"></i> Flow for "${displayOptLabel}":
               </span>
               <span class="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">No branch set</span>
             </div>
@@ -871,13 +872,13 @@ export class FlowBuilder {
             <!-- Direct 1-Click Action Buttons to create next flow step -->
             <div class="flex items-center gap-1.5 flex-wrap">
               <span class="text-[10px] font-medium text-slate-500 mr-0.5">Add next step:</span>
-              <button type="button" class="opt-add-step-btn text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}" data-step-type="question" title="Create a new question following this answer">
+              <button type="button" class="opt-add-step-btn text-[11px] bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="question" title="Create a new question following this answer">
                 <i class="fas fa-question-circle text-[10px]"></i> + Question
               </button>
-              <button type="button" class="opt-add-step-btn text-[11px] bg-purple-600 hover:bg-purple-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}" data-step-type="task" title="Create a new task step following this answer">
+              <button type="button" class="opt-add-step-btn text-[11px] bg-purple-600 hover:bg-purple-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="task" title="Create a new task step following this answer">
                 <i class="fas fa-tasks text-[10px]"></i> + Task
               </button>
-              <button type="button" class="opt-add-step-btn text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}" data-step-type="end" title="Create an end/completion terminal following this answer">
+              <button type="button" class="opt-add-step-btn text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-2 py-1 rounded shadow-2xs flex items-center gap-1 transition" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}" data-step-type="end" title="Create an end/completion terminal following this answer">
                 <i class="fas fa-flag-checkered text-[10px]"></i> + End Step
               </button>
             </div>
@@ -885,11 +886,11 @@ export class FlowBuilder {
             <!-- Or Route to Existing Node in flow -->
             <div class="flex items-center gap-1.5 pt-1 border-t border-slate-200">
               <span class="text-[10px] text-slate-500 whitespace-nowrap">Or link existing:</span>
-              <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500 flex-1" data-opt-id="${opt.id}" data-opt-label="${opt.text_en || opt.text_si || opt.id}">
+              <select class="opt-branch-select text-xs border-gray-300 rounded px-2 py-1 bg-white font-medium text-slate-700 focus:ring-indigo-500 focus:border-indigo-500 flex-1" data-opt-id="${opt.id}" data-opt-label="${displayOptLabel}">
                 <option value="">-- Choose Existing Node in Flow --</option>
                 ${availableNodes.map(an => `
                   <option value="${an.id}">
-                    ${an.type.toUpperCase()}: ${(an.text_en || an.text_si || an.id).substring(0, 24)}
+                    ${an.type.toUpperCase()}: ${(an.text_si || an.text_en || an.id).substring(0, 24)}
                   </option>
                 `).join('')}
               </select>
@@ -913,6 +914,7 @@ export class FlowBuilder {
     const posY = Math.max(20, sourceY + (fanIndex * 110) - 30);
 
     let newNode = null;
+    const optLabel = opt.text_si || opt.text_en || opt.id;
     if (stepType === 'task') {
       const firstTask = this.activeTasks && this.activeTasks.length > 0 ? this.activeTasks[0] : null;
       newNode = {
@@ -921,8 +923,8 @@ export class FlowBuilder {
         x: posX,
         y: posY,
         task_id: firstTask ? firstTask.id : null,
-        text_en: `Task for "${opt.text_en || opt.id}"`,
-        text_si: `කාර්යය (${opt.text_si || opt.id} සඳහා)`,
+        text_en: `Task for "${optLabel}"`,
+        text_si: `කාර්යය (${optLabel} සඳහා)`,
         points: firstTask ? (firstTask.weight_points || 15) : 15,
         options: [
           { id: 'opt_done', text_si: 'සම්පූර්ණ කරන ලදී', text_en: 'Completed', points: firstTask ? (firstTask.weight_points || 15) : 15 },
@@ -944,8 +946,8 @@ export class FlowBuilder {
         type: 'end',
         x: posX,
         y: posY,
-        text_en: `End: Complete after "${opt.text_en || opt.id}"`,
-        text_si: `අවසන්: ${opt.text_si || opt.id} පසු අවසන්`
+        text_en: `End: Complete after "${optLabel}"`,
+        text_si: `අවසන්: ${optLabel} පසු අවසන්`
       };
     } else {
       newNode = {
@@ -953,8 +955,8 @@ export class FlowBuilder {
         type: 'question',
         x: posX,
         y: posY,
-        text_en: `Question for "${opt.text_en || opt.id}"`,
-        text_si: `ප්‍රශ්නය (${opt.text_si || opt.id} සඳහා)`,
+        text_en: `Question for "${optLabel}"`,
+        text_si: `ප්‍රශ්නය (${optLabel} සඳහා)`,
         input_type: 'choice',
         options: [
           { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10 },
@@ -980,18 +982,19 @@ export class FlowBuilder {
     this.currentFlow.flow_data.edges.push({
       fromId: sourceNode.id,
       toId: newNode.id,
-      condition: opt.text_en || opt.text_si || opt.id,
+      condition: opt.text_si || opt.text_en || opt.id,
       condition_option_id: opt.id,
       condition_value: opt.id
     });
 
-    this.pushHistory(`Add ${stepType} branch for answer "${opt.text_en || opt.id}"`);
+    this.pushHistory(`Add ${stepType} branch for answer "${optLabel}"`);
     this.updateGraph();
     this.renderNodeEditor(sourceNode);
-    this.toast(`Added new ${stepType} node branched from "${opt.text_en || opt.id}"`, 'success');
+    this.toast(`Added new ${stepType} node branched from "${optLabel}"`, 'success');
   }
 
   handleBranchSelect(sourceNode, opt, targetVal) {
+    const optLabel = opt.text_si || opt.text_en || opt.id;
     if (targetVal === '__NEW_QUESTION__') {
       this.createNextStepForOption(sourceNode, opt, 'question');
       return;
@@ -1020,15 +1023,15 @@ export class FlowBuilder {
       this.currentFlow.flow_data.edges.push({
         fromId: sourceNode.id,
         toId: targetVal,
-        condition: opt.text_en || opt.text_si || opt.id,
+        condition: opt.text_si || opt.text_en || opt.id,
         condition_option_id: opt.id,
         condition_value: opt.id
       });
-      this.pushHistory(`Branch answer "${opt.text_en || opt.id}" to node`);
-      this.toast(`Connected answer "${opt.text_en || opt.id}" to target node`, 'success');
+      this.pushHistory(`Branch answer "${optLabel}" to node`);
+      this.toast(`Connected answer "${optLabel}" to target node`, 'success');
     } else {
-      this.pushHistory(`Disconnect branch for answer "${opt.text_en || opt.id}"`);
-      this.toast(`Disconnected branch for "${opt.text_en || opt.id}"`, 'info');
+      this.pushHistory(`Disconnect branch for answer "${optLabel}"`);
+      this.toast(`Disconnected branch for "${optLabel}"`, 'info');
     }
 
     this.updateGraph();
@@ -1036,6 +1039,7 @@ export class FlowBuilder {
   }
 
   disconnectOptionBranch(sourceNode, opt) {
+    const optLabel = opt.text_si || opt.text_en || opt.id;
     this.currentFlow.flow_data.edges = this.currentFlow.flow_data.edges.filter(e => 
       !(e.fromId === sourceNode.id && (
         e.condition_option_id === opt.id || 
@@ -1045,10 +1049,10 @@ export class FlowBuilder {
         (opt.text_si && e.condition === opt.text_si)
       ))
     );
-    this.pushHistory(`Disconnect branch for answer "${opt.text_en || opt.id}"`);
+    this.pushHistory(`Disconnect branch for answer "${optLabel}"`);
     this.updateGraph();
     this.renderNodeEditor(sourceNode);
-    this.toast(`Disconnected branch for "${opt.text_en || opt.id}"`, 'info');
+    this.toast(`Disconnected branch for "${optLabel}"`, 'info');
   }
 
   renderNodeEditor(node) {
@@ -1132,8 +1136,20 @@ export class FlowBuilder {
           ` : ''}
 
           <div class="mt-3">
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Step Completion Points</label>
-            <input type="number" id="ne-points" value="${node.points !== undefined ? node.points : (currentTask?.weight_points || 15)}" class="w-full text-xs border-purple-300 rounded shadow-xs font-bold text-purple-900" />
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs font-semibold text-slate-700">Step Completion Marks / සම්පූර්ණ කිරීමේ ලකුණු</label>
+              <button type="button" id="ne-task-clear-step-points" class="text-[10px] text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1" title="Clear step marks (set to 0)">
+                <i class="fas fa-eraser"></i> Clear (0 Marks)
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" id="ne-points" value="${node.points !== undefined ? node.points : (currentTask?.weight_points || 15)}" class="flex-1 text-xs border-purple-300 rounded shadow-xs font-bold text-purple-900" />
+              <div class="flex items-center gap-1">
+                <button type="button" class="ne-quick-pt-btn px-2 py-1 text-[11px] font-bold rounded bg-purple-100 hover:bg-purple-200 text-purple-800" data-pts="10">+10</button>
+                <button type="button" class="ne-quick-pt-btn px-2 py-1 text-[11px] font-bold rounded bg-purple-100 hover:bg-purple-200 text-purple-800" data-pts="15">+15</button>
+                <button type="button" class="ne-quick-pt-btn px-2 py-1 text-[11px] font-bold rounded bg-purple-100 hover:bg-purple-200 text-purple-800" data-pts="20">+20</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1151,15 +1167,22 @@ export class FlowBuilder {
             </button>
           </div>
 
-          <!-- Presets -->
-          <div class="mb-3 flex items-center gap-2">
-            <span class="text-[11px] text-purple-700 font-medium">Presets:</span>
-            <button type="button" id="ne-task-preset-done-missed" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100 font-medium shadow-2xs">
-              Completed / Missed
-            </button>
-            <button type="button" id="ne-task-preset-tiers" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100 font-medium shadow-2xs">
-              Done / Partial / Missed
-            </button>
+          <!-- Presets & Marks Management -->
+          <div class="mb-3 flex items-center justify-between gap-2 flex-wrap">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-[11px] text-purple-700 font-medium">Presets:</span>
+              <button type="button" id="ne-task-preset-done-missed" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100 font-medium shadow-2xs">
+                Completed (+15) / Missed (0)
+              </button>
+              <button type="button" id="ne-task-preset-tiers" class="text-[11px] px-2 py-0.5 rounded bg-white border border-purple-200 text-purple-800 hover:bg-purple-100 font-medium shadow-2xs">
+                Done / Partial / Missed
+              </button>
+            </div>
+            <div class="flex items-center gap-1">
+              <button type="button" id="ne-task-remove-all-marks" class="text-[11px] px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium shadow-2xs flex items-center gap-1" title="Set marks on all task outcomes to 0">
+                <i class="fas fa-eraser text-[10px]"></i> Clear All Marks (0)
+              </button>
+            </div>
           </div>
 
           <div id="ne-options-matrix-container" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
@@ -1208,15 +1231,22 @@ export class FlowBuilder {
               </button>
             </div>
 
-            <!-- Presets -->
-            <div class="mb-3 flex items-center gap-2">
-              <span class="text-[11px] text-gray-500 font-medium">Presets:</span>
-              <button type="button" id="ne-preset-yesno" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium shadow-2xs">
-                Yes (+10) / No (0)
-              </button>
-              <button type="button" id="ne-preset-morning" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium shadow-2xs">
-                Wakeup (-20 After 6:30)
-              </button>
+            <!-- Presets & Marks Management -->
+            <div class="mb-3 flex items-center justify-between gap-2 flex-wrap">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-[11px] text-gray-500 font-medium">Presets:</span>
+                <button type="button" id="ne-preset-yesno" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium shadow-2xs">
+                  Yes (+10) / No (0)
+                </button>
+                <button type="button" id="ne-preset-morning" class="text-[11px] px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium shadow-2xs">
+                  Wakeup (-20 After 6:30)
+                </button>
+              </div>
+              <div class="flex items-center gap-1">
+                <button type="button" id="ne-remove-all-marks" class="text-[11px] px-2 py-0.5 rounded bg-white border border-amber-300 text-amber-700 hover:bg-amber-50 font-medium shadow-2xs flex items-center gap-1" title="Set marks on all options to 0">
+                  <i class="fas fa-eraser text-[10px]"></i> Clear All Marks (0)
+                </button>
+              </div>
             </div>
 
             <div id="ne-options-matrix-container" class="space-y-2.5 max-h-80 overflow-y-auto pr-1">
@@ -1240,8 +1270,20 @@ export class FlowBuilder {
 
           <!-- Static Points Input -->
           <div class="mb-5">
-            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Static Points Value</label>
-            <input type="number" id="ne-points" value="${node.points || 0}" class="w-full text-sm border-gray-300 rounded-md shadow-sm" />
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">Static Points / ලකුණු</label>
+              <button type="button" id="ne-clear-static-points" class="text-[10px] text-amber-600 hover:text-amber-800 font-medium flex items-center gap-1" title="Clear static marks (set to 0)">
+                <i class="fas fa-eraser"></i> Clear (0 Marks)
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" id="ne-points" value="${node.points || 0}" class="flex-1 text-sm border-gray-300 rounded-md shadow-sm font-bold" />
+              <div class="flex items-center gap-1">
+                <button type="button" class="ne-quick-pt-btn px-2 py-1 text-[11px] font-bold rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800" data-pts="5">+5</button>
+                <button type="button" class="ne-quick-pt-btn px-2 py-1 text-[11px] font-bold rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800" data-pts="10">+10</button>
+                <button type="button" class="ne-quick-pt-btn px-2 py-1 text-[11px] font-bold rounded bg-indigo-100 hover:bg-indigo-200 text-indigo-800" data-pts="15">+15</button>
+              </div>
+            </div>
           </div>
         `}
       `;
@@ -1276,8 +1318,8 @@ export class FlowBuilder {
                     <select class="edge-condition-picker flex-1 text-xs border-gray-300 rounded p-1 font-semibold" data-to="${e.toId}">
                       <option value="" ${!e.condition && !e.condition_option_id ? 'selected' : ''}>Default / Unconditional</option>
                       ${allOpts.map(opt => `
-                        <option value="${opt.id}" data-text="${opt.text_en || opt.text_si}" ${(e.condition_option_id === opt.id || e.condition === (opt.text_en || opt.text_si) || e.condition === opt.id) ? 'selected' : ''}>
-                          [${opt.id}] ${opt.text_en || opt.text_si} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
+                        <option value="${opt.id}" data-text="${opt.text_si || opt.text_en}" ${(e.condition_option_id === opt.id || e.condition === (opt.text_si || opt.text_en) || e.condition === opt.id) ? 'selected' : ''}>
+                          [${opt.id}] ${opt.text_si || opt.text_en} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
                         </option>
                       `).join('')}
                     </select>
@@ -1292,7 +1334,7 @@ export class FlowBuilder {
                   <select class="edge-relink-target flex-1 text-xs border-gray-300 rounded p-1 font-semibold text-indigo-700 bg-white" data-from="${node.id}" data-current-to="${e.toId}">
                     ${availableNodes.map(an => `
                       <option value="${an.id}" ${an.id === e.toId ? 'selected' : ''}>
-                        ${an.type.toUpperCase()}: ${an.text_en ? an.text_en.substring(0, 24) : an.id}
+                        ${an.type.toUpperCase()}: ${(an.text_si || an.text_en || an.id).substring(0, 24)}
                       </option>
                     `).join('')}
                   </select>
@@ -1312,8 +1354,8 @@ export class FlowBuilder {
                 <select id="ne-option-condition-picker" class="w-full text-xs border-gray-300 rounded shadow-xs">
                   <option value="">Default / Unconditional Path</option>
                   ${FlowEngine.normalizeOptions(node.options).map(opt => `
-                    <option value="${opt.id}" data-text="${opt.text_en || opt.text_si}">
-                      [${opt.id}] ${opt.text_en || opt.text_si} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
+                    <option value="${opt.id}" data-text="${opt.text_si || opt.text_en}">
+                      [${opt.id}] ${opt.text_si || opt.text_en} (${opt.points > 0 ? '+' : ''}${opt.points} pts)
                     </option>
                   `).join('')}
                 </select>
@@ -1323,7 +1365,7 @@ export class FlowBuilder {
             <div class="flex gap-2">
               <select id="ne-new-edge-to" class="flex-1 text-xs border-gray-300 rounded shadow-xs">
                 <option value="">Select Target Node...</option>
-                ${availableNodes.map(n => `<option value="${n.id}">${n.type.toUpperCase()}: ${n.text_en ? n.text_en.substring(0, 24) : n.id}</option>`).join('')}
+                ${availableNodes.map(n => `<option value="${n.id}">${n.type.toUpperCase()}: ${(n.text_si || n.text_en || n.id).substring(0, 24)}</option>`).join('')}
               </select>
               <button id="ne-add-edge" type="button" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-medium shadow-xs">Connect</button>
             </div>
@@ -1344,22 +1386,13 @@ export class FlowBuilder {
 
         ${node.type !== 'end' ? `
         <div class="mb-4">
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Prompt / Question / Task (Sinhala)</label>
-          <textarea id="ne-text-si" rows="2" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 font-['Noto_Sans_Sinhala']">${node.text_si || ''}</textarea>
-        </div>
-        
-        <div class="mb-4">
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Prompt / Question / Task (English)</label>
-          <textarea id="ne-text-en" rows="2" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">${node.text_en || ''}</textarea>
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">ප්‍රශ්නය / කාර්යය (Question / Task)</label>
+          <textarea id="ne-text-si" rows="2" placeholder="ප්‍රශ්නය හෝ කාර්යය ඇතුළත් කරන්න..." class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 font-['Noto_Sans_Sinhala'] text-slate-800">${node.text_si || node.text_en || ''}</textarea>
         </div>
         ` : `
         <div class="mb-4">
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Completion Message (Sinhala)</label>
-          <input type="text" id="ne-text-si" value="${node.text_si || ''}" class="w-full text-sm border-gray-300 rounded-md shadow-sm font-['Noto_Sans_Sinhala']" />
-        </div>
-        <div class="mb-4">
-          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Completion Message (English)</label>
-          <input type="text" id="ne-text-en" value="${node.text_en || ''}" class="w-full text-sm border-gray-300 rounded-md shadow-sm" />
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">අවසන් පණිවිඩය (Completion Message)</label>
+          <input type="text" id="ne-text-si" placeholder="අවසන් පණිවිඩය ඇතුළත් කරන්න..." value="${node.text_si || node.text_en || ''}" class="w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500 font-['Noto_Sans_Sinhala'] text-slate-800" />
         </div>
         `}
 
@@ -1381,10 +1414,11 @@ export class FlowBuilder {
     if (document.getElementById('ne-text-si')) {
       document.getElementById('ne-text-si').addEventListener('input', (e) => {
         node.text_si = e.target.value;
+        if (!node.text_en) node.text_en = e.target.value;
         this.updateGraph();
       });
       document.getElementById('ne-text-si').addEventListener('change', () => {
-        this.pushHistory('Update node Sinhala text');
+        this.pushHistory('Update node prompt text');
       });
     }
 
@@ -1447,8 +1481,8 @@ export class FlowBuilder {
         if (['choice', 'select', 'radio', 'time-range', 'boolean'].includes(node.input_type)) {
           if (!Array.isArray(node.options) || node.options.length === 0) {
             node.options = [
-              { id: 'opt_1', text_si: 'විකල්පය 1', text_en: 'Option 1', points: 10 },
-              { id: 'opt_2', text_si: 'විකල්පය 2', text_en: 'Option 2', points: 0 }
+              { id: 'opt_1', text_si: 'ඔව්', text_en: 'Yes', points: 10 },
+              { id: 'opt_2', text_si: 'නැත', text_en: 'No',  points: 0 }
             ];
           }
         }
@@ -1473,8 +1507,10 @@ export class FlowBuilder {
       rows.forEach((row, i) => {
         const optId = row.dataset.optId || `opt_${i + 1}`;
         const textSi = row.querySelector('.opt-text-si')?.value || '';
-        const textEn = row.querySelector('.opt-text-en')?.value || '';
-        const pts = parseFloat(row.querySelector('.opt-points')?.value) || 0;
+        const textEnInput = row.querySelector('.opt-text-en');
+        const textEn = textEnInput ? textEnInput.value : textSi;
+        const ptsVal = row.querySelector('.opt-points')?.value;
+        const pts = (ptsVal !== undefined && ptsVal !== '' && !isNaN(Number(ptsVal))) ? Number(ptsVal) : 0;
         updated.push({
           id: optId,
           text_si: textSi,
@@ -1486,12 +1522,96 @@ export class FlowBuilder {
       this.updateGraph();
     };
 
-    document.querySelectorAll('.opt-text-si, .opt-text-en, .opt-points').forEach(input => {
+    document.querySelectorAll('.opt-text-si, .opt-points').forEach(input => {
       input.addEventListener('input', () => {
+        if (input.classList.contains('opt-points')) {
+          const val = parseFloat(input.value) || 0;
+          if (val > 0) {
+            input.className = 'opt-points w-16 text-xs font-bold border-gray-300 rounded p-1 text-center text-green-600 bg-green-50';
+          } else if (val < 0) {
+            input.className = 'opt-points w-16 text-xs font-bold border-gray-300 rounded p-1 text-center text-red-600 bg-red-50';
+          } else {
+            input.className = 'opt-points w-16 text-xs font-bold border-gray-300 rounded p-1 text-center text-slate-600 bg-white';
+          }
+        }
         saveOptionsFromDom();
       });
       input.addEventListener('change', () => {
-        this.pushHistory('Edit option matrix');
+        this.pushHistory('Edit option text or marks');
+      });
+    });
+
+    document.querySelectorAll('.opt-clear-marks').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const row = e.target.closest('.option-row');
+        if (row) {
+          const pointsInput = row.querySelector('.opt-points');
+          if (pointsInput) {
+            pointsInput.value = 0;
+            pointsInput.className = 'opt-points w-16 text-xs font-bold border-gray-300 rounded p-1 text-center text-slate-600 bg-white';
+          }
+          saveOptionsFromDom();
+          this.pushHistory('Clear option marks');
+          this.toast('Option marks set to 0', 'info');
+        }
+      });
+    });
+
+    if (document.getElementById('ne-remove-all-marks')) {
+      document.getElementById('ne-remove-all-marks').addEventListener('click', () => {
+        if (Array.isArray(node.options)) {
+          node.options.forEach(opt => opt.points = 0);
+          this.pushHistory('Clear all marks');
+          this.renderNodeEditor(node);
+          this.updateGraph();
+          this.toast('All marks set to 0', 'info');
+        }
+      });
+    }
+
+    if (document.getElementById('ne-task-remove-all-marks')) {
+      document.getElementById('ne-task-remove-all-marks').addEventListener('click', () => {
+        if (Array.isArray(node.options)) {
+          node.options.forEach(opt => opt.points = 0);
+          this.pushHistory('Clear all task marks');
+          this.renderNodeEditor(node);
+          this.updateGraph();
+          this.toast('All task marks set to 0', 'info');
+        }
+      });
+    }
+
+    if (document.getElementById('ne-task-clear-step-points')) {
+      document.getElementById('ne-task-clear-step-points').addEventListener('click', () => {
+        node.points = 0;
+        const ptsEl = document.getElementById('ne-points');
+        if (ptsEl) ptsEl.value = 0;
+        this.pushHistory('Clear task step marks');
+        this.updateGraph();
+        this.toast('Task step marks set to 0', 'info');
+      });
+    }
+
+    if (document.getElementById('ne-clear-static-points')) {
+      document.getElementById('ne-clear-static-points').addEventListener('click', () => {
+        node.points = 0;
+        const ptsEl = document.getElementById('ne-points');
+        if (ptsEl) ptsEl.value = 0;
+        this.pushHistory('Clear static marks');
+        this.updateGraph();
+        this.toast('Marks set to 0', 'info');
+      });
+    }
+
+    document.querySelectorAll('.ne-quick-pt-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const pts = Number(e.currentTarget.dataset.pts) || 0;
+        node.points = pts;
+        const ptsEl = document.getElementById('ne-points');
+        if (ptsEl) ptsEl.value = pts;
+        this.pushHistory(`Set points to ${pts}`);
+        this.updateGraph();
+        this.toast(`Points set to ${pts}`, 'success');
       });
     });
 
@@ -1544,7 +1664,7 @@ export class FlowBuilder {
           this.selectedNodeId = targetNode.id;
           this.updateGraph();
           this.renderNodeEditor(targetNode);
-          this.toast(`Viewing target node: [${targetNode.type.toUpperCase()}] ${targetNode.text_en || targetNode.id}`, 'info');
+          this.toast(`Viewing target node: [${targetNode.type.toUpperCase()}] ${targetNode.text_si || targetNode.text_en || targetNode.id}`, 'info');
         }
       });
     });
@@ -1576,10 +1696,11 @@ export class FlowBuilder {
     if (document.getElementById('ne-add-option-btn')) {
       document.getElementById('ne-add-option-btn').addEventListener('click', () => {
         const current = FlowEngine.normalizeOptions(node.options);
+        const nextIdx = current.length + 1;
         current.push({
-          id: `opt_${current.length + 1}`,
-          text_si: `විකල්පය ${current.length + 1}`,
-          text_en: `Option ${current.length + 1}`,
+          id: `opt_${nextIdx}`,
+          text_si: `පිළිතුර ${nextIdx}`,
+          text_en: `Answer ${nextIdx}`,
           points: 10
         });
         node.options = current;
