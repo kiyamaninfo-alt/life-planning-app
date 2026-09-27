@@ -105,27 +105,27 @@
         <!-- Main Content -->
         <main class="flex-1 flex flex-col h-full overflow-hidden w-full bg-slate-50 relative z-10 font-['Noto_Sans_Sinhala']">
             <!-- Header -->
-            <header class="bg-white shadow-sm h-16 flex items-center justify-between px-6 z-20">
-                <div class="flex items-center gap-4">
-                    <button id="open-sidebar" class="text-slate-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-slate-100 transition flex items-center justify-center" title="Toggle Sidebar">
-                        <i class="fas fa-bars text-xl"></i>
+            <header class="bg-white shadow-sm h-16 flex items-center justify-between px-3 sm:px-6 z-20">
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <button id="open-sidebar" class="text-slate-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-slate-100 transition flex items-center justify-center cursor-pointer" title="Toggle Sidebar">
+                        <i class="fas fa-bars text-lg sm:text-xl"></i>
                     </button>
-                    <h2 class="text-lg font-bold text-slate-800" id="header-title">දළ විශ්ලේෂණය (Overview)</h2>
+                    <h2 class="text-sm sm:text-lg font-bold text-slate-800 truncate max-w-[200px] sm:max-w-none" id="header-title">දළ විශ්ලේෂණය (Overview)</h2>
                 </div>
                 
-                <div class="flex items-center gap-4">
-                    <button id="logout-btn" class="flex items-center gap-2 px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 hover:text-red-600 transition-colors">
+                <div class="flex items-center gap-2 sm:gap-4">
+                    <button id="logout-btn" class="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 hover:text-red-600 transition-colors cursor-pointer">
                         <i class="fas fa-sign-out-alt"></i> <span class="hidden sm:inline">ඉවත් වන්න (Sign Out)</span>
                     </button>
                 </div>
             </header>
 
             <!-- Tab Contents -->
-            <div class="flex-1 overflow-y-auto p-6" id="main-content">
+            <div class="flex-1 overflow-y-auto p-3 sm:p-6" id="main-content">
                 
                 <!-- Overview Tab -->
                 <div id="tab-overview" class="tab-pane active">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
                         <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-center gap-4">
                             <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl">
                                 <i class="fas fa-tasks"></i>

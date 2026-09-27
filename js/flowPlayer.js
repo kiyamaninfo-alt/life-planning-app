@@ -226,8 +226,15 @@ class FlowPlayer {
     `;
   }
 
-  handleAnswer(optId) {
+  async handleAnswer(optId) {
     if (!this.currentNode) return;
+
+    // Requirement 1: Only relevant user can edit data
+    if (typeof window !== 'undefined' && window.userManagerClient?.requireEditPermission) {
+      const permitted = await window.userManagerClient.requireEditPermission("ප්‍රශ්නාවලියට පිළිතුරු දීම");
+      if (!permitted) return;
+    }
+
     const node = this.currentNode;
     const options = Array.isArray(node.options) ? node.options : [];
     const selectedOpt = options.find(o => o.id === optId);
@@ -332,7 +339,13 @@ class FlowPlayer {
     }
   }
 
-  handleTaskDone() {
+  async handleTaskDone() {
+    // Requirement 1: Only relevant user can edit data
+    if (typeof window !== 'undefined' && window.userManagerClient?.requireEditPermission) {
+      const permitted = await window.userManagerClient.requireEditPermission("කාර්යය සම්පූර්ණ කිරීම");
+      if (!permitted) return;
+    }
+
     const pts = Number(this.currentNode?.points) || 15;
     this.accumulatedScore += pts;
     if (typeof state !== 'undefined') {
@@ -346,6 +359,12 @@ class FlowPlayer {
   }
 
   async restartFlow() {
+    // Requirement 1: Only relevant user can edit data
+    if (typeof window !== 'undefined' && window.userManagerClient?.requireEditPermission) {
+      const permitted = await window.userManagerClient.requireEditPermission("ප්‍රශ්නාවලිය නැවත ආරම්භ කිරීම");
+      if (!permitted) return;
+    }
+
     if (this.accumulatedScore > 0 || (typeof state !== 'undefined' && state.flow_points > 0)) {
       if (typeof window !== 'undefined' && typeof window.requestPasswordConfirmation === 'function') {
         const ok = await window.requestPasswordConfirmation("ප්‍රශ්නාවලිය නැවත ආරම්භ කිරීම");

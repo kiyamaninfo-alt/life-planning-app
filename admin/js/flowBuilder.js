@@ -261,9 +261,9 @@ export class FlowBuilder {
         </div>
 
         <!-- Split Layout -->
-        <div class="flex flex-1 overflow-hidden relative">
+        <div id="fb-editor-layout" class="flex flex-col md:flex-row flex-1 overflow-hidden relative">
           <!-- LEFT: SVG Canvas -->
-          <div id="fb-canvas-wrapper" class="w-3/5 bg-slate-100 overflow-hidden relative border-r flex flex-col transition-all duration-300">
+          <div id="fb-canvas-wrapper" class="w-full md:w-3/5 bg-slate-100 overflow-hidden relative border-r flex flex-col transition-all duration-300">
             <div class="p-2.5 bg-white border-b flex items-center justify-between shadow-xs">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">කොටු එක් කරන්න:</span>
@@ -321,7 +321,7 @@ export class FlowBuilder {
           </div>
           
           <!-- RIGHT: Node Editor Sidebar -->
-          <div class="w-2/5 bg-white overflow-y-auto border-l shadow-sm transition-all duration-300 relative" id="fb-node-editor">
+          <div class="w-full md:w-2/5 bg-white overflow-y-auto border-l shadow-sm transition-all duration-300 relative" id="fb-node-editor">
             <div class="p-8 text-center text-gray-400 mt-20">
               <i class="fas fa-mouse-pointer text-4xl mb-4 text-gray-300"></i>
               <p class="font-medium">විකල්ප, ලකුණු සහ කොන්දේසි සැකසීමට කැන්වසය මත ඇති කොටුවක් තෝරන්න</p>

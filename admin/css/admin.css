@@ -201,3 +201,59 @@ body {
     background-color: rgba(15, 23, 42, 0.75);
     backdrop-filter: blur(4px);
 }
+
+/* =========================================================================
+   Mobile Responsiveness & Touch Optimization
+   ========================================================================= */
+@media (max-width: 768px) {
+    /* Touch momentum for horizontal scrollable tables */
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+    }
+
+    /* Modal responsiveness on small screens */
+    .modal-card, [id$="-modal"] > div, [id$="-modal-container"] > div > div {
+        max-height: 92vh !important;
+        width: 95% !important;
+        margin: 0 auto;
+    }
+
+    /* Flow Builder Editor Layout on Mobile */
+    #fb-editor-layout {
+        flex-direction: column !important;
+    }
+
+    #fb-canvas-wrapper {
+        width: 100% !important;
+        height: 60vh !important;
+        min-height: 350px !important;
+    }
+
+    #fb-node-editor {
+        width: 100% !important;
+        max-height: 40vh !important;
+        border-left: none !important;
+        border-top: 1px solid #e2e8f0 !important;
+    }
+
+    /* Floating Floor tools on mobile */
+    #fb-canvas-wrapper .absolute.bottom-5.left-5 {
+        left: 2 !important;
+        right: 2 !important;
+        bottom: 2 !important;
+        padding: 0.5rem !important;
+        flex-wrap: wrap !important;
+    }
+
+    /* Sidebar drawer on mobile */
+    #sidebar {
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Touch targets */
+    button, a.tab-link, input[type="checkbox"], input[type="button"] {
+        touch-action: manipulation;
+    }
+}
+

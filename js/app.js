@@ -524,6 +524,16 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 
 // School Toggle Handler with Password Verification
 async function toggleSchool(val, el = null) {
+  // Requirement 1: Only relevant user can edit data (Public can only view progress)
+  if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
+    const permitted = await window.userManagerClient.requireEditPermission("පාසල් පැමිණීම වෙනස් කිරීම");
+    if (!permitted) {
+      const toggle = el || document.getElementById("school-toggle");
+      if (toggle) toggle.checked = !val;
+      return;
+    }
+  }
+
   // If school was ALREADY completed (true) and user tries to turn off (false):
   if (state.school_attended === true && val === false) {
     const ok = await requestPasswordConfirmation("පාසල් පැමිණීම ඉවත් කිරීම");
@@ -542,6 +552,12 @@ async function toggleSchool(val, el = null) {
 
 // School Subject Button Toggle with Password Verification
 async function toggleSubject(sub, btn) {
+  // Requirement 1: Only relevant user can edit data
+  if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
+    const permitted = await window.userManagerClient.requireEditPermission(`"${sub}" විෂය වෙනස් කිරීම`);
+    if (!permitted) return;
+  }
+
   if (state.school_subjects && state.school_subjects[sub]) {
     // Subject is already selected/completed. Trying to uncheck it:
     const ok = await requestPasswordConfirmation(`"${sub}" විෂය ඉවත් කිරීම`);
@@ -559,6 +575,15 @@ async function toggleSubject(sub, btn) {
 
 // Homework / Studied Checkbox Toggle with Password Verification
 async function toggleSubjectDetail(sub, type, val, el = null) {
+  // Requirement 1: Only relevant user can edit data
+  if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
+    const permitted = await window.userManagerClient.requireEditPermission(`"${sub}" විස්තර වෙනස් කිරීම`);
+    if (!permitted) {
+      if (el) el.checked = !val;
+      return;
+    }
+  }
+
   const currentVal = Boolean(state.school_subjects?.[sub]?.[type]);
   if (currentVal === true && val === false) {
     const label = type === 'homework' ? 'Homework' : 'පාඩම් කිරීම';
@@ -603,6 +628,12 @@ function renderHomework() {
 
 // Wake Time Selection with Password Verification
 async function setWakeTime(slot) {
+  // Requirement 1: Only relevant user can edit data
+  if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
+    const permitted = await window.userManagerClient.requireEditPermission("අවදි වූ වේලාව සැකසීම");
+    if (!permitted) return;
+  }
+
   // If wake-up time was ALREADY set and user tries to switch to a different slot:
   if (state.wake_up && state.wake_up !== slot) {
     const ok = await requestPasswordConfirmation(`අවදි වූ වේලාව (${state.wake_up} ➔ ${slot}) වෙනස් කිරීම`);
@@ -621,10 +652,21 @@ async function setWakeTime(slot) {
 
 // Task Checkbox Toggle with Password Verification
 async function toggleTask(key, val, el = null) {
+  const taskRow = el?.closest('[data-task-id]') || document.querySelector(`[data-task-id="${key}"]`);
+  const taskLabel = taskRow?.querySelector('span')?.textContent?.trim() || key;
+
+  // Requirement 1: Only relevant user can edit data (Public can only view progress)
+  if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
+    const permitted = await window.userManagerClient.requireEditPermission(`"${taskLabel}" සලකුණු කිරීම`);
+    if (!permitted) {
+      const targetInput = el || taskRow?.querySelector('input[type="checkbox"]');
+      if (targetInput) targetInput.checked = !val;
+      return;
+    }
+  }
+
   // If task is ALREADY completed (true) and user tries to uncheck it (false):
   if (state[key] === true && val === false) {
-    const taskRow = el?.closest('[data-task-id]') || document.querySelector(`[data-task-id="${key}"]`);
-    const taskLabel = taskRow?.querySelector('span')?.textContent?.trim() || key;
     const ok = await requestPasswordConfirmation(`"${taskLabel}" කාර්යය ඉවත් කිරීම`);
     if (!ok) {
       // Revert checkbox state in UI

@@ -389,16 +389,16 @@ export class UserManager {
 
     modalContainer.innerHTML = `
       <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-          <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+          <div class="px-6 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex justify-between items-center shrink-0">
             <h3 class="font-bold text-sm flex items-center gap-2">
               <i class="fas ${isEdit ? 'fa-user-edit' : 'fa-user-plus'}"></i>
               ${isEdit ? 'පරිශීලක සංස්කරණය (Edit User)' : 'නව පරිශීලකයෙක් එක් කරන්න (Add New User)'}
             </h3>
-            <button type="button" class="close-user-modal text-white/80 hover:text-white text-lg">&times;</button>
+            <button type="button" class="close-user-modal text-white/80 hover:text-white text-lg cursor-pointer">&times;</button>
           </div>
 
-          <form id="user-form" class="p-6 space-y-4 text-xs">
+          <form id="user-form" class="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1">
             <div class="flex gap-4">
               <div class="w-20">
                 <label class="block font-bold text-slate-700 uppercase mb-1">Avatar</label>

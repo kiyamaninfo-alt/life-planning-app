@@ -26,6 +26,7 @@
         <span id="active-user-avatar">🌸</span>
         <span id="active-user-name">Wosa</span>
         <span id="active-user-points" class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full font-semibold">120 pts</span>
+        <i id="active-user-lock-icon" class="fa-solid fa-eye text-[10px] text-amber-500" title="නැරඹුම් ප්‍රකාරය"></i>
         <i class="fa-solid fa-chevron-down text-[9px] text-purple-400"></i>
       </button>
 
@@ -70,6 +71,8 @@
 
   <!-- Main Routine Form -->
   <main id="routine-main-container" class="max-w-md mx-auto px-4 space-y-4">
+    <!-- Permission / View-Only Mode Banner -->
+    <div id="permission-banner-container"></div>
     
     <!-- Published Interactive Flow Section -->
     <section id="published-flow-section" data-section-id="flow" class="hidden routine-section bg-white p-4 rounded-2xl shadow-sm border border-purple-50 transition-all">
