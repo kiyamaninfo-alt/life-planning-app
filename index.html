@@ -70,8 +70,14 @@
       <span id="dow-benchmark" class="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-pink-100/70 text-pink-700 shadow-xs border border-pink-200">
         🎯 අද ඉලක්කය: ගණනය වෙමින්...
       </span>
+      <button id="view-past-performance-btn" onclick="if(typeof openPastPerformanceModal === 'function') openPastPerformanceModal();" type="button" class="mt-1 text-xs font-bold text-indigo-700 bg-white hover:bg-indigo-50 border border-indigo-200 px-3.5 py-1.5 rounded-full shadow-2xs flex items-center gap-1.5 transition cursor-pointer" title="පසුගිය දිනවල ලකුණු සහ ප්‍රගතිය බලන්න">
+        <i class="fa-solid fa-chart-line text-indigo-500"></i> පසුගිය ප්‍රගතිය බලන්න (Past Performance)
+      </button>
     </div>
   </header>
+
+  <!-- Past Performance History Modal Container -->
+  <div id="past-performance-modal-container"></div>
 
   <!-- Main Routine Form -->
   <main id="routine-main-container" class="max-w-md mx-auto px-4 space-y-4">

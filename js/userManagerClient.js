@@ -431,9 +431,25 @@ class UserManagerClient {
     const closeBtn = modal.querySelector("#close-user-login-modal");
     if (closeBtn) closeBtn.addEventListener("click", closeModal);
 
-    // 1. "ප්‍රගතිය බලන්න (View Progress)" - Anyone can see progress without password!
+    // 1. Click ANYWHERE on the card to instantly open the profile (Requirement: when click any card anywhere need to open the profile instantly)
+    modal.querySelectorAll("[data-user-id]").forEach(card => {
+      card.classList.add("cursor-pointer", "hover:scale-[1.01]", "active:scale-[0.99]", "transition-transform");
+      card.addEventListener("click", (e) => {
+        // If clicking the Edit button, don't trigger view mode
+        if (e.target.closest(".login-edit-user-btn")) return;
+        const userId = card.dataset.userId;
+        const targetUser = this.users.find(u => u.id === userId);
+        if (!targetUser) return;
+        this.setCurrentUser(targetUser, false); // View-only / instant profile switch
+        closeModal();
+        if (onSuccessCallback) onSuccessCallback(targetUser);
+      });
+    });
+
+    // Also support clicking the explicit "ප්‍රගතිය බලන්න" button
     modal.querySelectorAll(".view-user-progress-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
         const userId = btn.dataset.userId;
         const targetUser = this.users.find(u => u.id === userId);
         if (!targetUser) return;

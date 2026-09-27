@@ -1144,6 +1144,189 @@ async function adminReloadData() {
   }
 }
 
+// =========================================================================
+// Past Performance History Viewer (Requirement 4: See past performance)
+// =========================================================================
+async function openPastPerformanceModal() {
+  if (typeof document === 'undefined') return;
+  const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+    ? window.userManagerClient.getCurrentUser()
+    : { id: 'user_wosa', username: 'Wosa', display_name: 'Wosa (වෝසා)', avatar: '🌸' };
+
+  let modal = document.getElementById("past-performance-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "past-performance-modal";
+    document.body.appendChild(modal);
+  }
+
+  modal.className = "fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 font-['Poppins']";
+  modal.innerHTML = `
+    <div class="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col overflow-hidden border border-indigo-100 animate-in fade-in zoom-in-95 duration-200">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 p-5 text-white text-center relative shrink-0">
+        <button type="button" id="close-past-performance-modal" class="absolute top-4 right-4 text-white/80 hover:text-white text-2xl font-bold transition cursor-pointer">&times;</button>
+        <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mx-auto mb-2 text-2xl border border-white/30 shadow-inner">
+          📊
+        </div>
+        <h2 class="text-lg sm:text-xl font-extrabold tracking-tight font-['Noto_Sans_Sinhala']">
+          පසුගිය ප්‍රගතිය (Past Performance)
+        </h2>
+        <p class="text-xs text-indigo-100 mt-1 font-['Noto_Sans_Sinhala'] flex items-center justify-center gap-1.5">
+          <span>${currentUser.avatar || '👤'}</span>
+          <span><strong>${currentUser.display_name || currentUser.username}</strong> ගේ දෛනික වාර්තා</span>
+        </p>
+      </div>
+
+      <!-- Content -->
+      <div id="perf-modal-content" class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 font-['Noto_Sans_Sinhala']">
+        <div class="p-8 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
+          <i class="fas fa-spinner fa-spin text-xl text-indigo-500"></i>
+          <span>දත්ත ලබා ගනිමින් පවතී...</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const closeModal = () => modal.remove();
+  modal.querySelector("#close-past-performance-modal").addEventListener("click", closeModal);
+
+  const contentEl = modal.querySelector("#perf-modal-content");
+  let performanceLogs = [];
+
+  // 1. Fetch from Supabase daily_logs
+  try {
+    const res = await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/daily_logs?order=log_date.desc&limit=30", {
+      headers: {
+        apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+        Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn"
+      }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows)) {
+        performanceLogs = rows;
+      }
+    }
+  } catch (e) {
+    console.warn("Could not fetch daily_logs from Supabase:", e);
+  }
+
+  // 2. Fetch user-specific config logs from wosandi_admin_config
+  try {
+    const res2 = await fetch(`https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config?config_key=like.user_log_${currentUser.id}_*&order=created_at.desc&limit=30`, {
+      headers: {
+        apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+        Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn"
+      }
+    });
+    if (res2.ok) {
+      const userRows = await res2.json();
+      if (Array.isArray(userRows)) {
+        userRows.forEach(r => {
+          if (r.config_data && r.config_data.log_date) {
+            const exists = performanceLogs.findIndex(p => p.log_date === r.config_data.log_date);
+            if (exists >= 0) {
+              performanceLogs[exists] = { ...performanceLogs[exists], ...r.config_data };
+            } else {
+              performanceLogs.push(r.config_data);
+            }
+          }
+        });
+      }
+    }
+  } catch (e) {}
+
+  // 3. Fallback to localStorage history
+  try {
+    const cachedHist = localStorage.getItem(`wosandi_perf_history_${currentUser.id}`);
+    if (cachedHist) {
+      const parsed = JSON.parse(cachedHist);
+      if (Array.isArray(parsed)) {
+        parsed.forEach(p => {
+          if (!performanceLogs.some(existing => existing.log_date === p.log_date)) {
+            performanceLogs.push(p);
+          }
+        });
+      }
+    }
+  } catch (e) {}
+
+  // Sort logs by date descending
+  performanceLogs.sort((a, b) => new Date(b.log_date || 0) - new Date(a.log_date || 0));
+
+  // Compute metrics
+  const totalDays = performanceLogs.length;
+  const totalEarned = performanceLogs.reduce((acc, curr) => acc + (Number(curr.earned_points) || 0), 0);
+  const avgPercent = totalDays > 0 ? Math.round(performanceLogs.reduce((acc, curr) => acc + (Number(curr.percentage) || 0), 0) / totalDays) : 0;
+
+  if (totalDays === 0) {
+    contentEl.innerHTML = `
+      <div class="p-8 text-center text-slate-400 text-xs space-y-2">
+        <i class="fas fa-calendar-xmark text-3xl text-slate-300 block mb-2"></i>
+        <span class="font-bold text-slate-600 block">පසුගිය දත්ත කිසිවක් හමු නොවීය</span>
+        <span>අද දින කාර්යයන් සම්පූර්ණ කිරීමෙන් ප්‍රගති සටහන ආරම්භ කරන්න.</span>
+      </div>
+    `;
+    return;
+  }
+
+  // Render performance cards
+  contentEl.innerHTML = `
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-3 gap-2.5 pb-2">
+      <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl text-center">
+        <span class="text-[10px] uppercase font-bold text-indigo-500 block">සක්‍රීය දින</span>
+        <span class="text-lg font-black text-indigo-900">${totalDays}</span>
+      </div>
+      <div class="bg-purple-50 border border-purple-100 p-3 rounded-2xl text-center">
+        <span class="text-[10px] uppercase font-bold text-purple-500 block">මුළු ලකුණු</span>
+        <span class="text-lg font-black text-purple-900">${Math.round(totalEarned)}</span>
+      </div>
+      <div class="bg-pink-50 border border-pink-100 p-3 rounded-2xl text-center">
+        <span class="text-[10px] uppercase font-bold text-pink-500 block">සාමාන්‍යය</span>
+        <span class="text-lg font-black text-pink-900">${avgPercent}%</span>
+      </div>
+    </div>
+
+    <!-- Daily Log Entries List -->
+    <div class="space-y-2.5 pt-1">
+      ${performanceLogs.map(log => {
+        const dateObj = new Date(log.log_date);
+        const dayNames = ["ඉරිදා", "සඳුදා", "අඟහරුවාදා", "බදාදා", "බ්‍රහස්පතින්දා", "සිකුරාදා", "සෙනසුරාදා"];
+        const dayName = !isNaN(dateObj.getDay()) ? dayNames[dateObj.getDay()] : "";
+        const earned = Math.round(Number(log.earned_points) || 0);
+        const total = Math.round(Number(log.total_possible_points) || 0);
+        const pct = Math.min(100, Math.round(Number(log.percentage) || 0));
+        const isFull = pct >= 90 || log.is_fully_completed === true;
+
+        return `
+          <div class="p-3.5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-xs transition flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-8 h-8 rounded-xl ${isFull ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'} flex items-center justify-center text-sm font-bold shrink-0">
+                  ${isFull ? '👑' : '📅'}
+                </span>
+                <div>
+                  <span class="font-bold text-slate-800 text-xs block">${log.log_date} (${dayName})</span>
+                  <span class="text-[11px] text-slate-500 font-semibold">${earned} / ${total} ලකුණු</span>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-black ${isFull ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
+                ${pct}%
+              </span>
+            </div>
+            <!-- Progress Bar -->
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div class="bg-gradient-to-r from-pink-500 to-indigo-600 h-2 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
 // Expose functions globally for HTML event attributes and tests
 if (typeof window !== "undefined") {
   window.requestPasswordConfirmation = requestPasswordConfirmation;
@@ -1166,4 +1349,5 @@ if (typeof window !== "undefined") {
   window.reorderTasksInList = reorderTasksInList;
   window.reorderAllTaskLists = reorderAllTaskLists;
   window.loadPublishedTasksFromAdmin = loadPublishedTasksFromAdmin;
+  window.openPastPerformanceModal = openPastPerformanceModal;
 }

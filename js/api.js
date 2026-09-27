@@ -72,10 +72,10 @@ async function estimateDayOfWeekBenchmark() {
     console.warn("Could not query historical day-of-week seasonality, using baseline", e);
   }
 
-  // Fallback to day of week seasonal baseline
+  // Fallback before calculation
   currentDayBenchmark = meta.defaultTarget;
   if (dowEl) {
-    dowEl.innerText = `🎯 ${meta.name} ඉලක්කය: ${currentDayBenchmark} ලකුණු (Seasonality Baseline)`;
+    dowEl.innerText = `🎯 ${meta.name} දෛනික ඉලක්කය: ගණනය වෙමින්...`;
   }
 }
 
@@ -213,6 +213,18 @@ async function syncProgressWithServer(state, skipSave = false) {
 
   updateUI(percentage, validEarned, validTotal, rank);
 
+  // Update day benchmark to today's dynamic routine total
+  const dowMeta = DOW_META[dayOfWeek];
+  const dowEl = (typeof document !== 'undefined') ? document.getElementById("dow-benchmark") : null;
+  if (dowEl && validTotal > 0) {
+    dowEl.innerText = `🎯 ${dowMeta.name} ඉලක්කය: ${validTotal} ලකුණු`;
+  }
+
+  // Keep active user header pill in sync
+  if (typeof window !== 'undefined' && window.userManagerClient?.updateUserHeaderPill) {
+    window.userManagerClient.updateUserHeaderPill();
+  }
+
   // Apply routine ordering and progressive unlocking rules based on current state
   if (typeof window !== 'undefined' && window.routineOrdering && typeof window.routineOrdering.applyRoutineOrderAndDependencies === 'function') {
     window.routineOrdering.applyRoutineOrderAndDependencies(state);
@@ -224,6 +236,11 @@ async function syncProgressWithServer(state, skipSave = false) {
   }
 
   if (!skipSave) {
+    const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+      ? window.userManagerClient.getCurrentUser()
+      : { id: 'user_wosa', username: 'Wosa' };
+
+    // 1. Primary Supabase daily_logs save
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs`, {
         method: "POST",
@@ -235,7 +252,11 @@ async function syncProgressWithServer(state, skipSave = false) {
         },
         body: JSON.stringify({
           log_date: todayDate,
-          completed_tasks: state,
+          completed_tasks: {
+            ...state,
+            _user_id: currentUser.id,
+            _username: currentUser.username
+          },
           earned_points: validEarned,
           total_possible_points: validTotal,
           percentage: percentage,
@@ -245,6 +266,63 @@ async function syncProgressWithServer(state, skipSave = false) {
       });
       if (!res.ok) console.error("Supabase Save Error");
     } catch (err) {}
+
+    // 2. User-specific performance save in wosandi_admin_config
+    try {
+      const userConfigKey = `user_log_${currentUser.id}_${todayDate}`;
+      await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates"
+        },
+        body: JSON.stringify({
+          config_key: userConfigKey,
+          config_data: {
+            user_id: currentUser.id,
+            username: currentUser.username,
+            log_date: todayDate,
+            earned_points: validEarned,
+            total_possible_points: validTotal,
+            percentage: percentage,
+            is_fully_completed: percentage === 100,
+            completed_tasks: state,
+            updated_at: new Date().toISOString()
+          },
+          description: `Daily performance log for ${currentUser.username} on ${todayDate}`
+        })
+      });
+    } catch (err) {}
+
+    // 3. User performance history cache in localStorage
+    try {
+      const historyKey = `wosandi_perf_history_${currentUser.id}`;
+      let history = [];
+      const cached = localStorage.getItem(historyKey);
+      if (cached) {
+        try { history = JSON.parse(cached); } catch (e) {}
+      }
+      if (!Array.isArray(history)) history = [];
+      const entry = {
+        user_id: currentUser.id,
+        username: currentUser.username,
+        log_date: todayDate,
+        earned_points: validEarned,
+        total_possible_points: validTotal,
+        percentage: percentage,
+        is_fully_completed: percentage === 100,
+        updated_at: new Date().toISOString()
+      };
+      const idx = history.findIndex(h => h.log_date === todayDate);
+      if (idx >= 0) {
+        history[idx] = entry;
+      } else {
+        history.unshift(entry);
+      }
+      localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 30)));
+    } catch (e) {}
   }
 }
 

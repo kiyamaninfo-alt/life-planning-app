@@ -253,6 +253,35 @@ it("js/app.js implements complete Admin-parity task creation modal with target p
   assert.ok(appJs.includes('https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks'), "Must persist directly to Supabase REST endpoint");
 });
 
+console.log("\n=== TEST SUITE 5: Instant Profile Open on Card Click ===");
+
+it("userManagerClient attaches click listener to entire user card to open profile instantly", () => {
+  const userManagerJs = fs.readFileSync(path.join(__dirname, 'js/userManagerClient.js'), 'utf-8');
+  assert.ok(userManagerJs.includes('modal.querySelectorAll("[data-user-id]")'), "Must query all data-user-id cards");
+  assert.ok(userManagerJs.includes('this.setCurrentUser(targetUser, false)'), "Must switch to target user instantly on card click");
+  assert.ok(userManagerJs.includes('closeModal()'), "Must close modal on card click");
+});
+
+console.log("\n=== TEST SUITE 6: Database Progress Save & Past Performance History ===");
+
+it("api.js saves user-specific progress to both daily_logs and wosandi_admin_config", () => {
+  const apiJs = fs.readFileSync(path.join(__dirname, 'js/api.js'), 'utf-8');
+  assert.ok(apiJs.includes('daily_logs'), "Must save to daily_logs");
+  assert.ok(apiJs.includes('wosandi_admin_config'), "Must save to wosandi_admin_config");
+  assert.ok(apiJs.includes('user_log_'), "Must key user-specific daily logs by user_log_{userId}");
+  assert.ok(apiJs.includes('wosandi_perf_history_'), "Must cache history in localStorage");
+});
+
+it("app.js and index.html implement past performance history viewer modal", () => {
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf-8');
+  const appJs = fs.readFileSync(path.join(__dirname, 'js/app.js'), 'utf-8');
+
+  assert.ok(indexHtml.includes('id="view-past-performance-btn"'), "index.html must include past performance button");
+  assert.ok(indexHtml.includes('id="past-performance-modal-container"'), "index.html must include modal container");
+  assert.ok(appJs.includes('async function openPastPerformanceModal()'), "app.js must define openPastPerformanceModal");
+  assert.ok(appJs.includes('window.openPastPerformanceModal = openPastPerformanceModal'), "Must export to window");
+});
+
 console.log(`\n=================================================`);
 console.log(`SUMMARY: ${passed} passed, ${failed} failed.`);
 console.log(`=================================================`);
