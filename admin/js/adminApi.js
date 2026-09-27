@@ -80,6 +80,10 @@ export class AdminApi {
             if (clean.schema_definition === null || clean.schema_definition === undefined) {
                 clean.schema_definition = {};
             }
+            if (clean.target_profile) {
+                clean.schema_definition.target_profile = clean.target_profile;
+                delete clean.target_profile;
+            }
         } else if (table === 'wosandi_timers') {
             delete clean.total_seconds;
             if (clean.trigger_config === null || clean.trigger_config === undefined) {

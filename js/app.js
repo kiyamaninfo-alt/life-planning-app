@@ -330,6 +330,10 @@ function syncStateToUI() {
 async function loadPublishedTasksFromAdmin() {
   if (typeof document === 'undefined') return;
 
+  const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+    ? window.userManagerClient.getCurrentUser()
+    : { id: 'user_wosa', username: 'Wosa' };
+
   let publishedTasks = [];
   try {
     const res = await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks?status=eq.published&order=sort_order.asc", {
@@ -355,6 +359,9 @@ async function loadPublishedTasksFromAdmin() {
     } catch(e) {}
   }
 
+  // Remove previously injected dynamic tasks so profile switching or re-render is clean
+  document.querySelectorAll('[data-is-dynamic-task="true"]').forEach(el => el.remove());
+
   if (!Array.isArray(publishedTasks) || publishedTasks.length === 0) return;
   window.publishedAdminTasks = publishedTasks;
 
@@ -369,6 +376,23 @@ async function loadPublishedTasksFromAdmin() {
   };
 
   publishedTasks.forEach(task => {
+    // PROFILE TARGETING (Requirement: Only display to targeted profile (default), or show for all if global)
+    const targetProfile = task.schema_definition?.target_profile || task.target_profile;
+    const isGlobal = !targetProfile || targetProfile === 'global' || targetProfile === 'all';
+    const isTargetUser = Boolean(
+      currentUser && (
+        targetProfile === currentUser.id ||
+        targetProfile === currentUser.username ||
+        (currentUser.username === 'Wosa' && targetProfile === 'user_wosa') ||
+        (currentUser.id === 'user_wosa' && targetProfile === 'Wosa')
+      )
+    );
+
+    // If this item is assigned to one profile only and it doesn't match current user, do NOT display
+    if (!isGlobal && !isTargetUser) {
+      return;
+    }
+
     const key = task.schema_definition?.linked_state_key || task.id;
     const existing = document.querySelector(`[data-task-id="${key}"]`) || document.querySelector(`[data-task-id="${task.id}"]`);
     if (existing) return;
@@ -383,6 +407,7 @@ async function loadPublishedTasksFromAdmin() {
 
     const row = document.createElement('label');
     row.setAttribute('data-task-id', task.id);
+    row.setAttribute('data-is-dynamic-task', 'true');
     row.className = 'flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer transition-all';
     const timerBtn = task.has_timer ? `
       <button type="button" onclick="startTimer(${task.timer_seconds || 600}, '${task.title_si || task.title_en || 'Timer'}')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">
@@ -391,9 +416,14 @@ async function loadPublishedTasksFromAdmin() {
     ` : '';
 
     const isChecked = Boolean(state[task.id]);
+    const scopeBadge = isGlobal ? '' : `<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 ml-1.5">🔒 Personal</span>`;
+
     row.innerHTML = `
       <div class="flex flex-col">
-        <span class="text-xs font-semibold font-['Noto_Sans_Sinhala']">${task.icon || '📋'} ${task.title_si || task.title_en}</span>
+        <div class="flex items-center">
+          <span class="text-xs font-semibold font-['Noto_Sans_Sinhala']">${task.icon || '📋'} ${task.title_si || task.title_en}</span>
+          ${scopeBadge}
+        </div>
         ${timerBtn}
       </div>
       <div class="flex items-center gap-2">
@@ -410,6 +440,172 @@ async function loadPublishedTasksFromAdmin() {
   if (typeof syncProgressWithServer === 'function') {
     syncProgressWithServer(state, true);
   }
+}
+
+// =========================================================================
+// Quick Add Task from Dashboard (Default: Profile only; Option: Global)
+// =========================================================================
+async function openAddQuickTaskModal() {
+  if (typeof document === 'undefined') return;
+
+  // Requirement 1: Only relevant user can edit / add data
+  if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
+    const permitted = await window.userManagerClient.requireEditPermission("නව කාර්යයක් එක් කිරීම");
+    if (!permitted) return;
+  }
+
+  const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+    ? window.userManagerClient.getCurrentUser()
+    : { id: 'user_wosa', username: 'Wosa' };
+
+  let modal = document.getElementById("quick-task-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "quick-task-modal";
+    document.body.appendChild(modal);
+  }
+
+  modal.className = "fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 font-['Noto_Sans_Sinhala']";
+  modal.innerHTML = `
+    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-5 sm:p-6 border border-purple-100 animate-in fade-in zoom-in-95 duration-200">
+      <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <span class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">✨</span>
+          <h3 class="text-sm font-bold text-slate-800">නව කාර්යයක් එක් කරන්න</h3>
+        </div>
+        <button type="button" id="close-quick-task-modal" class="text-slate-400 hover:text-slate-600 text-xl font-bold transition">&times;</button>
+      </div>
+
+      <form id="quick-task-form" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">කාර්යයේ නම (Task Title) *</label>
+          <input type="text" id="qt-title" required placeholder="උදා: සවස පොතක් කියවීම"
+            class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-purple-200 focus:outline-hidden font-['Noto_Sans_Sinhala']">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">කොටස (Category)</label>
+            <select id="qt-category" class="w-full p-2 border rounded-xl text-xs bg-white">
+              <option value="study">📚 අධ්‍යාපනය (Study)</option>
+              <option value="fitness">🏃 ව්‍යායාම (Fitness)</option>
+              <option value="chores" selected>🏡 පුරුදු (Chores/Habits)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">ලකුණු (Points)</label>
+            <input type="number" id="qt-points" value="10" min="1" max="100"
+              class="w-full p-2 border rounded-xl text-xs font-bold text-slate-800">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Timer එකක් අවශ්‍යද? (විකල්ප)</label>
+          <select id="qt-timer" class="w-full p-2 border rounded-xl text-xs bg-white">
+            <option value="0">Timer නැත</option>
+            <option value="300">⏱ විනාඩි 5 (5 min)</option>
+            <option value="600">⏱ විනාඩි 10 (10 min)</option>
+            <option value="900">⏱ විනාඩි 15 (15 min)</option>
+            <option value="1200">⏱ විනාඩි 20 (20 min)</option>
+            <option value="1800">⏱ විනාඩි 30 (30 min)</option>
+          </select>
+        </div>
+
+        <!-- Scope: Default to profile only, or Global -->
+        <div class="p-3 bg-purple-50 rounded-2xl border border-purple-200 space-y-2">
+          <label class="block text-[11px] font-bold text-purple-900">පැවරුම / දිස්වන ආකාරය (Scope):</label>
+          <div class="space-y-1.5 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+              <input type="radio" name="qt-scope" value="profile" checked class="accent-purple-600">
+              <span>🔒 <strong>${currentUser.display_name || currentUser.username}</strong> ට පමණි (Default)</span>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
+              <input type="radio" name="qt-scope" value="global" class="accent-purple-600">
+              <span>🌐 සියලු දෙනාටම පෙන්වන්න (Global)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button type="button" id="cancel-quick-task" class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition cursor-pointer">
+            අවලංගු කරන්න
+          </button>
+          <button type="submit" class="py-2 px-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1 cursor-pointer">
+            <i class="fa-solid fa-check"></i> සුරකින්න
+          </button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  const closeModal = () => modal.remove();
+  modal.querySelector("#close-quick-task-modal").addEventListener("click", closeModal);
+  modal.querySelector("#cancel-quick-task").addEventListener("click", closeModal);
+
+  modal.querySelector("#quick-task-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const title = modal.querySelector("#qt-title").value.trim();
+    if (!title) return;
+
+    const category = modal.querySelector("#qt-category").value;
+    const points = parseFloat(modal.querySelector("#qt-points").value) || 10;
+    const timerSec = parseInt(modal.querySelector("#qt-timer").value) || 0;
+    const isGlobal = modal.querySelector('input[name="qt-scope"]:checked')?.value === 'global';
+
+    const targetProfile = isGlobal ? 'global' : currentUser.id;
+    const newTaskId = 'task_' + Date.now();
+
+    const taskObj = {
+      id: newTaskId,
+      title_si: title,
+      title_en: title,
+      category: category,
+      tier: 'routine_baseline',
+      weight_points: points,
+      icon: category === 'study' ? '📖' : category === 'fitness' ? '🏃' : '✨',
+      sort_order: 100,
+      status: 'published',
+      has_timer: timerSec > 0,
+      timer_seconds: timerSec > 0 ? timerSec : null,
+      target_profile: targetProfile,
+      schema_definition: {
+        target_profile: targetProfile,
+        created_by_user: currentUser.id
+      }
+    };
+
+    // Update local cache immediately
+    try {
+      let cached = [];
+      const raw = localStorage.getItem('wosandi_admin_wosandi_tasks');
+      if (raw) cached = JSON.parse(raw);
+      if (!Array.isArray(cached)) cached = [];
+      cached.push(taskObj);
+      localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
+    } catch (err) {}
+
+    // Background Supabase push
+    try {
+      const payload = { ...taskObj };
+      delete payload.target_profile; // PostgREST safe
+      fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
+        method: "POST",
+        headers: {
+          apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+          Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+          "Content-Type": "application/json",
+          "Prefer": "return=minimal"
+        },
+        body: JSON.stringify(payload)
+      }).catch(e => console.warn("Supabase background save warning", e));
+    } catch (e) {}
+
+    closeModal();
+    await loadPublishedTasksFromAdmin();
+  });
+}
+if (typeof window !== "undefined") {
+  window.openAddQuickTaskModal = openAddQuickTaskModal;
 }
 
 // =========================================================================
@@ -512,6 +708,10 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
     }
     if (typeof syncProgressWithServer === "function") {
       syncProgressWithServer(state, true);
+    }
+    // Reload profile-specific & global published tasks for this user
+    if (typeof loadPublishedTasksFromAdmin === "function") {
+      await loadPublishedTasksFromAdmin();
     }
     if (typeof window.routineOrdering?.applyRoutineOrderAndDependencies === "function") {
       window.routineOrdering.applyRoutineOrderAndDependencies(state);

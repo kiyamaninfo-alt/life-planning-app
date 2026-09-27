@@ -1,4 +1,5 @@
 // taskManager.js - Task Management CRUD & Debounced Autosave (Phase 2)
+import { DEFAULT_USERS } from './userManager.js';
 
 export class TaskManager {
     constructor(containerEl, api, toastFn) {
@@ -8,6 +9,7 @@ export class TaskManager {
         this.tableName = 'wosandi_tasks';
         this.timersTableName = 'wosandi_timers';
         this.tasks = [];
+        this.users = [...DEFAULT_USERS];
         this.availableTimers = [];
         this.debounceTimers = {};
         this.modalAutosaveTimer = null;
@@ -54,6 +56,11 @@ export class TaskManager {
                     <option value="draft">කටු කෙටුම්පත් (Draft)</option>
                     <option value="published">ප්‍රකාශිතයි (Published)</option>
                 </select>
+                <select id="taskProfileFilter" class="p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
+                    <option value="">සියලුම පැතිකඩ (All Scopes)</option>
+                    <option value="global">🌐 Global (සියලු දෙනාට)</option>
+                    ${this.users.map(u => `<option value="${u.id}">${u.avatar || '👤'} ${u.display_name || u.username}</option>`).join('')}
+                </select>
             </div>
             <div id="tasksTableContainer" class="bg-white rounded-xl shadow-xs overflow-x-auto border border-slate-200">
                 <!-- Table will be rendered here -->
@@ -67,18 +74,31 @@ export class TaskManager {
         const subjectFilter = document.getElementById('taskSubjectFilter');
         const categoryFilter = document.getElementById('taskCategoryFilter');
         const statusFilter = document.getElementById('taskStatusFilter');
+        const profileFilter = document.getElementById('taskProfileFilter');
 
         const reRenderTable = () => this.renderTable();
         searchInput.addEventListener('input', reRenderTable);
         subjectFilter.addEventListener('change', reRenderTable);
         categoryFilter.addEventListener('change', reRenderTable);
         statusFilter.addEventListener('change', reRenderTable);
+        if (profileFilter) profileFilter.addEventListener('change', reRenderTable);
 
         await this.loadData();
     }
 
     async loadData() {
         try {
+            // Load users list from cache / config
+            try {
+                const cachedUsers = localStorage.getItem('wosandi_users_config');
+                if (cachedUsers) {
+                    this.users = JSON.parse(cachedUsers);
+                }
+            } catch (e) {}
+            if (!this.users || this.users.length === 0) {
+                this.users = [...DEFAULT_USERS];
+            }
+
             // Load tasks and available timers in parallel
             const [tasksRes, timersRes] = await Promise.all([
                 this.api.select(this.tableName, {}, 'sort_order', true),
@@ -109,11 +129,13 @@ export class TaskManager {
     }
 
     renderTable() {
+        if (typeof document === 'undefined') return;
         const tableContainer = document.getElementById('tasksTableContainer');
         const searchQuery = document.getElementById('taskSearch').value.toLowerCase();
         const subjectFilter = document.getElementById('taskSubjectFilter').value;
         const categoryFilter = document.getElementById('taskCategoryFilter').value;
         const statusFilter = document.getElementById('taskStatusFilter').value;
+        const profileFilter = document.getElementById('taskProfileFilter')?.value;
 
         const filteredTasks = this.tasks.filter(task => {
             const matchesSearch = (task.title_si && task.title_si.toLowerCase().includes(searchQuery)) || 
@@ -122,7 +144,18 @@ export class TaskManager {
             const matchesSubject = subjectFilter ? taskSubject === subjectFilter : true;
             const matchesCategory = categoryFilter ? task.category === categoryFilter : true;
             const matchesStatus = statusFilter ? task.status === statusFilter : true;
-            return matchesSearch && matchesSubject && matchesCategory && matchesStatus;
+
+            let matchesProfile = true;
+            if (profileFilter) {
+                const tProfile = task.schema_definition?.target_profile || task.target_profile || 'global';
+                if (profileFilter === 'global') {
+                    matchesProfile = (tProfile === 'global' || tProfile === 'all');
+                } else {
+                    const matchedUser = this.users.find(u => u.id === profileFilter);
+                    matchesProfile = (tProfile === profileFilter || (matchedUser && tProfile === matchedUser.username));
+                }
+            }
+            return matchesSearch && matchesSubject && matchesCategory && matchesStatus && matchesProfile;
         });
 
         if (filteredTasks.length === 0) {
@@ -136,6 +169,7 @@ export class TaskManager {
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">කාර්යය (Task)</th>
                         <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">විෂය සහ වර්ගය</th>
+                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">පැවරුම (Scope)</th>
                         <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">මට්ටම (Tier)</th>
                         <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">කාලසටහන / Timer</th>
                         <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ලකුණු (Points)</th>
@@ -160,6 +194,13 @@ export class TaskManager {
                 }
             }
 
+            const tProfile = task.schema_definition?.target_profile || task.target_profile || 'global';
+            const isGlobal = !tProfile || tProfile === 'global' || tProfile === 'all';
+            const assignedUser = !isGlobal ? this.users.find(u => u.id === tProfile || u.username === tProfile) : null;
+            const scopeBadge = isGlobal
+                ? `<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200" title="සියලුම පරිශීලකයින්ට දිස්වේ">🌐 Global</span>`
+                : `<span class="px-2.5 py-1 inline-flex text-xs leading-4 font-bold rounded-full bg-pink-50 text-pink-700 border border-pink-200" title="මෙම පැතිකඩට පමණක් දිස්වේ">${assignedUser ? `${assignedUser.avatar || '👤'} ${assignedUser.username}` : tProfile}</span>`;
+
             const linkedTimer = this.availableTimers.find(t => t.id === task.schema_definition?.linked_timer_id);
             const timerLabel = linkedTimer ? (linkedTimer.label_en || linkedTimer.label_si) : (task.timer_seconds ? `${Math.round(task.timer_seconds / 60)}m` : null);
 
@@ -177,6 +218,9 @@ export class TaskManager {
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         <div class="font-medium text-slate-800 capitalize">${subject}</div>
                         <div class="text-xs text-slate-400 capitalize">${task.category || 'general'}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        ${scopeBadge}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <span class="text-xs px-2 py-0.5 rounded font-medium ${task.tier === 'core_academic' ? 'bg-blue-100 text-blue-800' : (task.tier === 'applied_basket' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700')}">
@@ -290,6 +334,7 @@ export class TaskManager {
     renderModal(task = null) {
         const isEdit = !!task;
         const schema = task?.schema_definition || {};
+        const currentTargetProfile = schema.target_profile || task?.target_profile || (isEdit ? 'global' : (this.users[0]?.id || 'user_wosa'));
         const currentSubject = schema.subject || (task?.category === 'academic' ? 'maths' : 'general');
         const currentSchedule = schema.schedule || { frequency: 'daily', time: 'morning' };
         const currentDescription = schema.description || '';
@@ -323,6 +368,39 @@ export class TaskManager {
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (English)</label>
                                     <input type="text" id="title_en" value="${task?.title_en || ''}" placeholder="e.g. Solve 5 Math Problems" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200">
+                                </div>
+                            </div>
+
+                            <!-- Target Profile / Scope (Requirement: One profile by default, or Global for all) -->
+                            <div class="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2 font-['Noto_Sans_Sinhala']">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fas fa-user-tag text-indigo-600"></i> අදාළ පැතිකඩ / පරිශීලකයා (Target Profile / Scope) *
+                                    </label>
+                                    <span class="text-[11px] text-indigo-600 font-bold bg-white px-2 py-0.5 rounded-full border border-indigo-200">
+                                        ${!isEdit ? 'පෙරනිමි: එක් පැතිකඩකට පමණි' : 'පැවරුම'}
+                                    </span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                                    <div>
+                                        <select id="target_profile" class="w-full p-2.5 border border-indigo-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-indigo-200">
+                                            <optgroup label="පැතිකඩ අනුව (Individual Profile - Default)">
+                                                ${this.users.map(u => `
+                                                    <option value="${u.id}" ${currentTargetProfile === u.id || currentTargetProfile === u.username ? 'selected' : ''}>
+                                                        ${u.avatar || '👤'} ${u.display_name || u.username} (මෙම පැතිකඩට පමණි)
+                                                    </option>
+                                                `).join('')}
+                                            </optgroup>
+                                            <optgroup label="පොදු / සියලු දෙනාට (Global)">
+                                                <option value="global" ${currentTargetProfile === 'global' || currentTargetProfile === 'all' ? 'selected' : ''}>
+                                                    🌐 සියලු දෙනාටම පෙන්වන්න (Global - All Profiles)
+                                                </option>
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                    <p class="text-[11px] text-slate-500 leading-tight">
+                                        තෝරාගත් පරිශීලකයාගේ ඩෑෂ්බෝඩ් එකට පමණක් මෙම කාර්යය දිස්වේ. සියලු දෙනාටම එකවර පෙන්වීමට අවශ්‍ය නම් <strong>Global</strong> තෝරන්න.
+                                    </p>
                                 </div>
                             </div>
 
@@ -590,6 +668,10 @@ export class TaskManager {
             delete schemaDef.linked_timer_id;
         }
 
+        // Extract target profile (defaults to one profile only, or global)
+        const targetProfile = document.getElementById('target_profile')?.value || (this.users[0]?.id || 'user_wosa');
+        schemaDef.target_profile = targetProfile;
+
         return {
             title_si: document.getElementById('title_si').value.trim(),
             title_en: document.getElementById('title_en').value.trim(),
@@ -599,6 +681,7 @@ export class TaskManager {
             icon: document.getElementById('icon').value.trim() || '📋',
             sort_order: parseInt(document.getElementById('sort_order').value) || 0,
             status: document.getElementById('status').value,
+            target_profile: targetProfile,
             has_timer: hasTimer,
             timer_seconds: timerSeconds,
             schema_definition: schemaDef

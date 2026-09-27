@@ -73,6 +73,15 @@
   <main id="routine-main-container" class="max-w-md mx-auto px-4 space-y-4">
     <!-- Permission / View-Only Mode Banner -->
     <div id="permission-banner-container"></div>
+
+    <!-- Quick Add Task Bar -->
+    <div class="flex items-center justify-between gap-2 px-1 font-['Noto_Sans_Sinhala']">
+      <span class="text-xs font-bold text-slate-500">දෛනික කාර්යයන් (Daily Routine)</span>
+      <button type="button" id="dashboard-add-task-btn" onclick="if(typeof openAddQuickTaskModal === 'function') openAddQuickTaskModal();" class="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white rounded-xl shadow-xs text-xs font-bold flex items-center gap-1.5 transition cursor-pointer" title="මෙම පැතිකඩට හෝ සියලු දෙනාට නව කාර්යයක් එක් කරන්න">
+        <i class="fa-solid fa-plus text-[10px]"></i> නව කාර්යයක්
+      </button>
+    </div>
+    <div id="quick-task-modal-container"></div>
     
     <!-- Published Interactive Flow Section -->
     <section id="published-flow-section" data-section-id="flow" class="hidden routine-section bg-white p-4 rounded-2xl shadow-sm border border-purple-50 transition-all">
