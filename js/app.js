@@ -724,12 +724,18 @@ async function openAddQuickTaskModal() {
     const hasTimer = modal.querySelector("#qt-has-timer").checked;
     const timerSec = hasTimer ? (parseInt(modal.querySelector("#qt-timer-seconds").value) || 600) : null;
 
-    const newTaskId = 'task_' + Date.now();
+    // Use valid UUID for Supabase wosandi_tasks table
+    const newTaskId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+          const r = Math.random() * 16 | 0;
+          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+        });
 
-    const taskObj = {
+    const payload = {
       id: newTaskId,
       title_si: titleSi,
-      title_en: titleEn,
+      title_en: titleEn || titleSi,
       category: category,
       tier: tier,
       weight_points: points,
@@ -738,7 +744,6 @@ async function openAddQuickTaskModal() {
       status: status,
       has_timer: hasTimer,
       timer_seconds: timerSec,
-      target_profile: targetProfile,
       schema_definition: {
         subject: subject,
         schedule: {
@@ -751,34 +756,63 @@ async function openAddQuickTaskModal() {
       }
     };
 
-    // Update local cache immediately
-    try {
-      let cached = [];
-      const raw = localStorage.getItem('wosandi_admin_wosandi_tasks');
-      if (raw) cached = JSON.parse(raw);
-      if (!Array.isArray(cached)) cached = [];
-      cached.push(taskObj);
-      localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
-    } catch (err) {}
+    const taskObj = {
+      ...payload,
+      target_profile: targetProfile
+    };
 
-    // Background Supabase push
+    // Show loading state on submit button
+    const submitBtn = modal.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> සුරකිමින් පවතී...';
+    }
+
+    // Direct Supabase insert
     try {
-      const payload = { ...taskObj };
-      delete payload.target_profile; // PostgREST safe
-      fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
+      const res = await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
         method: "POST",
         headers: {
           apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
           Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
           "Content-Type": "application/json",
-          "Prefer": "return=minimal"
+          Prefer: "return=representation"
         },
         body: JSON.stringify(payload)
-      }).catch(e => console.warn("Supabase background save warning", e));
-    } catch (e) {}
+      });
+      if (res.ok) {
+        const savedRows = await res.json();
+        if (Array.isArray(savedRows) && savedRows.length > 0) {
+          taskObj.id = savedRows[0].id;
+        }
+      } else {
+        const errText = await res.text();
+        console.warn("Supabase returned error on save wosandi_tasks:", errText);
+      }
+    } catch (e) {
+      console.warn("Could not save to Supabase wosandi_tasks, relying on local cache:", e);
+    }
+
+    // Update local cache
+    try {
+      let cached = [];
+      const raw = localStorage.getItem('wosandi_admin_wosandi_tasks');
+      if (raw) cached = JSON.parse(raw);
+      if (!Array.isArray(cached)) cached = [];
+      const existingIdx = cached.findIndex(t => t.id === taskObj.id);
+      if (existingIdx >= 0) {
+        cached[existingIdx] = taskObj;
+      } else {
+        cached.push(taskObj);
+      }
+      localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
+    } catch (err) {}
 
     closeModal();
     await loadPublishedTasksFromAdmin();
+    if (typeof syncProgressWithServer === 'function') {
+      syncProgressWithServer(state, true);
+    }
     if (typeof playChime === "function") playChime();
   });
 }

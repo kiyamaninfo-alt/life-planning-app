@@ -373,109 +373,61 @@ class UserManagerClient {
           </p>
         </div>
 
-        <!-- Body: Top 5 User Cards -->
-        <div class="p-4 sm:p-6 overflow-y-auto space-y-3 flex-1">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="top5-users-grid">
-            ${top5.map((user, idx) => {
-              const isSelected = user.id === currentUser?.id || user.username === currentUser?.username;
-              const rankMedal = idx === 0 ? '🥇 1st' : idx === 1 ? '🥈 2nd' : idx === 2 ? '🥉 3rd' : `#${idx + 1}`;
-              const isPrimary = user.role === "primary" || user.username === "Wosa";
+          <!-- Body: Top 5 User Cards -->
+          <div class="p-4 sm:p-6 overflow-y-auto space-y-3 flex-1">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="top5-users-grid">
+              ${top5.map((user) => {
+                const isSelected = user.id === currentUser?.id || user.username === currentUser?.username;
+                const isPrimary = user.role === "primary" || user.username === "Wosa";
 
-              return `
-                <div class="p-3.5 rounded-2xl border-2 transition-all duration-200 flex flex-col justify-between gap-3 ${isSelected ? 'border-purple-500 bg-purple-50/50 shadow-md ring-2 ring-purple-200' : 'border-slate-200 hover:border-purple-300 hover:bg-slate-50'}" data-user-id="${user.id}">
-                  <div class="flex items-center gap-3">
-                    <div class="w-12 h-12 rounded-2xl bg-white shadow-xs border border-slate-100 flex items-center justify-center text-2xl shrink-0">
-                      ${user.avatar || '👤'}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-slate-800 text-sm truncate">${user.username}</span>
-                        ${isPrimary ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-600">Primary</span>' : ''}
+                return `
+                  <div class="p-3.5 rounded-2xl border-2 transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer hover:border-purple-400 hover:bg-purple-50/60 hover:shadow-md active:scale-[0.99] ${isSelected ? 'border-purple-500 bg-purple-50/60 shadow-sm ring-2 ring-purple-200' : 'border-slate-200 bg-white hover:bg-slate-50'}" data-user-id="${user.id}">
+                    <div class="flex items-center gap-3 min-w-0">
+                      <div class="w-12 h-12 rounded-2xl bg-white shadow-xs border border-slate-100 flex items-center justify-center text-2xl shrink-0">
+                        ${user.avatar || '👤'}
                       </div>
-                      <span class="text-[11px] text-slate-400 block truncate font-['Noto_Sans_Sinhala']">${user.display_name || user.username}</span>
-                      <div class="flex items-center justify-between mt-1">
-                        <span class="text-[11px] font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md">
-                          🏆 ${user.points || 0} pts
-                        </span>
-                        <span class="text-[10px] font-semibold text-slate-400">${rankMedal}</span>
+                      <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                          <span class="font-bold text-slate-800 text-sm truncate">${user.username}</span>
+                          ${isPrimary ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-600 shrink-0">Primary</span>' : ''}
+                        </div>
+                        <span class="text-xs text-slate-400 block truncate font-['Noto_Sans_Sinhala'] mt-0.5">${user.display_name || user.username}</span>
                       </div>
                     </div>
+                    <div class="flex items-center gap-1 text-purple-600 text-xs font-bold shrink-0 font-['Noto_Sans_Sinhala']">
+                      ${isSelected ? '<span class="px-2.5 py-1 rounded-full bg-purple-100 text-purple-700 text-[11px] font-bold">සක්‍රීයයි ✓</span>' : '<span class="w-7 h-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-xs">→</span>'}
+                    </div>
                   </div>
+                `;
+              }).join('')}
+            </div>
 
-                  <!-- Action Buttons: View Progress vs Edit/Unlock -->
-                  <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 font-['Noto_Sans_Sinhala']">
-                    <button type="button" class="view-user-progress-btn py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-xl transition flex items-center justify-center gap-1" data-user-id="${user.id}">
-                      <i class="fas fa-eye text-slate-500"></i> ප්‍රගතිය බලන්න
-                    </button>
-                    <button type="button" class="login-edit-user-btn py-1.5 px-2 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-bold rounded-xl transition shadow-xs flex items-center justify-center gap-1" data-user-id="${user.id}">
-                      <i class="fas fa-lock"></i> Edit කරන්න
-                    </button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-
-          <div class="p-3 bg-purple-50 rounded-xl border border-purple-200 text-purple-800 text-[11px] font-['Noto_Sans_Sinhala'] text-center">
-            <i class="fas fa-info-circle text-purple-600 mr-1"></i>
-            ඕනෑම අයෙකුට සියලු පරිශීලකයන්ගේ ප්‍රගතිය (Progress) නැරඹිය හැකි අතර, දත්ත සංස්කරණය කළ හැක්කේ අදාළ පරිශීලකයාගේ මුරපදය (PIN) ඇතුළත් කළ පසු පමණි.
+            <div class="p-3 bg-purple-50 rounded-xl border border-purple-200 text-purple-800 text-[11px] font-['Noto_Sans_Sinhala'] text-center">
+              <i class="fas fa-info-circle text-purple-600 mr-1"></i>
+              ඕනෑම පරිශීලකයෙකුගේ කාඩ්පත මත ක්ලික් කළ සැණින් ඔවුන්ගේ සජීවී ප්‍රගති පුවරුව විවෘත වේ.
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
 
-    const closeModal = () => {
-      modal.remove();
-    };
+      const closeModal = () => {
+        modal.remove();
+      };
 
-    const closeBtn = modal.querySelector("#close-user-login-modal");
-    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+      const closeBtn = modal.querySelector("#close-user-login-modal");
+      if (closeBtn) closeBtn.addEventListener("click", closeModal);
 
-    // 1. Click ANYWHERE on the card to instantly open the profile (Requirement: when click any card anywhere need to open the profile instantly)
-    modal.querySelectorAll("[data-user-id]").forEach(card => {
-      card.classList.add("cursor-pointer", "hover:scale-[1.01]", "active:scale-[0.99]", "transition-transform");
-      card.addEventListener("click", (e) => {
-        // If clicking the Edit button, don't trigger view mode
-        if (e.target.closest(".login-edit-user-btn")) return;
-        const userId = card.dataset.userId;
-        const targetUser = this.users.find(u => u.id === userId);
-        if (!targetUser) return;
-        this.setCurrentUser(targetUser, false); // View-only / instant profile switch
-        closeModal();
-        if (onSuccessCallback) onSuccessCallback(targetUser);
+      // Click ANY user card to open profile instantly
+      modal.querySelectorAll("[data-user-id]").forEach(card => {
+        card.addEventListener("click", () => {
+          const userId = card.dataset.userId;
+          const targetUser = this.users.find(u => u.id === userId);
+          if (!targetUser) return;
+          this.setCurrentUser(targetUser, false); // Instant profile switch
+          closeModal();
+          if (onSuccessCallback) onSuccessCallback(targetUser);
+        });
       });
-    });
-
-    // Also support clicking the explicit "ප්‍රගතිය බලන්න" button
-    modal.querySelectorAll(".view-user-progress-btn").forEach(btn => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        const userId = btn.dataset.userId;
-        const targetUser = this.users.find(u => u.id === userId);
-        if (!targetUser) return;
-        this.setCurrentUser(targetUser, false); // View-only
-        closeModal();
-        if (onSuccessCallback) onSuccessCallback(targetUser);
-      });
-    });
-
-    // 2. "Edit කරන්න" - Asks password to unlock editing rights for relevant user!
-    modal.querySelectorAll(".login-edit-user-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const userId = btn.dataset.userId;
-        const targetUser = this.users.find(u => u.id === userId);
-        if (!targetUser) return;
-        this.promptUserPassword(
-          targetUser,
-          () => {
-            this.setCurrentUser(targetUser, true); // Authenticated editor
-            closeModal();
-            if (onSuccessCallback) onSuccessCallback(targetUser);
-          },
-          "දත්ත සංස්කරණය කිරීම සඳහා Login වීම"
-        );
-      });
-    });
   }
 
   /**
