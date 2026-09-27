@@ -95,6 +95,12 @@ export class AdminApi {
             if (clean.flow_data === null || clean.flow_data === undefined) {
                 clean.flow_data = { nodes: [], edges: [] };
             }
+            if ('target_profile' in clean) {
+                if (clean.target_profile) {
+                    clean.flow_data.target_profile = clean.target_profile;
+                }
+                delete clean.target_profile;
+            }
         } else if (table === 'wosandi_ui_schema') {
             delete clean.dynamic_config;
             if (clean.schema_definition === null || clean.schema_definition === undefined) {
@@ -291,12 +297,18 @@ export class AdminApi {
     async getActiveTasks() {
         try {
             const res = await this.select('wosandi_tasks', { status: 'published' });
-            const published = res.data || (Array.isArray(res) ? res : []);
-            if (published.length > 0) return published;
-
-            // Fallback to all tasks if none published yet
-            const allRes = await this.select('wosandi_tasks');
-            return allRes.data || (Array.isArray(allRes) ? allRes : []);
+            let published = res.data || (Array.isArray(res) ? res : []);
+            if (!published || published.length === 0) {
+                const allRes = await this.select('wosandi_tasks');
+                published = allRes.data || (Array.isArray(allRes) ? allRes : []);
+            }
+            return (published || []).map(t => ({
+                ...t,
+                title: t.title || t.title_si || t.title_en || 'Task',
+                title_en: t.title_en || t.title_si || t.title || 'Task',
+                title_si: t.title_si || t.title_en || t.title || 'කාර්යය',
+                weight_points: Number(t.weight_points) || 10
+            }));
         } catch (e) {
             console.warn('Error fetching active tasks from wosandi_tasks:', e);
             return [];

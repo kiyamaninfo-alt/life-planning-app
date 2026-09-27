@@ -138,59 +138,43 @@ async function syncProgressWithServer(state, skipSave = false) {
   const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
 
   let earnedPoints = 0;
-  
-  // 3.3 Weighted Scoring (Academic Priority Schema)
-  // Base total for routine & habits
-  let totalPossiblePoints = 120; 
+  let totalPossiblePoints = 0;
 
-  // සතියේ දිනක් නම් පාසල සඳහා (පාසලට 5 + විෂයන් සඳහා උපරිම 25) අමතර ලකුණු 30ක් එකතු කරයි
-  if (!isWeekend) {
-    totalPossiblePoints += 30; 
-  } else {
-    // සතිඅන්තයේ වුවද පාසල් ගොස් ඇත්නම් හෝ විෂයන් තෝරා ඇත්නම් එම ප්‍රමාණය මුළු ලකුණු ඇස්තමේන්තුවට එකතු කරයි
-    if (state.school_attended) totalPossiblePoints += 5;
-    if (state.school_subjects && Object.keys(state.school_subjects).length > 0) {
-       totalPossiblePoints += Math.min(25, Object.keys(state.school_subjects).length * 2.5);
+  // 1. Core Routine Wake Up
+  const wakeEl = (typeof document !== 'undefined') ? document.querySelector('[data-section-id="wake_up"]') : null;
+  const isWakeActive = wakeEl ? !wakeEl.classList.contains('hidden') : true;
+  if (isWakeActive) {
+    totalPossiblePoints += 10;
+    if (state.wake_up === "05:00 - 05:30") earnedPoints += 10;
+    else if (state.wake_up === "05:30 - 06:00") earnedPoints += 8;
+    else if (state.wake_up) earnedPoints += 4;
+  }
+
+  // 2. Core School Attendance & Subjects
+  const schoolEl = (typeof document !== 'undefined') ? document.querySelector('[data-section-id="school"]') : null;
+  const isSchoolActive = schoolEl ? !schoolEl.classList.contains('hidden') : true;
+  if (isSchoolActive) {
+    if (!isWeekend) {
+      totalPossiblePoints += 30;
+    } else {
+      if (state.school_attended) totalPossiblePoints += 5;
+      if (state.school_subjects && Object.keys(state.school_subjects).length > 0) {
+        totalPossiblePoints += Math.min(25, Object.keys(state.school_subjects).length * 2.5);
+      }
+    }
+    if (state.school_attended) earnedPoints += 5;
+    if (state.school_subjects && typeof state.school_subjects === "object") {
+      earnedPoints += Math.min(25, Object.keys(state.school_subjects).length * 2.5);
     }
   }
 
-  // Routine Wake up (Tier 3 Routine)
-  if (state.wake_up === "05:00 - 05:30") earnedPoints += 10;
-  else if (state.wake_up === "05:30 - 06:00") earnedPoints += 8;
-  else if (state.wake_up) earnedPoints += 4;
-
-  // School Attendance & Subjects (Tier 1 Core Academic)
-  if (state.school_attended) earnedPoints += 5;
-  if (state.school_subjects && typeof state.school_subjects === "object") {
-    earnedPoints += Math.min(25, Object.keys(state.school_subjects).length * 2.5);
-  }
-
-  // High Academic Priority Tier (20 & 15 points)
-  if (state.maths_practice) earnedPoints += 20;
-  if (state.gemini_english) earnedPoints += 15;
-  if (state.vocab_words) earnedPoints += 15;
-
-  // Ballet & Physical Arts Tier (15 points)
-  if (state.dance_workout) earnedPoints += 15;
-  if (state.exercise_schedule) earnedPoints += 15;
-
-  // Secondary Chores & Habits Tier (5 points)
-  if (state.hair_care) earnedPoints += 5;
-  if (state.clean_wardrobe) earnedPoints += 5;
-  if (state.clean_room) earnedPoints += 5;
-  if (state.water_plants) earnedPoints += 5;
-  if (state.sweep_floor) earnedPoints += 5;
-  if (state.dispose_garbage) earnedPoints += 5;
-
-  // Dynamic Published Tasks from Admin Panel (wosandi_tasks)
+  // 3. Dynamic Published Tasks from Admin Panel (wosandi_tasks: global + user-specific)
   if (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks)) {
-    const builtinKeys = new Set(['maths_practice', 'gemini_english', 'vocab_words', 'dance_workout', 'exercise_schedule', 'clean_room', 'water_plants', 'sweep_floor', 'dispose_garbage', 'hair_care', 'clean_wardrobe', 'wake_up', 'school_attended']);
     window.publishedAdminTasks.forEach(task => {
-      const key = task.schema_definition?.linked_state_key || task.id;
-      if (builtinKeys.has(key)) return; // already counted in standard tier above
       const pts = Number(task.weight_points) || 10;
       totalPossiblePoints += pts;
-      if (state[key] === true || state[task.id] === true) {
+      const key = task.schema_definition?.linked_state_key || task.id;
+      if (state[task.id] === true || (key && state[key] === true)) {
         earnedPoints += pts;
       }
     });

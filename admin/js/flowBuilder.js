@@ -35,6 +35,27 @@ export class FlowBuilder {
 
     // Bound keyboard shortcut listener
     this._handleKeyDown = this.handleKeyDown.bind(this);
+    this.users = [];
+  }
+
+  async loadUsers() {
+    try {
+      const cached = localStorage.getItem('wosandi_users_config');
+      if (cached) {
+        this.users = JSON.parse(cached);
+      }
+    } catch (e) {}
+    if (!this.users || this.users.length === 0) {
+      try {
+        const { DEFAULT_USERS } = await import('./userManager.js');
+        this.users = [...DEFAULT_USERS];
+      } catch (e) {
+        this.users = [
+          { id: "user_wosa", username: "Wosandi", display_name: "Wosandi", avatar: "🌸" },
+          { id: "user_amaya", username: "Nilu", display_name: "Nilu", avatar: "🎨" }
+        ];
+      }
+    }
   }
 
   /**
@@ -57,6 +78,7 @@ export class FlowBuilder {
 
   async render() {
     this.detachKeyboardShortcuts();
+    await this.loadUsers();
     await this.loadActiveTasks();
 
     this.containerEl.innerHTML = `
@@ -95,6 +117,11 @@ export class FlowBuilder {
         const flowType = flow.flow_type || flow.type || 'questionnaire';
         const scoreFloorZero = flow.flow_data?.settings?.score_floor_zero !== false && flow.flow_data?.settings?.allow_negative_score !== true;
 
+        const targetProfile = flow.flow_data?.target_profile || flow.target_profile || 'global';
+        const isGlobal = !targetProfile || targetProfile === 'global' || targetProfile === 'all';
+        const targetUser = !isGlobal ? (this.users.find(u => u.id === targetProfile || u.username === targetProfile)) : null;
+        const targetName = targetUser ? (targetUser.display_name || targetUser.username) : targetProfile;
+
         return `
           <div class="bg-white rounded-xl shadow-xs p-5 border-t-4 border-indigo-500 cursor-pointer hover:shadow-md transition" data-id="${flow.id}">
             <div class="flex justify-between items-start mb-2">
@@ -104,7 +131,10 @@ export class FlowBuilder {
               </span>
             </div>
             <p class="text-xs text-gray-500 mb-3 capitalize">වර්ගය: ${flowType}</p>
-            <div class="flex items-center gap-2 mb-4">
+            <div class="flex flex-wrap items-center gap-2 mb-4">
+              <span class="text-[11px] px-2 py-0.5 rounded-full ${isGlobal ? 'bg-blue-50 text-blue-700 border border-blue-200 font-semibold' : 'bg-purple-50 text-purple-700 border border-purple-200 font-semibold'}">
+                ${isGlobal ? '🌐 Global (සියලු දෙනාට)' : `🔒 ${targetName} ට පමණි`}
+              </span>
               <span class="text-[11px] px-2 py-0.5 rounded-full ${scoreFloorZero ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
                 ${scoreFloorZero ? '🛡️ අවම ලකුණු ≥ 0' : '⚠️ ඍණ ලකුණු වලංගුයි'}
               </span>
@@ -127,6 +157,7 @@ export class FlowBuilder {
   }
 
   async openFlowEditor(flowId = null) {
+    await this.loadUsers();
     await this.loadActiveTasks();
 
     if (flowId) {
@@ -206,6 +237,7 @@ export class FlowBuilder {
 
     const allowNegativeScore = this.currentFlow.flow_data.settings?.allow_negative_score === true;
     const scoreFloorZero = !allowNegativeScore;
+    const currentTargetProfile = this.currentFlow.flow_data?.target_profile || this.currentFlow.target_profile || 'global';
 
     this.containerEl.innerHTML = `
       <div class="flex flex-col h-full bg-gray-50 relative font-['Noto_Sans_Sinhala']">
@@ -221,6 +253,17 @@ export class FlowBuilder {
               <option value="assessment" ${this.currentFlow.type === 'assessment' ? 'selected' : ''}>ඇගයීම (Assessment)</option>
               <option value="survey" ${this.currentFlow.type === 'survey' ? 'selected' : ''}>සමීක්ෂණය (Survey)</option>
               <option value="checklist" ${this.currentFlow.type === 'checklist' ? 'selected' : ''}>ලැයිස්තුව (Checklist)</option>
+            </select>
+            <!-- Scope Selector (Single user or Global) -->
+            <select id="fb-target-profile" class="text-xs border-gray-300 rounded shadow-xs focus:ring-indigo-500 focus:border-indigo-500 font-semibold bg-white p-1" title="අදාළ පරිශීලකයා (Target Profile)">
+              <option value="global" ${currentTargetProfile === 'global' ? 'selected' : ''}>🌐 සියලු දෙනාට (Global)</option>
+              <optgroup label="පැතිකඩ අනුව (Single User)">
+                ${this.users.map(u => `
+                  <option value="${u.id}" ${currentTargetProfile === u.id || currentTargetProfile === u.username ? 'selected' : ''}>
+                    ${u.avatar || '👤'} ${u.display_name || u.username}
+                  </option>
+                `).join('')}
+              </optgroup>
             </select>
             <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${this.currentFlow.status === 'published' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
               ${this.currentFlow.status === 'published' ? 'ප්‍රකාශිතයි (Published)' : 'කෙටුම්පතක් (Draft)'}
@@ -2360,12 +2403,23 @@ export class FlowBuilder {
     }
 
     try {
+      const targetProfile = document.getElementById('fb-target-profile')?.value || 'global';
+      this.currentFlow.target_profile = targetProfile;
+      if (!this.currentFlow.flow_data) {
+        this.currentFlow.flow_data = { nodes: [], edges: [], settings: { score_floor_zero: true, allow_negative_score: false } };
+      }
+      this.currentFlow.flow_data.target_profile = targetProfile;
+
       const payload = {
         title_si: this.currentFlow.title || this.currentFlow.title_si || 'Untitled Flow',
         title_en: this.currentFlow.title_en || '',
         flow_type: this.currentFlow.flow_type || this.currentFlow.type || 'questionnaire',
         status: isPublish ? 'published' : (this.currentFlow.status || 'draft'),
-        flow_data: this.currentFlow.flow_data || { nodes: [], edges: [], settings: { score_floor_zero: true, allow_negative_score: false } }
+        target_profile: targetProfile,
+        flow_data: {
+          ...this.currentFlow.flow_data,
+          target_profile: targetProfile
+        }
       };
 
       if (this.currentFlow.id) {

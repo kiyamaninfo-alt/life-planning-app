@@ -22,39 +22,74 @@ class FlowPlayer {
   }
 
   async fetchPublishedFlow() {
-    let flowRecord = null;
+    let flowRecords = [];
     try {
-      const res = await fetch(`${this.SUPABASE_URL}/rest/v1/wosandi_flows?status=eq.published&order=updated_at.desc&limit=1`, {
+      const res = await fetch(`${this.SUPABASE_URL}/rest/v1/wosandi_flows?status=eq.published&order=updated_at.desc`, {
         headers: {
           apikey: this.SUPABASE_ANON_KEY,
           Authorization: `Bearer ${this.SUPABASE_ANON_KEY}`
         }
       });
       if (res.ok) {
-        const rows = await res.json();
-        if (Array.isArray(rows) && rows.length > 0) {
-          flowRecord = rows[0];
-        }
+        flowRecords = await res.json();
       }
     } catch (e) {
-      console.warn("Could not fetch published flow from Supabase, checking local storage", e);
+      console.warn("Could not fetch published flows from Supabase, checking local storage", e);
     }
 
-    if (!flowRecord) {
+    if (!Array.isArray(flowRecords) || flowRecords.length === 0) {
       // Local storage fallback for admin-published flows
       try {
         const local = localStorage.getItem("wosandi_admin_wosandi_flows");
         if (local) {
           const list = JSON.parse(local);
-          flowRecord = list.find(f => f.status === 'published') || null;
+          flowRecords = list.filter(f => f.status === 'published');
         }
       } catch (e) {}
     }
 
+    const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+      ? window.userManagerClient.getCurrentUser()
+      : { id: 'user_wosa', username: 'Wosa' };
+
+    let flowRecord = null;
+    if (Array.isArray(flowRecords) && flowRecords.length > 0) {
+      // 1. Single-user designated flow matching current user
+      const userSpecific = flowRecords.find(f => {
+        const tp = f.flow_data?.target_profile || f.target_profile;
+        if (!tp || tp === 'global' || tp === 'all') return false;
+        return Boolean(
+          currentUser && (
+            tp === currentUser.id ||
+            tp === currentUser.username ||
+            (currentUser.username === 'Wosa' && tp === 'user_wosa') ||
+            (currentUser.id === 'user_wosa' && (tp === 'Wosa' || tp === 'Wosandi')) ||
+            (currentUser.username === 'Wosandi' && (tp === 'user_wosa' || tp === 'Wosa'))
+          )
+        );
+      });
+
+      if (userSpecific) {
+        flowRecord = userSpecific;
+      } else {
+        // 2. Global flow
+        const globalFlow = flowRecords.find(f => {
+          const tp = f.flow_data?.target_profile || f.target_profile;
+          return !tp || tp === 'global' || tp === 'all';
+        });
+        if (globalFlow) {
+          flowRecord = globalFlow;
+        }
+      }
+    }
+
     if (flowRecord && flowRecord.flow_data && Array.isArray(flowRecord.flow_data.nodes) && flowRecord.flow_data.nodes.length > 0) {
       this.flow = flowRecord;
+      if (this.sectionEl) this.sectionEl.classList.remove("hidden");
       this.startFlow();
     } else {
+      this.flow = null;
+      if (this.containerEl) this.containerEl.innerHTML = '';
       if (this.sectionEl) this.sectionEl.classList.add("hidden");
     }
   }
@@ -406,10 +441,10 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
     window.flowPlayer.init();
   });
 
-  // Re-check flow completion when user switches (Requirement 3)
-  window.addEventListener('wosandi-user-changed', () => {
+  // Re-fetch and re-check flow when user switches (Requirement 2 & 3)
+  window.addEventListener('wosandi-user-changed', async () => {
     if (window.flowPlayer) {
-      window.flowPlayer.startFlow();
+      await window.flowPlayer.fetchPublishedFlow();
     }
   });
 }

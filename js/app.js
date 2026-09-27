@@ -140,10 +140,12 @@ function isSectionCompleted(sectionId, stateObj = state) {
         }
       }
       const adminStudyTasks = (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks))
-        ? window.publishedAdminTasks.filter(t => (t.category || '').toLowerCase() === 'study')
+        ? window.publishedAdminTasks.filter(t => (t.category || '').toLowerCase() === 'study' || (t.category || '').toLowerCase() === 'academic')
         : [];
-      const adminStudyDone = adminStudyTasks.every(t => Boolean(stateObj[t.id]));
-      return Boolean(stateObj.maths_practice && stateObj.gemini_english && stateObj.vocab_words) && adminStudyDone;
+      if (adminStudyTasks.length > 0) {
+        return adminStudyTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
+      }
+      return false;
     }
     case 'fitness': {
       if (typeof document !== 'undefined') {
@@ -161,10 +163,12 @@ function isSectionCompleted(sectionId, stateObj = state) {
         }
       }
       const adminFitTasks = (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks))
-        ? window.publishedAdminTasks.filter(t => (t.category || '').toLowerCase() === 'fitness')
+        ? window.publishedAdminTasks.filter(t => (t.category || '').toLowerCase() === 'fitness' || (t.category || '').toLowerCase() === 'physical')
         : [];
-      const adminFitDone = adminFitTasks.every(t => Boolean(stateObj[t.id]));
-      return Boolean(stateObj.dance_workout && stateObj.exercise_schedule) && adminFitDone;
+      if (adminFitTasks.length > 0) {
+        return adminFitTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
+      }
+      return false;
     }
     case 'chores': {
       if (typeof document !== 'undefined') {
@@ -182,10 +186,12 @@ function isSectionCompleted(sectionId, stateObj = state) {
         }
       }
       const adminChoresTasks = (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks))
-        ? window.publishedAdminTasks.filter(t => (t.category || '').toLowerCase() === 'chores')
+        ? window.publishedAdminTasks.filter(t => ['chores', 'habits', 'general'].includes((t.category || '').toLowerCase()))
         : [];
-      const adminChoresDone = adminChoresTasks.every(t => Boolean(stateObj[t.id]));
-      return Boolean(stateObj.clean_room && stateObj.water_plants && stateObj.sweep_floor && stateObj.dispose_garbage && stateObj.hair_care && stateObj.clean_wardrobe) && adminChoresDone;
+      if (adminChoresTasks.length > 0) {
+        return adminChoresTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
+      }
+      return false;
     }
     default:
       return Boolean(stateObj[sectionId]);
@@ -362,8 +368,7 @@ async function loadPublishedTasksFromAdmin() {
   // Remove previously injected dynamic tasks so profile switching or re-render is clean
   document.querySelectorAll('[data-is-dynamic-task="true"]').forEach(el => el.remove());
 
-  if (!Array.isArray(publishedTasks) || publishedTasks.length === 0) return;
-  window.publishedAdminTasks = publishedTasks;
+  window.publishedAdminTasks = [];
 
   const targetLists = {
     academic: document.getElementById('study-tasks-list'),
@@ -375,65 +380,86 @@ async function loadPublishedTasksFromAdmin() {
     general: document.getElementById('chores-tasks-list')
   };
 
-  publishedTasks.forEach(task => {
-    // PROFILE TARGETING (Requirement: Only display to targeted profile (default), or show for all if global)
-    const targetProfile = task.schema_definition?.target_profile || task.target_profile;
-    const isGlobal = !targetProfile || targetProfile === 'global' || targetProfile === 'all';
-    const isTargetUser = Boolean(
-      currentUser && (
-        targetProfile === currentUser.id ||
-        targetProfile === currentUser.username ||
-        (currentUser.username === 'Wosa' && targetProfile === 'user_wosa') ||
-        (currentUser.id === 'user_wosa' && targetProfile === 'Wosa')
-      )
-    );
+  // Clear task containers so only tasks from admin panel populate them
+  if (targetLists.study) targetLists.study.innerHTML = '';
+  if (targetLists.fitness) targetLists.fitness.innerHTML = '';
+  if (targetLists.chores) targetLists.chores.innerHTML = '';
 
-    // If this item is assigned to one profile only and it doesn't match current user, do NOT display
-    if (!isGlobal && !isTargetUser) {
-      return;
-    }
+  const matchedTasks = [];
 
-    const key = task.schema_definition?.linked_state_key || task.id;
-    const existing = document.querySelector(`[data-task-id="${key}"]`) || document.querySelector(`[data-task-id="${task.id}"]`);
-    if (existing) return;
+  if (Array.isArray(publishedTasks) && publishedTasks.length > 0) {
+    publishedTasks.forEach(task => {
+      // PROFILE TARGETING (Requirement: Only display to targeted profile (default), or show for all if global)
+      const targetProfile = task.schema_definition?.target_profile || task.target_profile;
+      const isGlobal = !targetProfile || targetProfile === 'global' || targetProfile === 'all';
+      const isTargetUser = Boolean(
+        currentUser && (
+          targetProfile === currentUser.id ||
+          targetProfile === currentUser.username ||
+          ((currentUser.username === 'Wosa' || currentUser.username === 'Wosandi') && (targetProfile === 'user_wosa' || targetProfile === 'Wosa' || targetProfile === 'Wosandi')) ||
+          (currentUser.id === 'user_wosa' && (targetProfile === 'Wosa' || targetProfile === 'Wosandi'))
+        )
+      );
 
-    const cat = (task.category || 'general').toLowerCase();
-    const container = targetLists[cat] || targetLists.general;
-    if (!container) return;
+      // If this item is assigned to one profile only and it doesn't match current user, do NOT display
+      if (!isGlobal && !isTargetUser) {
+        return;
+      }
 
-    if (state[task.id] === undefined) {
-      state[task.id] = false;
-    }
+      matchedTasks.push(task);
 
-    const row = document.createElement('label');
-    row.setAttribute('data-task-id', task.id);
-    row.setAttribute('data-is-dynamic-task', 'true');
-    row.className = 'flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer transition-all';
-    const timerBtn = task.has_timer ? `
-      <button type="button" onclick="startTimer(${task.timer_seconds || 600}, '${task.title_si || task.title_en || 'Timer'}')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">
-        ⏱ විනාඩි ${Math.round((task.timer_seconds || 600) / 60)} Timer එක දමන්න
-      </button>
-    ` : '';
+      const cat = (task.category || 'general').toLowerCase();
+      const container = targetLists[cat] || targetLists.general;
+      if (!container) return;
 
-    const isChecked = Boolean(state[task.id]);
-    const scopeBadge = isGlobal ? '' : `<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 ml-1.5">🔒 Personal</span>`;
+      const key = task.schema_definition?.linked_state_key || task.id;
+      if (state[task.id] === undefined) {
+        state[task.id] = key && state[key] !== undefined ? Boolean(state[key]) : false;
+      }
 
-    row.innerHTML = `
-      <div class="flex flex-col">
-        <div class="flex items-center">
-          <span class="text-xs font-semibold font-['Noto_Sans_Sinhala']">${task.icon || '📋'} ${task.title_si || task.title_en}</span>
-          ${scopeBadge}
+      const row = document.createElement('label');
+      row.setAttribute('data-task-id', task.id);
+      row.setAttribute('data-is-dynamic-task', 'true');
+      row.className = 'flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:bg-pink-50/50 cursor-pointer transition-all';
+      const timerBtn = task.has_timer ? `
+        <button type="button" onclick="startTimer(${task.timer_seconds || 600}, '${task.title_si || task.title_en || 'Timer'}')" class="text-[10px] text-pink-500 text-left font-bold underline mt-0.5">
+          ⏱ විනාඩි ${Math.round((task.timer_seconds || 600) / 60)} Timer එක දමන්න
+        </button>
+      ` : '';
+
+      const isChecked = Boolean(state[task.id] || (key && state[key]));
+      const scopeBadge = isGlobal ? '' : `<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 ml-1.5">🔒 Personal</span>`;
+
+      row.innerHTML = `
+        <div class="flex flex-col">
+          <div class="flex items-center">
+            <span class="text-xs font-semibold font-['Noto_Sans_Sinhala']">${task.icon || '📋'} ${task.title_si || task.title_en}</span>
+            ${scopeBadge}
+          </div>
+          ${timerBtn}
         </div>
-        ${timerBtn}
-      </div>
-      <div class="flex items-center gap-2">
-        <span class="text-[10px] font-bold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100">+${task.weight_points || 10}</span>
-        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleTask('${task.id}', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded">
-      </div>
-    `;
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-bold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded border border-pink-100">+${task.weight_points || 10}</span>
+          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleTask('${task.id}', this.checked, this)" class="w-5 h-5 accent-pink-500 rounded">
+        </div>
+      `;
 
-    container.appendChild(row);
-  });
+      container.appendChild(row);
+    });
+  }
+
+  // Set publishedAdminTasks to strictly the tasks matched for this user
+  window.publishedAdminTasks = matchedTasks;
+
+  // Placeholder indicators for empty sections
+  const showEmptyNotice = (container, label) => {
+    if (container && container.children.length === 0) {
+      container.innerHTML = `<div class="p-3 text-center text-xs text-slate-400 italic font-['Noto_Sans_Sinhala']">${label}</div>`;
+    }
+  };
+  showEmptyNotice(targetLists.study, "අධ්‍යාපනික කාර්යයන් සකසා නැත");
+  showEmptyNotice(targetLists.fitness, "ශාරීරික කාර්යයන් සකසා නැත");
+  showEmptyNotice(targetLists.chores, "දෛනික පුරුදු සකසා නැත");
 
   reorderAllTaskLists();
   syncStateToUI();
@@ -443,7 +469,7 @@ async function loadPublishedTasksFromAdmin() {
 }
 
 // =========================================================================
-// Quick Add Task from Dashboard (Default: Profile only; Option: Global)
+// Quick Add Task from Dashboard (Similar/Same as Admin Panel > Task > New Task)
 // =========================================================================
 async function openAddQuickTaskModal() {
   if (typeof document === 'undefined') return;
@@ -458,6 +484,19 @@ async function openAddQuickTaskModal() {
     ? window.userManagerClient.getCurrentUser()
     : { id: 'user_wosa', username: 'Wosa' };
 
+  let users = [];
+  if (typeof window !== 'undefined' && window.userManagerClient?.users?.length > 0) {
+    users = window.userManagerClient.users;
+  } else {
+    try {
+      const cached = localStorage.getItem('wosandi_users_config');
+      if (cached) users = JSON.parse(cached);
+    } catch (e) {}
+  }
+  if (!Array.isArray(users) || users.length === 0) {
+    users = [currentUser];
+  }
+
   let modal = document.getElementById("quick-task-modal");
   if (!modal) {
     modal = document.createElement("div");
@@ -467,74 +506,189 @@ async function openAddQuickTaskModal() {
 
   modal.className = "fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 font-['Noto_Sans_Sinhala']";
   modal.innerHTML = `
-    <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-5 sm:p-6 border border-purple-100 animate-in fade-in zoom-in-95 duration-200">
-      <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
-        <div class="flex items-center gap-2">
-          <span class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">✨</span>
-          <h3 class="text-sm font-bold text-slate-800">නව කාර්යයක් එක් කරන්න</h3>
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div class="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold shadow-2xs">
+            <i class="fas fa-tasks text-indigo-600"></i>
+          </span>
+          <div>
+            <h3 class="text-sm sm:text-base font-bold text-gray-800">නව කාර්යයක් එක් කරන්න (Add New Task)</h3>
+            <span class="text-[10px] text-gray-500">පරිපාලක පුවරුවට (Admin Panel) සහ ඩෑෂ්බෝඩ් එකට සෘජුවම එකතු වේ</span>
+          </div>
         </div>
-        <button type="button" id="close-quick-task-modal" class="text-slate-400 hover:text-slate-600 text-xl font-bold transition">&times;</button>
+        <button type="button" id="close-quick-task-modal" class="text-gray-400 hover:text-gray-600 text-xl font-bold transition p-1">&times;</button>
       </div>
 
-      <form id="quick-task-form" class="space-y-3.5">
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">කාර්යයේ නම (Task Title) *</label>
-          <input type="text" id="qt-title" required placeholder="උදා: සවස පොතක් කියවීම"
-            class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-purple-200 focus:outline-hidden font-['Noto_Sans_Sinhala']">
-        </div>
+      <div class="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">
+        <form id="quick-task-form" class="space-y-4">
+          <!-- Titles -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (සිංහලෙන්) *</label>
+              <input type="text" id="qt-title-si" required placeholder="උදා: ගණිතය ප්‍රශ්න 5ක් විසඳීම" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-['Noto_Sans_Sinhala']">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (English)</label>
+              <input type="text" id="qt-title-en" placeholder="e.g. Solve 5 Math Problems" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200">
+            </div>
+          </div>
 
-        <div class="grid grid-cols-2 gap-2.5">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">කොටස (Category)</label>
-            <select id="qt-category" class="w-full p-2 border rounded-xl text-xs bg-white">
-              <option value="study">📚 අධ්‍යාපනය (Study)</option>
-              <option value="fitness">🏃 ව්‍යායාම (Fitness)</option>
-              <option value="chores" selected>🏡 පුරුදු (Chores/Habits)</option>
+          <!-- Target Profile / Scope -->
+          <div class="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fas fa-user-tag text-indigo-600"></i> අදාළ පැතිකඩ / පරිශීලකයා (Target Profile / Scope) *
+              </label>
+              <span class="text-[11px] text-indigo-600 font-bold bg-white px-2 py-0.5 rounded-full border border-indigo-200">
+                පෙරනිමි: ඔබගේ පැතිකඩට පමණි
+              </span>
+            </div>
+            <select id="qt-target-profile" class="w-full p-2.5 border border-indigo-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-indigo-200">
+              <optgroup label="පැතිකඩ අනුව (Individual Profile - Default)">
+                ${users.map(u => `
+                  <option value="${u.id}" ${u.id === currentUser.id ? 'selected' : ''}>
+                    ${u.avatar || '👤'} ${u.display_name || u.username} (මෙම පැතිකඩට පමණි)
+                  </option>
+                `).join('')}
+              </optgroup>
+              <optgroup label="පොදු / සියලු දෙනාට (Global)">
+                <option value="global">🌐 සියලු දෙනාටම පෙන්වන්න (Global - All Profiles)</option>
+              </optgroup>
             </select>
           </div>
+
+          <!-- Subject, Category & Tier -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">විෂය (Subject)</label>
+              <select id="qt-subject" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
+                <option value="maths">ගණිතය (Mathematics)</option>
+                <option value="science">විද්‍යාව (Science)</option>
+                <option value="sinhala">සිංහල (Sinhala)</option>
+                <option value="english">ඉංග්‍රීසි (English)</option>
+                <option value="history">ඉතිහාසය (History)</option>
+                <option value="religion">බුද්ධාගම / ආගම (Religion)</option>
+                <option value="commerce">වාණිජ්‍ය (Commerce)</option>
+                <option value="ict">තොරතුරු තාක්ෂණය (ICT)</option>
+                <option value="eastern_music">නැටුම් / සංගීතය</option>
+                <option value="art">චිත්‍ර කලාව</option>
+                <option value="civics">පුරවැසි අධ්‍යාපනය</option>
+                <option value="tamil">දෙමළ (Tamil)</option>
+                <option value="general" selected>සාමාන්‍ය පුරුදු (General)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">වර්ගය (Category)</label>
+              <select id="qt-category" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
+                <option value="academic">අධ්‍යාපනික (Academic)</option>
+                <option value="physical">ශාරීරික / නැටුම් (Physical)</option>
+                <option value="chores" selected>ගෙදර දොර (Chores)</option>
+                <option value="habits">පුරුදු (Habits)</option>
+                <option value="creative">නිර්මාණශීලී (Creative)</option>
+                <option value="general">සාමාන්‍ය (General)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">ප්‍රමුඛතා මට්ටම (Tier)</label>
+              <select id="qt-tier" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
+                <option value="core_academic">ප්‍රධාන අධ්‍යාපනික (Core: 25-30 Pts)</option>
+                <option value="applied_basket">අමතර විෂයයන් (Basket: 12-20 Pts)</option>
+                <option value="routine_baseline" selected>දෛනික පුරුදු (Baseline: 5-10 Pts)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Weight Points, Icon, Sort Order, Status -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">ලබාදෙන ලකුණු (Points)</label>
+              <input type="number" id="qt-points" step="0.5" value="10" min="1" max="100" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-bold">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">සංකේතය (Icon)</label>
+              <input type="text" id="qt-icon" value="📋" class="w-full p-2.5 border rounded-xl text-xs text-center text-lg focus:ring-2 focus:ring-indigo-200">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">පිළිවෙල අංකය (Order)</label>
+              <input type="number" id="qt-sort-order" value="0" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">තත්ත්වය (Status)</label>
+              <select id="qt-status" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white font-semibold">
+                <option value="published" selected>ප්‍රකාශිතයි (Published)</option>
+                <option value="draft">කටු කෙටුම්පත් (Draft)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Schedule Settings -->
+          <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="far fa-calendar-check text-indigo-600"></i> කාලසටහන සහ පුනරාවර්තනය (Schedule)
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">වාර ගණන (Frequency)</label>
+                <select id="qt-frequency" class="w-full p-2 border rounded-lg text-xs bg-white">
+                  <option value="daily" selected>දිනපතා (Daily)</option>
+                  <option value="school_days">පාසල් දිනවල පමණක් (Mon - Fri)</option>
+                  <option value="weekends">සතිඅන්තයේ පමණක් (Sat - Sun)</option>
+                  <option value="custom">වෙනත් දිනයන් (Custom)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-600 mb-1">සුදුසු වේලාව (Preferred Time)</label>
+                <select id="qt-time" class="w-full p-2 border rounded-lg text-xs bg-white">
+                  <option value="morning">උදෑසන (05:00 - 08:00)</option>
+                  <option value="afternoon">දහවල් (12:00 - 16:00)</option>
+                  <option value="evening">සවස / රාත්‍රිය (16:00 - 21:00)</option>
+                  <option value="anytime" selected>ඕනෑම වේලාවක (Flexible)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">ලකුණු (Points)</label>
-            <input type="number" id="qt-points" value="10" min="1" max="100"
-              class="w-full p-2 border rounded-xl text-xs font-bold text-slate-800">
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">විස්තරය සහ උපදෙස් (Description & Notes)</label>
+            <textarea id="qt-description" rows="2" placeholder="අවශ්‍ය උපදෙස් සහ පාඩම් තොරතුරු..." class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-['Noto_Sans_Sinhala']"></textarea>
           </div>
-        </div>
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">Timer එකක් අවශ්‍යද? (විකල්ප)</label>
-          <select id="qt-timer" class="w-full p-2 border rounded-xl text-xs bg-white">
-            <option value="0">Timer නැත</option>
-            <option value="300">⏱ විනාඩි 5 (5 min)</option>
-            <option value="600">⏱ විනාඩි 10 (10 min)</option>
-            <option value="900">⏱ විනාඩි 15 (15 min)</option>
-            <option value="1200">⏱ විනාඩි 20 (20 min)</option>
-            <option value="1800">⏱ විනාඩි 30 (30 min)</option>
-          </select>
-        </div>
-
-        <!-- Scope: Default to profile only, or Global -->
-        <div class="p-3 bg-purple-50 rounded-2xl border border-purple-200 space-y-2">
-          <label class="block text-[11px] font-bold text-purple-900">පැවරුම / දිස්වන ආකාරය (Scope):</label>
-          <div class="space-y-1.5 text-xs">
-            <label class="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-              <input type="radio" name="qt-scope" value="profile" checked class="accent-purple-600">
-              <span>🔒 <strong>${currentUser.display_name || currentUser.username}</strong> ට පමණි (Default)</span>
-            </label>
-            <label class="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-              <input type="radio" name="qt-scope" value="global" class="accent-purple-600">
-              <span>🌐 සියලු දෙනාටම පෙන්වන්න (Global)</span>
-            </label>
+          <!-- Linked Timer -->
+          <div class="border border-purple-200 bg-purple-50/50 p-3.5 rounded-xl space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" id="qt-has-timer" class="rounded text-purple-600 focus:ring focus:ring-purple-200">
+                <span class="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <i class="fas fa-stopwatch text-purple-600"></i> වේලාව මනින Timer එකක් සම්බන්ධ කරන්න (Link Timer)
+                </span>
+              </label>
+            </div>
+            <div id="qt-timer-row" class="hidden pt-2 border-t border-purple-200/60 flex items-center gap-3">
+              <label class="text-xs text-purple-900 font-medium">කාල සීමාව:</label>
+              <select id="qt-timer-seconds" class="p-2 border border-purple-300 rounded-lg text-xs bg-white">
+                <option value="300">⏱ විනාඩි 5 (300s)</option>
+                <option value="600" selected>⏱ විනාඩි 10 (600s)</option>
+                <option value="900">⏱ විනාඩි 15 (900s)</option>
+                <option value="1200">⏱ විනාඩි 20 (1200s)</option>
+                <option value="1800">⏱ විනාඩි 30 (1800s)</option>
+                <option value="3600">⏱ පැය 1 (3600s)</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        <div class="grid grid-cols-2 gap-2 pt-2">
-          <button type="button" id="cancel-quick-task" class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold rounded-xl transition cursor-pointer">
-            අවලංගු කරන්න
-          </button>
-          <button type="submit" class="py-2 px-3 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-1 cursor-pointer">
-            <i class="fa-solid fa-check"></i> සුරකින්න
-          </button>
-        </div>
-      </form>
+          <!-- Footer Buttons -->
+          <div class="px-2 py-3 border-t border-gray-200 flex justify-end gap-3 font-['Noto_Sans_Sinhala'] pt-4">
+            <button type="button" id="cancel-quick-task" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition cursor-pointer">
+              අවලංගු කරන්න (Cancel)
+            </button>
+            <button type="submit" class="px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+              <i class="fas fa-save"></i> කාර්යය සුරකින්න (Save Task)
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   `;
 
@@ -542,33 +696,56 @@ async function openAddQuickTaskModal() {
   modal.querySelector("#close-quick-task-modal").addEventListener("click", closeModal);
   modal.querySelector("#cancel-quick-task").addEventListener("click", closeModal);
 
+  const hasTimerCheckbox = modal.querySelector("#qt-has-timer");
+  const timerRow = modal.querySelector("#qt-timer-row");
+  if (hasTimerCheckbox && timerRow) {
+    hasTimerCheckbox.addEventListener("change", (e) => {
+      timerRow.classList.toggle("hidden", !e.target.checked);
+    });
+  }
+
   modal.querySelector("#quick-task-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const title = modal.querySelector("#qt-title").value.trim();
-    if (!title) return;
+    const titleSi = modal.querySelector("#qt-title-si").value.trim();
+    if (!titleSi) return;
 
+    const titleEn = modal.querySelector("#qt-title-en").value.trim();
+    const targetProfile = modal.querySelector("#qt-target-profile").value;
+    const subject = modal.querySelector("#qt-subject").value;
     const category = modal.querySelector("#qt-category").value;
+    const tier = modal.querySelector("#qt-tier").value;
     const points = parseFloat(modal.querySelector("#qt-points").value) || 10;
-    const timerSec = parseInt(modal.querySelector("#qt-timer").value) || 0;
-    const isGlobal = modal.querySelector('input[name="qt-scope"]:checked')?.value === 'global';
+    const icon = modal.querySelector("#qt-icon").value.trim() || '📋';
+    const sortOrder = parseInt(modal.querySelector("#qt-sort-order").value) || 0;
+    const status = modal.querySelector("#qt-status").value || 'published';
+    const frequency = modal.querySelector("#qt-frequency").value;
+    const time = modal.querySelector("#qt-time").value;
+    const description = modal.querySelector("#qt-description").value.trim();
+    const hasTimer = modal.querySelector("#qt-has-timer").checked;
+    const timerSec = hasTimer ? (parseInt(modal.querySelector("#qt-timer-seconds").value) || 600) : null;
 
-    const targetProfile = isGlobal ? 'global' : currentUser.id;
     const newTaskId = 'task_' + Date.now();
 
     const taskObj = {
       id: newTaskId,
-      title_si: title,
-      title_en: title,
+      title_si: titleSi,
+      title_en: titleEn,
       category: category,
-      tier: 'routine_baseline',
+      tier: tier,
       weight_points: points,
-      icon: category === 'study' ? '📖' : category === 'fitness' ? '🏃' : '✨',
-      sort_order: 100,
-      status: 'published',
-      has_timer: timerSec > 0,
-      timer_seconds: timerSec > 0 ? timerSec : null,
+      icon: icon,
+      sort_order: sortOrder,
+      status: status,
+      has_timer: hasTimer,
+      timer_seconds: timerSec,
       target_profile: targetProfile,
       schema_definition: {
+        subject: subject,
+        schedule: {
+          frequency: frequency,
+          time: time
+        },
+        description: description,
         target_profile: targetProfile,
         created_by_user: currentUser.id
       }
@@ -602,6 +779,7 @@ async function openAddQuickTaskModal() {
 
     closeModal();
     await loadPublishedTasksFromAdmin();
+    if (typeof playChime === "function") playChime();
   });
 }
 if (typeof window !== "undefined") {

@@ -123,6 +123,18 @@ class UserManagerClient {
       this.users.unshift(DEFAULT_USERS[0]);
     }
 
+    // SYNC currentUser if it was already selected/cached
+    if (this.currentUser && this.users && this.users.length > 0) {
+      const found = this.users.find(u => u.id === this.currentUser.id || u.username === this.currentUser.username);
+      if (found) {
+        this.currentUser = { ...this.currentUser, ...found };
+        if (typeof localStorage !== "undefined") {
+          localStorage.setItem("wosandi_current_user", JSON.stringify(this.currentUser));
+        }
+        this.updateUserHeaderPill();
+      }
+    }
+
     return this.users;
   }
 
@@ -133,7 +145,15 @@ class UserManagerClient {
   }
 
   getCurrentUser() {
-    if (this.currentUser) return this.currentUser;
+    if (this.currentUser) {
+      if (this.users && this.users.length > 0) {
+        const found = this.users.find(u => u.id === this.currentUser.id || u.username === this.currentUser.username);
+        if (found) {
+          this.currentUser = { ...this.currentUser, ...found };
+        }
+      }
+      return this.currentUser;
+    }
 
     if (typeof localStorage !== "undefined") {
       const stored = localStorage.getItem("wosandi_current_user");
@@ -142,7 +162,7 @@ class UserManagerClient {
           const parsed = JSON.parse(stored);
           if (parsed && parsed.id) {
             const found = this.users.find(u => u.id === parsed.id || u.username === parsed.username);
-            this.currentUser = found || parsed;
+            this.currentUser = found ? { ...parsed, ...found } : parsed;
             return this.currentUser;
           }
         } catch (e) {}
