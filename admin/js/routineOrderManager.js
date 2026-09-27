@@ -17,7 +17,7 @@ export class RoutineOrderManager {
               <i class="fas fa-sort-amount-down-alt text-indigo-600"></i> දින චර්යාවේ පිළිවෙල සහ අනුක්‍රමික විවෘත කිරීම
             </h2>
             <p class="text-xs text-slate-500 mt-1">
-              ප්‍රධාන පිටුවේ (<a href="../index.html" target="_blank" class="text-indigo-600 underline">life-planning-app.pages.dev</a>) 1 වන, 2 වන, 3 වන ආදී වශයෙන් දිස්වන අනුපිළිවෙල සකසන්න සහ පූර්ව කාර්යයන් සම්පූර්ණ කළ පසු පමණක් කාර්යයන් පෙන්වීමේ කොන්දේසි සකසන්න.
+              ප්‍රධාන පිටුවේ (<a href="/" target="_blank" class="text-indigo-600 underline">life-planning-app.pages.dev</a>) 1 වන, 2 වන, 3 වන ආදී වශයෙන් දිස්වන අනුපිළිවෙල සකසන්න සහ පූර්ව කාර්යයන් සම්පූර්ණ කළ පසු පමණක් කාර්යයන් පෙන්වීමේ කොන්දේසි සකසන්න.
             </p>
           </div>
           <div class="flex items-center gap-2">

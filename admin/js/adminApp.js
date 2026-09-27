@@ -100,7 +100,7 @@ class AdminApp {
 
             // Push clean URL for Cloudflare Pages routing (/admin/flows, /admin/tasks, etc.)
             if (updateUrl && window.history && window.history.pushState) {
-                const targetUrl = tabId === 'overview' ? '/admin' : `/admin/${tabId}`;
+                const targetUrl = tabId === 'overview' ? '/admin/' : `/admin/${tabId}`;
                 if (window.location.pathname !== targetUrl) {
                     window.history.pushState({ tab: tabId }, '', targetUrl);
                 }

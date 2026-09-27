@@ -3,9 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="/admin/">
     <title>Life Planning App - Admin Panel</title>
-    <link rel="icon" type="image/svg+xml" href="../favicon.svg">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <script>
+        // Normalize corrupted recursive admin URLs if redirected
+        if (window.location.pathname.includes('/admin/admin')) {
+            window.location.replace('/admin/');
+        }
         const _origWarn = console.warn;
         console.warn = function(...args) {
             if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com should not be used in production')) return;
@@ -15,7 +20,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="/admin/css/admin.css">
 </head>
 <body class="bg-slate-100 text-slate-800 font-['Poppins'] overflow-hidden">
     
@@ -86,10 +91,10 @@
 
             <div class="p-4 border-t border-slate-700">
                 <div class="flex flex-col gap-2 mb-4">
-                    <a href="../index.html" class="text-sm text-slate-400 hover:text-white flex items-center gap-2">
+                    <a href="/" class="text-sm text-slate-400 hover:text-white flex items-center gap-2">
                         <i class="fas fa-external-link-alt text-xs"></i> ශිෂ්‍ය මුහුණත (Student App)
                     </a>
-                    <a href="../wosandi/index.html" class="text-sm text-slate-400 hover:text-white flex items-center gap-2">
+                    <a href="/wosandi/" class="text-sm text-slate-400 hover:text-white flex items-center gap-2">
                         <i class="fas fa-external-link-alt text-xs"></i> වසඳි මුහුණත (Wosandi App)
                     </a>
                 </div>
@@ -240,6 +245,6 @@
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-[60] flex flex-col gap-2"></div>
 
-    <script type="module" src="js/adminApp.js?v=20260926-v3"></script>
+    <script type="module" src="/admin/js/adminApp.js?v=20260927-v1"></script>
 </body>
 </html>

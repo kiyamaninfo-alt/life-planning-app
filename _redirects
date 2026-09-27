@@ -1,5 +1,8 @@
 # Cloudflare Pages Redirects & Routing Rules
 
+# Prevent and normalize recursive admin path nesting
+/admin/admin*     /admin/              301!
+
 # Admin Panel sub-route resolution and clean URL support
 /admin            /admin/index.html    200
 /admin/           /admin/index.html    200
