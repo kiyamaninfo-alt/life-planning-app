@@ -145,7 +145,7 @@ function isSectionCompleted(sectionId, stateObj = state) {
       if (adminStudyTasks.length > 0) {
         return adminStudyTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
       }
-      return false;
+      return Boolean(stateObj.maths_practice && stateObj.gemini_english && stateObj.vocab_words);
     }
     case 'fitness': {
       if (typeof document !== 'undefined') {
@@ -168,7 +168,7 @@ function isSectionCompleted(sectionId, stateObj = state) {
       if (adminFitTasks.length > 0) {
         return adminFitTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
       }
-      return false;
+      return Boolean(stateObj.dance_workout && stateObj.exercise_schedule);
     }
     case 'chores': {
       if (typeof document !== 'undefined') {
@@ -191,7 +191,7 @@ function isSectionCompleted(sectionId, stateObj = state) {
       if (adminChoresTasks.length > 0) {
         return adminChoresTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
       }
-      return false;
+      return Boolean(stateObj.clean_room && stateObj.water_plants && stateObj.sweep_floor && stateObj.dispose_garbage && stateObj.hair_care && stateObj.clean_wardrobe);
     }
     default:
       return Boolean(stateObj[sectionId]);
@@ -906,7 +906,9 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
       sweep_floor: false,
       dispose_garbage: false,
       hair_care: false,
-      clean_wardrobe: false
+      clean_wardrobe: false,
+      flow_completed: false,
+      flow_points: 0
     };
     Object.keys(state).forEach(k => delete state[k]);
     Object.assign(state, defaultState);
@@ -1089,6 +1091,12 @@ async function toggleTask(key, val, el = null) {
   }
 
   state[key] = val;
+  if (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks)) {
+    const matched = window.publishedAdminTasks.find(t => t.id === key);
+    if (matched && matched.schema_definition?.linked_state_key) {
+      state[matched.schema_definition.linked_state_key] = val;
+    }
+  }
   reorderAllTaskLists();
   updateSectionCollapseStates(state);
   syncProgressWithServer(state);

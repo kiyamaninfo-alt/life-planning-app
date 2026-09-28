@@ -531,9 +531,9 @@ async function runAllTests() {
     assert.ok(html.includes('data-section-id="study"'), "Contains study section id");
     assert.ok(html.includes('data-section-id="fitness"'), "Contains fitness section id");
     assert.ok(html.includes('data-section-id="chores"'), "Contains chores section id");
-    assert.ok(html.includes('data-task-id="maths_practice"'), "Contains maths_practice task id");
-    assert.ok(html.includes('data-task-id="dance_workout"'), "Contains dance_workout task id");
-    assert.ok(html.includes('data-task-id="clean_room"'), "Contains clean_room task id");
+    assert.ok(html.includes('id="study-tasks-list"'), "Contains study-tasks-list container");
+    assert.ok(html.includes('id="fitness-tasks-list"'), "Contains fitness-tasks-list container");
+    assert.ok(html.includes('id="chores-tasks-list"'), "Contains chores-tasks-list container");
     assert.ok(html.includes('routineOrdering.js'), "Includes routineOrdering.js script module");
   });
 

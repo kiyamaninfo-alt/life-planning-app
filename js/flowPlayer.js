@@ -100,6 +100,11 @@ class FlowPlayer {
     if (nodes.length === 0) return;
 
     const todayDate = new Date().toISOString().split('T')[0];
+    const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+      ? window.userManagerClient.getCurrentUser()
+      : { id: 'user_wosa', username: 'Wosa' };
+    const isPrimaryUser = !currentUser || currentUser.username === 'Wosa' || currentUser.id === 'user_wosa';
+
     const flowCompletedKey = (typeof window !== 'undefined' && window.userManagerClient?.getFlowCompletedKey)
       ? window.userManagerClient.getFlowCompletedKey(todayDate)
       : ('wosandi_flow_completed_' + todayDate);
@@ -108,7 +113,10 @@ class FlowPlayer {
       : ('wosandi_flow_points_' + todayDate);
 
     const isAlreadyCompleted = 
-      (typeof localStorage !== 'undefined' && (localStorage.getItem(flowCompletedKey) === 'true' || localStorage.getItem('wosandi_flow_completed_' + todayDate) === 'true')) ||
+      (typeof localStorage !== 'undefined' && (
+        localStorage.getItem(flowCompletedKey) === 'true' ||
+        (isPrimaryUser && localStorage.getItem('wosandi_flow_completed_' + todayDate) === 'true')
+      )) ||
       (typeof state !== 'undefined' && state.flow_completed === true);
 
     if (isAlreadyCompleted) {
@@ -120,8 +128,10 @@ class FlowPlayer {
         };
       }
       this.currentNode = endNode;
-      const savedPoints = (typeof localStorage !== 'undefined' && (localStorage.getItem(flowPointsKey) || localStorage.getItem('wosandi_flow_points_' + todayDate))) ||
-                          (typeof state !== 'undefined' && state.flow_points) || 0;
+      const savedPoints = (typeof localStorage !== 'undefined' && (
+        localStorage.getItem(flowPointsKey) ||
+        (isPrimaryUser ? localStorage.getItem('wosandi_flow_points_' + todayDate) : 0)
+      )) || (typeof state !== 'undefined' && state.flow_points) || 0;
       this.accumulatedScore = Number(savedPoints) || 0;
 
       if (this.sectionEl) this.sectionEl.classList.remove("hidden");
@@ -417,8 +427,11 @@ class FlowPlayer {
     try {
       localStorage.removeItem(flowCompletedKey);
       localStorage.removeItem(flowPointsKey);
-      localStorage.removeItem('wosandi_flow_completed_' + todayDate);
-      localStorage.removeItem('wosandi_flow_points_' + todayDate);
+      const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser) ? window.userManagerClient.getCurrentUser() : null;
+      if (!currentUser || currentUser.username === 'Wosa' || currentUser.id === 'user_wosa') {
+        localStorage.removeItem('wosandi_flow_completed_' + todayDate);
+        localStorage.removeItem('wosandi_flow_points_' + todayDate);
+      }
     } catch(e) {}
     if (typeof state !== 'undefined') {
       state.flow_completed = false;

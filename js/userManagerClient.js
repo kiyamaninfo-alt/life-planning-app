@@ -288,7 +288,13 @@ class UserManagerClient {
 
     if (avatarEl) avatarEl.innerText = user.avatar || "🌸";
     if (nameEl) nameEl.innerText = user.username || "Wosa";
-    if (pointsEl) pointsEl.innerText = `${user.points || 0} pts`;
+    if (pointsEl) {
+      if (typeof pointsEl.remove === "function") {
+        pointsEl.remove();
+      } else {
+        pointsEl.innerText = "";
+      }
+    }
     if (lockEl) {
       lockEl.className = isEditor ? "fa-solid fa-lock-open text-[10px] text-emerald-500" : "fa-solid fa-eye text-[10px] text-amber-500";
       lockEl.title = isEditor ? "සංස්කරණ අවසර ඇත (Editing rights active)" : "නැරඹුම් ප්‍රකාරය (View-Only Mode)";

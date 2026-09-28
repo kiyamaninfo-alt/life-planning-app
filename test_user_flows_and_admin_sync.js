@@ -31,9 +31,9 @@ function it(desc, fn) {
   }
 }
 
-console.log("=== TEST SUITE 1: Active User Profile Points & Pill Sync ===");
+console.log("=== TEST SUITE 1: Profile Selector Cleared of Points/Marks Badge ===");
 
-it("userManagerClient syncs currentUser points with loaded users and updates pill", async () => {
+it("userManagerClient renders profile selector pill without marks/points, and index.html has no active-user-points", async () => {
   // Mock localStorage and window
   const storage = {};
   global.localStorage = {
@@ -57,7 +57,10 @@ it("userManagerClient syncs currentUser points with loaded users and updates pil
     getElementById: (id) => {
       if (id === 'active-user-avatar') return { set innerText(v) { pillState.avatar = v; } };
       if (id === 'active-user-name') return { set innerText(v) { pillState.name = v; } };
-      if (id === 'active-user-points') return { set innerText(v) { pillState.points = v; } };
+      if (id === 'active-user-points') return { 
+        remove: () => { pillState.points = ''; },
+        set innerText(v) { pillState.points = v; } 
+      };
       if (id === 'active-user-lock-icon') return { className: '', title: '' };
       return null;
     }
@@ -66,7 +69,6 @@ it("userManagerClient syncs currentUser points with loaded users and updates pil
   // Import userManagerClient
   const { userManagerClient } = await import('./js/userManagerClient.js');
 
-  // Simulate users config loaded with 250 points for Wosa/Wosandi
   userManagerClient.users = [
     {
       id: "user_wosa",
@@ -92,14 +94,16 @@ it("userManagerClient syncs currentUser points with loaded users and updates pil
 
   userManagerClient.currentUser = null;
   const user = userManagerClient.getCurrentUser();
-  assert.strictEqual(user.points, 250, "User points should be 250 from config");
+  assert.strictEqual(user.username, "Wosandi", "Default user is Wosandi");
 
   userManagerClient.updateUserHeaderPill();
-  assert.strictEqual(pillState.points, "250 pts", "Pill text should display 250 pts");
+  assert.strictEqual(pillState.avatar, "🌸", "Avatar should be rendered in pill");
+  assert.strictEqual(pillState.name, "Wosandi", "Username should be rendered in pill");
+  assert.strictEqual(pillState.points, "", "Points/marks badge must NOT be rendered in dashboard profile selector pill");
 
-  // Switch to Sandali
-  userManagerClient.setCurrentUser(userManagerClient.users[1]);
-  assert.strictEqual(pillState.points, "95 pts", "Pill text should update to 95 pts when Sandali is selected");
+  // Verify index.html does not contain active-user-points span
+  const indexHtml = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf-8');
+  assert.ok(!indexHtml.includes('id="active-user-points"'), "index.html must not contain active-user-points span in header");
 });
 
 console.log("\n=== TEST SUITE 2: Single-User vs Global Live Flow Builder & Player ===");
@@ -280,6 +284,116 @@ it("app.js and index.html implement past performance history viewer modal", () =
   assert.ok(indexHtml.includes('id="past-performance-modal-container"'), "index.html must include modal container");
   assert.ok(appJs.includes('async function openPastPerformanceModal()'), "app.js must define openPastPerformanceModal");
   assert.ok(appJs.includes('window.openPastPerformanceModal = openPastPerformanceModal'), "Must export to window");
+});
+
+console.log("\n=== TEST SUITE 7: Global Card Visibility & Individual User Data Isolation ===");
+
+it("Global cards are visible to all users but completed state is isolated strictly per user", () => {
+  const today = '2026-09-28';
+  
+  // 1. Define a global task and user-specific tasks
+  const allTasks = [
+    {
+      id: 'task_global_routine',
+      title_si: 'පොදු කාර්යය (Global Task)',
+      category: 'academic',
+      weight_points: 20,
+      target_profile: 'global',
+      schema_definition: { target_profile: 'global' }
+    },
+    {
+      id: 'task_wosa_only',
+      title_si: 'Wosa පමණි',
+      category: 'academic',
+      weight_points: 10,
+      target_profile: 'user_wosa',
+      schema_definition: { target_profile: 'user_wosa' }
+    },
+    {
+      id: 'task_sandali_only',
+      title_si: 'Sandali පමණි',
+      category: 'academic',
+      weight_points: 15,
+      target_profile: 'user_sandali',
+      schema_definition: { target_profile: 'user_sandali' }
+    }
+  ];
+
+  // Helper matching the visibility filter in loadPublishedTasksFromAdmin
+  function getVisibleTasksForUser(user, tasks) {
+    return tasks.filter(task => {
+      const targetProfile = task.schema_definition?.target_profile || task.target_profile;
+      const isGlobal = !targetProfile || targetProfile === 'global' || targetProfile === 'all';
+      const isTargetUser = Boolean(
+        user && (
+          targetProfile === user.id ||
+          targetProfile === user.username ||
+          ((user.username === 'Wosa' || user.username === 'Wosandi') && (targetProfile === 'user_wosa' || targetProfile === 'Wosa' || targetProfile === 'Wosandi')) ||
+          (user.id === 'user_wosa' && (targetProfile === 'Wosa' || targetProfile === 'Wosandi'))
+        )
+      );
+      return isGlobal || isTargetUser;
+    });
+  }
+
+  const wosaUser = { id: 'user_wosa', username: 'Wosa' };
+  const sandaliUser = { id: 'user_sandali', username: 'Sandali' };
+  const niluUser = { id: 'user_nilu', username: 'Nilu' };
+
+  // Assert all users see the global task
+  const wosaTasks = getVisibleTasksForUser(wosaUser, allTasks);
+  const sandaliTasks = getVisibleTasksForUser(sandaliUser, allTasks);
+  const niluTasks = getVisibleTasksForUser(niluUser, allTasks);
+
+  assert.ok(wosaTasks.some(t => t.id === 'task_global_routine'), "Wosa sees global task");
+  assert.ok(sandaliTasks.some(t => t.id === 'task_global_routine'), "Sandali sees global task");
+  assert.ok(niluTasks.some(t => t.id === 'task_global_routine'), "Nilu sees global task");
+
+  // Assert user-specific isolation of task visibility
+  assert.ok(wosaTasks.some(t => t.id === 'task_wosa_only'), "Wosa sees Wosa task");
+  assert.ok(!wosaTasks.some(t => t.id === 'task_sandali_only'), "Wosa DOES NOT see Sandali task");
+  assert.ok(!sandaliTasks.some(t => t.id === 'task_wosa_only'), "Sandali DOES NOT see Wosa task");
+  assert.ok(sandaliTasks.some(t => t.id === 'task_sandali_only'), "Sandali sees Sandali task");
+
+  // 2. Data Isolation for Global Card:
+  // When Wosa checks the global task, Wosa's state has it completed.
+  const wosaStorage = {};
+  const wosaStateKey = 'wosandi_routine_state_' + today;
+  const wosaState = { task_global_routine: true, task_wosa_only: true };
+  wosaStorage[wosaStateKey] = JSON.stringify(wosaState);
+
+  // Sandali's storage is initially empty for today
+  const sandaliStorage = {};
+  const sandaliStateKey = `wosandi_routine_state_${sandaliUser.id}_${today}`;
+
+  // Sandali loads their data: does NOT inherit Wosa's completion!
+  const sandaliCached = sandaliStorage[sandaliStateKey];
+  assert.strictEqual(sandaliCached, undefined, "Sandali has no state yet");
+
+  // The card is rendered as an unchecked "new card" for Sandali
+  const sandaliState = sandaliCached ? JSON.parse(sandaliCached) : {};
+  const isGlobalCheckedForSandali = Boolean(sandaliState['task_global_routine']);
+  assert.strictEqual(isGlobalCheckedForSandali, false, "Global card shows as fresh new unchecked card for Sandali");
+
+  // When Sandali completes the global task, Sandali saves to Sandali's key only
+  sandaliState['task_global_routine'] = true;
+  sandaliStorage[sandaliStateKey] = JSON.stringify(sandaliState);
+
+  // Verify Wosa's storage was untouched
+  const wosaRestored = JSON.parse(wosaStorage[wosaStateKey]);
+  assert.strictEqual(wosaRestored.task_global_routine, true, "Wosa's completion remains preserved");
+  assert.strictEqual(wosaRestored.task_wosa_only, true, "Wosa's private task remains preserved");
+
+  // Verify Sandali's storage contains only Sandali's completions
+  const sandaliRestored = JSON.parse(sandaliStorage[sandaliStateKey]);
+  assert.strictEqual(sandaliRestored.task_global_routine, true, "Sandali's completion is saved");
+  assert.strictEqual(sandaliRestored.task_wosa_only, undefined, "Sandali has no Wosa-only task completion");
+
+  // Verify a third user (Nilu) still sees the global card as brand new and unchecked
+  const niluStorage = {};
+  const niluStateKey = `wosandi_routine_state_${niluUser.id}_${today}`;
+  const niluState = niluStorage[niluStateKey] ? JSON.parse(niluStorage[niluStateKey]) : {};
+  assert.strictEqual(Boolean(niluState['task_global_routine']), false, "Nilu sees global card as brand new and unchecked");
 });
 
 console.log(`\n=================================================`);

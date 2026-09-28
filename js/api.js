@@ -85,13 +85,20 @@ async function loadTodayData() {
   await estimateDayOfWeekBenchmark();
 
   const today = new Date().toISOString().split("T")[0];
+  const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+    ? window.userManagerClient.getCurrentUser()
+    : { id: 'user_wosa', username: 'Wosa' };
+  const isPrimaryUser = !currentUser || currentUser.username === 'Wosa' || currentUser.id === 'user_wosa';
+
   const userKey = (typeof window !== 'undefined' && window.userManagerClient?.getRoutineStateKey)
     ? window.userManagerClient.getRoutineStateKey(today)
     : ('wosandi_routine_state_' + today);
 
   // Instant zero-flicker restoration from same-day local cache
   try {
-    const cached = localStorage.getItem(userKey) || localStorage.getItem('wosandi_routine_state_' + today);
+    const cached = isPrimaryUser
+      ? (localStorage.getItem(userKey) || localStorage.getItem('wosandi_routine_state_' + today))
+      : localStorage.getItem(userKey);
     if (cached) {
       const parsed = JSON.parse(cached);
       Object.assign(state, parsed);
@@ -100,29 +107,57 @@ async function loadTodayData() {
     }
   } catch (e) {}
 
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs?select=*&log_date=eq.${today}`, {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+  if (isPrimaryUser) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs?select=*&log_date=eq.${today}`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      const data = await res.json();
+      
+      if (data && data.length > 0) {
+        const dbState = data[0].completed_tasks;
+        Object.assign(state, dbState);
+        try {
+          localStorage.setItem('wosandi_routine_state_' + today, JSON.stringify(state));
+          localStorage.setItem(userKey, JSON.stringify(state));
+        } catch (e) {}
+        if (typeof syncStateToUI === 'function') syncStateToUI();
+        syncProgressWithServer(state, true); // UI පමණක් යාවත්කාලීන කරයි
+      } else {
+        if (typeof syncStateToUI === 'function') syncStateToUI();
+        syncProgressWithServer(state, true);
       }
-    });
-    const data = await res.json();
-    
-    if (data && data.length > 0) {
-      const dbState = data[0].completed_tasks;
-      Object.assign(state, dbState);
-      try {
-        localStorage.setItem('wosandi_routine_state_' + today, JSON.stringify(state));
-      } catch (e) {}
-      if (typeof syncStateToUI === 'function') syncStateToUI();
-      syncProgressWithServer(state, true); // UI පමණක් යාවත්කාලීන කරයි
-    } else {
+    } catch (err) {
+      console.error("දත්ත ලබා ගැනීමේ දෝෂයක්:", err);
       if (typeof syncStateToUI === 'function') syncStateToUI();
       syncProgressWithServer(state, true);
     }
-  } catch (err) {
-    console.error("දත්ත ලබා ගැනීමේ දෝෂයක්:", err);
+  } else {
+    // Non-primary user: fetch their specific log from wosandi_admin_config
+    try {
+      const userConfigKey = `user_log_${currentUser.id}_${today}`;
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?config_key=eq.${userConfigKey}`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length > 0 && rows[0].config_data?.completed_tasks) {
+          const dbState = rows[0].config_data.completed_tasks;
+          Object.assign(state, dbState);
+          try {
+            localStorage.setItem(userKey, JSON.stringify(state));
+          } catch (e) {}
+        }
+      }
+    } catch (err) {
+      console.error("User log fetch error:", err);
+    }
     if (typeof syncStateToUI === 'function') syncStateToUI();
     syncProgressWithServer(state, true);
   }
@@ -239,33 +274,36 @@ async function syncProgressWithServer(state, skipSave = false) {
     const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
       ? window.userManagerClient.getCurrentUser()
       : { id: 'user_wosa', username: 'Wosa' };
+    const isPrimaryUser = !currentUser || currentUser.username === 'Wosa' || currentUser.id === 'user_wosa';
 
-    // 1. Primary Supabase daily_logs save
-    try {
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs`, {
-        method: "POST",
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "resolution=merge-duplicates"
-        },
-        body: JSON.stringify({
-          log_date: todayDate,
-          completed_tasks: {
-            ...state,
-            _user_id: currentUser.id,
-            _username: currentUser.username
+    // 1. Primary Supabase daily_logs save ONLY for primary user
+    if (isPrimaryUser) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs`, {
+          method: "POST",
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "resolution=merge-duplicates"
           },
-          earned_points: validEarned,
-          total_possible_points: validTotal,
-          percentage: percentage,
-          is_fully_completed: percentage === 100,
-          updated_at: new Date().toISOString()
-        })
-      });
-      if (!res.ok) console.error("Supabase Save Error");
-    } catch (err) {}
+          body: JSON.stringify({
+            log_date: todayDate,
+            completed_tasks: {
+              ...state,
+              _user_id: currentUser.id,
+              _username: currentUser.username
+            },
+            earned_points: validEarned,
+            total_possible_points: validTotal,
+            percentage: percentage,
+            is_fully_completed: percentage === 100,
+            updated_at: new Date().toISOString()
+          })
+        });
+        if (!res.ok) console.error("Supabase Save Error");
+      } catch (err) {}
+    }
 
     // 2. User-specific performance save in wosandi_admin_config
     try {
