@@ -92,14 +92,18 @@ export class PublishManager {
           </button>
         </div>
         
-        <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
-          <table class="min-w-full divide-y divide-gray-200">
+        <div class="bg-white rounded-xl shadow-xs border border-slate-200 overflow-x-auto">
+          <div class="sm:hidden flex items-center justify-between px-3 py-2 bg-indigo-50/70 border-b border-indigo-100 text-[11px] text-indigo-700 font-semibold table-scroll-hint">
+            <span><i class="fas fa-arrows-left-right text-indigo-500 mr-1.5"></i>දෙපසට Scroll කරන්න (Swipe horizontally)</span>
+            <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold">4 තීරු</span>
+          </div>
+          <table class="min-w-[620px] w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
               <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">මොඩියුලය (Module)</th>
-                <th scope="col" class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">ප්‍රකාශිතයි (Published)</th>
-                <th scope="col" class="px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">කෙටුම්පත් (Drafts)</th>
-                <th scope="col" class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">ක්‍රියාමාර්ග (Actions)</th>
+                <th scope="col" class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">මොඩියුලය (Module)</th>
+                <th scope="col" class="px-4 sm:px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">ප්‍රකාශිතයි (Published)</th>
+                <th scope="col" class="px-4 sm:px-6 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">කෙටුම්පත් (Drafts)</th>
+                <th scope="col" class="px-4 sm:px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">ක්‍රියාමාර්ග (Actions)</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">

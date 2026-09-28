@@ -4,23 +4,105 @@ body {
     font-family: 'Poppins', 'Noto Sans Sinhala', sans-serif;
 }
 
-/* Custom Scrollbar */
+/* =========================================================================
+   Universal & Mobile-Friendly Scrollbars (Visible on all screen sizes)
+   ========================================================================= */
+
+/* Standard CSS scrollbar styling for Firefox & modern browsers */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #6366f1 #f1f5f9;
+}
+
+/* WebKit-based browsers (Chrome, Safari, Edge, Android WebView, iOS) */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-    background: transparent;
+    background: #f1f5f9;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 4px;
+    background: #6366f1; /* High-contrast indigo thumb for guaranteed visibility */
+    border-radius: 6px;
+    border: 2px solid #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #4f46e5;
+}
+
+::-webkit-scrollbar-corner {
+    background: #f1f5f9;
+}
+
+/* Explicit high-visibility scrollbar styling for scrollable containers */
+.overflow-x-auto,
+.overflow-y-auto,
+.overflow-auto,
+#main-content,
+#tasksTableContainer,
+#users-table-container,
+#publish-container table,
+.flow-graph-container,
+#sidebar nav,
+[class*="overflow-"] {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #6366f1 #e2e8f0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar,
+#main-content::-webkit-scrollbar,
+#tasksTableContainer::-webkit-scrollbar,
+#users-table-container::-webkit-scrollbar,
+[class*="overflow-"]::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+    display: block !important;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track,
+.overflow-auto::-webkit-scrollbar-track,
+#main-content::-webkit-scrollbar-track,
+#tasksTableContainer::-webkit-scrollbar-track,
+#users-table-container::-webkit-scrollbar-track,
+[class*="overflow-"]::-webkit-scrollbar-track {
+    background: #e2e8f0 !important;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    display: block !important;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb,
+.overflow-auto::-webkit-scrollbar-thumb,
+#main-content::-webkit-scrollbar-thumb,
+#tasksTableContainer::-webkit-scrollbar-thumb,
+#users-table-container::-webkit-scrollbar-thumb,
+[class*="overflow-"]::-webkit-scrollbar-thumb {
+    background: #6366f1 !important;
+    border-radius: 6px;
+    border: 2px solid #e2e8f0;
+    display: block !important;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover,
+.overflow-auto::-webkit-scrollbar-thumb:hover,
+#main-content::-webkit-scrollbar-thumb:hover,
+#tasksTableContainer::-webkit-scrollbar-thumb:hover,
+#users-table-container::-webkit-scrollbar-thumb:hover,
+[class*="overflow-"]::-webkit-scrollbar-thumb:hover {
+    background: #4338ca !important;
 }
 
 /* Toast Animations */
@@ -205,11 +287,51 @@ body {
 /* =========================================================================
    Mobile Responsiveness & Touch Optimization
    ========================================================================= */
+
+@media (max-width: 1024px) {
+    /* Prominent scrollbar styling for tablets and smaller desktop windows */
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    .overflow-x-auto,
+    .overflow-y-auto,
+    .overflow-auto,
+    #main-content {
+        scrollbar-width: thin;
+        scrollbar-color: #6366f1 #e2e8f0;
+    }
+}
+
 @media (max-width: 768px) {
     /* Touch momentum for horizontal scrollable tables */
     .overflow-x-auto {
         -webkit-overflow-scrolling: touch;
         scrollbar-width: thin;
+        scrollbar-color: #6366f1 #e2e8f0;
+        position: relative;
+    }
+
+    /* Force visible scrollbar on touch devices / smaller screens so user sees scroll capability */
+    ::-webkit-scrollbar {
+        -webkit-appearance: none;
+        width: 8px;
+        height: 8px;
+        display: block !important;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #e2e8f0 !important;
+        border-radius: 4px;
+        display: block !important;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #6366f1 !important;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+        display: block !important;
     }
 
     /* Modal responsiveness on small screens */
@@ -252,8 +374,20 @@ body {
     }
 
     /* Touch targets */
-    button, a.tab-link, input[type="checkbox"], input[type="button"] {
+    button, a.tab-link, input[type="checkbox"], input[type="button"], select {
         touch-action: manipulation;
+        min-height: 36px;
+    }
+
+    /* Table horizontal scroll indicator hint */
+    .table-scroll-hint {
+        display: flex !important;
+    }
+
+    /* Adjust padding for small screens */
+    .admin-table th, .admin-table td {
+        padding: 0.5rem 0.75rem;
     }
 }
+
 

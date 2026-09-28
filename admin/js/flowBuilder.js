@@ -307,32 +307,32 @@ export class FlowBuilder {
         <div id="fb-editor-layout" class="flex flex-col md:flex-row flex-1 overflow-hidden relative">
           <!-- LEFT: SVG Canvas -->
           <div id="fb-canvas-wrapper" class="w-full md:w-3/5 bg-slate-100 overflow-hidden relative border-r flex flex-col transition-all duration-300">
-            <div class="p-2.5 bg-white border-b flex items-center justify-between shadow-xs">
-              <div class="flex items-center gap-2">
+            <div class="p-2 sm:p-2.5 bg-white border-b flex flex-wrap items-center justify-between gap-2 shadow-xs">
+              <div class="flex items-center flex-wrap gap-1.5 sm:gap-2">
                 <span class="text-xs font-bold text-gray-500 uppercase tracking-wider mr-1">කොටු එක් කරන්න:</span>
-                <button id="fb-add-question" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="ප්‍රශ්න කොටුවක් එක් කරන්න">
+                <button id="fb-add-question" class="bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 px-2.5 sm:px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="ප්‍රශ්න කොටුවක් එක් කරන්න">
                   <i class="fas fa-question-circle"></i> ප්‍රශ්නයක්
                 </button>
-                <button id="fb-add-task" class="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="කාර්ය කොටුවක් එක් කරන්න">
+                <button id="fb-add-task" class="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 px-2.5 sm:px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="කාර්ය කොටුවක් එක් කරන්න">
                   <i class="fas fa-tasks"></i> කාර්යයක්
                 </button>
-                <button id="fb-add-branch" class="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="කොන්දේසි බෙදුම්කරුවෙක්">
+                <button id="fb-add-branch" class="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-2.5 sm:px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="කොන්දේසි බෙදුම්කරුවෙක්">
                   <i class="fas fa-code-branch"></i> ශාඛාවක්
                 </button>
-                <button id="fb-add-end" class="bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="අවසන් කිරීමේ කොටුවක්">
+                <button id="fb-add-end" class="bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 px-2.5 sm:px-3 py-1 text-xs font-semibold rounded shadow-xs flex items-center gap-1" title="අවසන් කිරීමේ කොටුවක්">
                   <i class="fas fa-flag-checkered"></i> අවසානය
                 </button>
               </div>
 
               <!-- Integrity Indicator & Viewport / Properties Controls -->
-              <div class="flex items-center gap-2">
-                <button id="fb-scroll-top-left" type="button" class="text-xs px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1 transition" title="කැන්වසය මුල් පිහිටුමට ගෙන යන්න (0,0)">
+              <div class="flex items-center flex-wrap gap-1.5 sm:gap-2">
+                <button id="fb-scroll-top-left" type="button" class="text-xs px-2 sm:px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1 transition" title="කැන්වසය මුල් පිහිටුමට ගෙන යන්න (0,0)">
                   <i class="fas fa-crosshairs"></i> මුල් තිරයට
                 </button>
-                <button id="fb-toggle-properties-canvas" type="button" class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1.5 transition" title="ගුණාංග පුවරුව සඟවන්න / පෙන්වන්න">
+                <button id="fb-toggle-properties-canvas" type="button" class="text-xs font-semibold px-2 sm:px-2.5 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300 flex items-center gap-1.5 transition" title="ගුණාංග පුවරුව සඟවන්න / පෙන්වන්න">
                   <i class="fas fa-columns"></i> <span id="fb-toggle-properties-text">පුවරුව සඟවන්න</span>
                 </button>
-                <div id="fb-dag-status" class="flex items-center gap-1 text-xs px-2.5 py-1 rounded bg-green-100 text-green-800 font-semibold cursor-pointer" title="DAG සම්බන්ධතා වාර්තාව බැලීමට ක්ලික් කරන්න">
+                <div id="fb-dag-status" class="flex items-center gap-1 text-xs px-2 sm:px-2.5 py-1 rounded bg-green-100 text-green-800 font-semibold cursor-pointer" title="DAG සම්බන්ධතා වාර්තාව බැලීමට ක්ලික් කරන්න">
                   <i class="fas fa-check-circle"></i> සම්බන්ධතා නිවැරදියි
                 </div>
               </div>
@@ -348,18 +348,18 @@ export class FlowBuilder {
             </button>
 
             <!-- Floating On-the-Spot Floor Tools -->
-            <div class="absolute bottom-5 left-5 bg-white/95 backdrop-blur-xs p-2 rounded-xl shadow-lg border border-slate-200 flex items-center gap-2 z-10 select-none">
+            <div class="absolute bottom-2 sm:bottom-5 left-2 sm:left-5 right-2 sm:right-auto bg-white/95 backdrop-blur-xs p-1.5 sm:p-2 rounded-xl shadow-lg border border-slate-200 flex flex-wrap items-center gap-1.5 sm:gap-2 z-10 select-none max-w-full">
               <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider px-1">කැන්වසය:</span>
-              <button id="fb-floor-add-q" type="button" class="px-3 py-1.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
+              <button id="fb-floor-add-q" type="button" class="px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
                 <i class="fas fa-plus text-[10px]"></i> + ප්‍රශ්න කොටුව
               </button>
-              <button id="fb-floor-add-t" type="button" class="px-3 py-1.5 text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
+              <button id="fb-floor-add-t" type="button" class="px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
                 <i class="fas fa-plus text-[10px]"></i> + කාර්ය කොටුව
               </button>
-              <button id="fb-floor-add-e" type="button" class="px-3 py-1.5 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
+              <button id="fb-floor-add-e" type="button" class="px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg flex items-center gap-1.5 transition shadow-2xs">
                 <i class="fas fa-plus text-[10px]"></i> + අවසන් කොටුව
               </button>
-              <span class="text-[10px] text-slate-400 border-l pl-2 italic">කොටුවක් එක් කිරීමට කැන්වසය මත double-click කරන්න</span>
+              <span class="text-[10px] text-slate-400 border-l pl-2 italic hidden sm:inline">කොටුවක් එක් කිරීමට කැන්වසය මත double-click කරන්න</span>
             </div>
           </div>
           

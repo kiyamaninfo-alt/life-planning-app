@@ -10,18 +10,18 @@ export class TimerManager {
 
     async render() {
         this.containerEl.innerHTML = `
-            <div class="flex justify-between items-center mb-6 font-['Noto_Sans_Sinhala']">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6 font-['Noto_Sans_Sinhala']">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <i class="fas fa-stopwatch text-purple-600"></i> වේලාවන් කළමනාකරණය (Timers)
                     </h2>
                     <p class="text-xs text-gray-500 mt-1">ශිෂ්‍යයාගේ පාඩම් සහ ව්‍යායාම සඳහා නියමිත වේලාවන් සකසන්න</p>
                 </div>
-                <button id="addTimerBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm text-xs transition flex items-center gap-1.5">
+                <button id="addTimerBtn" class="w-full sm:w-auto justify-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm text-xs transition flex items-center gap-1.5">
                     <i class="fas fa-plus"></i> නව Timer එකක් (Add Timer)
                 </button>
             </div>
-            <div id="timersGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-['Noto_Sans_Sinhala']">
+            <div id="timersGridContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 font-['Noto_Sans_Sinhala']">
                 <!-- Grid will be rendered here -->
             </div>
             <div id="timerModalContainer"></div>

@@ -17,20 +17,20 @@ export class TaskManager {
 
     async render() {
         this.containerEl.innerHTML = `
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 font-['Noto_Sans_Sinhala']">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-4 sm:mb-6 font-['Noto_Sans_Sinhala']">
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                    <h2 class="text-xl sm:text-2xl font-bold text-gray-800 flex items-center gap-2">
                         <i class="fas fa-tasks text-indigo-600"></i> කාර්යයන් කළමනාකරණය (Task Management)
                     </h2>
                     <p class="text-xs text-gray-500 mt-1">අධ්‍යයන ප්‍රමුඛතා, විෂයන්, ලකුණු, කාලසටහන් සහ Timers සකසන්න</p>
                 </div>
-                <button id="addTaskBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm flex items-center gap-2 text-xs transition">
+                <button id="addTaskBtn" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-sm flex items-center justify-center gap-2 text-xs transition">
                     <i class="fas fa-plus"></i> නව කාර්යයක් එක් කරන්න (Add Task)
                 </button>
             </div>
-            <div class="flex flex-wrap gap-3 mb-6 font-['Noto_Sans_Sinhala']">
-                <input type="text" id="taskSearch" placeholder="කාර්යයන් සොයන්න (Search tasks)..." class="flex-1 min-w-[200px] p-2.5 border rounded-xl shadow-2xs focus:ring-2 focus:ring-indigo-200 text-xs">
-                <select id="taskSubjectFilter" class="p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
+            <div class="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3 mb-4 sm:mb-6 font-['Noto_Sans_Sinhala']">
+                <input type="text" id="taskSearch" placeholder="කාර්යයන් සොයන්න (Search tasks)..." class="w-full sm:flex-1 sm:min-w-[180px] p-2.5 border rounded-xl shadow-2xs focus:ring-2 focus:ring-indigo-200 text-xs">
+                <select id="taskSubjectFilter" class="w-full sm:w-auto p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
                     <option value="">සියලුම විෂයන් (All Subjects)</option>
                     <option value="maths">ගණිතය (Mathematics)</option>
                     <option value="science">විද්‍යාව (Science)</option>
@@ -42,7 +42,7 @@ export class TaskManager {
                     <option value="ict">තොරතුරු තාක්ෂණය (ICT)</option>
                     <option value="general">සාමාන්‍ය පුරුදු (General / Habits)</option>
                 </select>
-                <select id="taskCategoryFilter" class="p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
+                <select id="taskCategoryFilter" class="w-full sm:w-auto p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
                     <option value="">සියලුම වර්ග (All Categories)</option>
                     <option value="academic">අධ්‍යාපනික (Academic)</option>
                     <option value="physical">ශාරීරික / නැටුම් (Physical)</option>
@@ -51,12 +51,12 @@ export class TaskManager {
                     <option value="creative">නිර්මාණශීලී (Creative)</option>
                     <option value="general">සාමාන්‍ය (General)</option>
                 </select>
-                <select id="taskStatusFilter" class="p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
+                <select id="taskStatusFilter" class="w-full sm:w-auto p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
                     <option value="">සියලුම තත්ත්වයන් (All Statuses)</option>
                     <option value="draft">කටු කෙටුම්පත් (Draft)</option>
                     <option value="published">ප්‍රකාශිතයි (Published)</option>
                 </select>
-                <select id="taskProfileFilter" class="p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
+                <select id="taskProfileFilter" class="w-full sm:w-auto p-2.5 border rounded-xl shadow-2xs text-xs bg-white">
                     <option value="">සියලුම පැතිකඩ (All Scopes)</option>
                     <option value="global">🌐 Global (සියලු දෙනාට)</option>
                     ${this.users.map(u => `<option value="${u.id}">${u.avatar || '👤'} ${u.display_name || u.username}</option>`).join('')}
@@ -164,17 +164,21 @@ export class TaskManager {
         }
 
         let tableHtml = `
-            <table class="min-w-full divide-y divide-gray-200 font-['Noto_Sans_Sinhala']">
+            <div class="sm:hidden flex items-center justify-between px-3 py-2 bg-indigo-50/70 border-b border-indigo-100 text-[11px] text-indigo-700 font-semibold table-scroll-hint">
+                <span><i class="fas fa-arrows-left-right text-indigo-500 mr-1.5"></i>දෙපසට Scroll කරන්න (Swipe horizontally)</span>
+                <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold">8 තීරු</span>
+            </div>
+            <table class="min-w-[850px] w-full divide-y divide-gray-200 font-['Noto_Sans_Sinhala']">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">කාර්යය (Task)</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">විෂය සහ වර්ගය</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">පැවරුම (Scope)</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">මට්ටම (Tier)</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">කාලසටහන / Timer</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ලකුණු (Points)</th>
-                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">තත්ත්වය (Status)</th>
-                        <th class="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">ක්‍රියාමාර්ග (Actions)</th>
+                        <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">කාර්යය (Task)</th>
+                        <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">විෂය සහ වර්ගය</th>
+                        <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">පැවරුම (Scope)</th>
+                        <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">මට්ටම (Tier)</th>
+                        <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">කාලසටහන / Timer</th>
+                        <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ලකුණු (Points)</th>
+                        <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">තත්ත්වය (Status)</th>
+                        <th class="px-4 sm:px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">ක්‍රියාමාර්ග (Actions)</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">

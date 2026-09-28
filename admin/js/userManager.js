@@ -75,49 +75,49 @@ export class UserManager {
 
   async render() {
     this.containerEl.innerHTML = `
-      <div class="p-6 max-w-6xl mx-auto space-y-6 font-['Noto_Sans_Sinhala']">
+      <div class="p-3 sm:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 font-['Noto_Sans_Sinhala']">
         <!-- Header -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-200">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pb-4 border-b border-slate-200">
           <div>
-            <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2.5">
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2.5">
               <i class="fas fa-users text-indigo-600"></i> පරිශීලක කළමනාකරණය (User Management)
             </h2>
             <p class="text-xs text-slate-500 mt-1">
               පරිශීලකයන්, මුරපද (PIN) සහ ලකුණු කළමනාකරණය කරන්න. ඉහළම පරිශීලකයන් 5 දෙනා (<span class="font-bold text-indigo-600">Top 5</span>) පිවිසුම් පිටුවේ (Login Page) සෘජුවම දිස්වේ.
             </p>
           </div>
-          <div class="flex items-center gap-2.5">
-            <button id="add-user-btn" type="button" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-2">
+          <div class="w-full sm:w-auto flex items-center gap-2.5">
+            <button id="add-user-btn" type="button" class="w-full sm:w-auto justify-center px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-2">
               <i class="fas fa-user-plus"></i> නව පරිශීලකයෙක් එක් කරන්න (+ Add User)
             </button>
           </div>
         </div>
 
         <!-- Metric Badges -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4">
+          <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs">
             <span class="text-slate-400 text-xs font-semibold block uppercase">මුළු පරිශීලකයන්</span>
             <span id="metric-total-users" class="text-xl font-bold text-slate-800 mt-1 block">...</span>
           </div>
-          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs">
             <span class="text-slate-400 text-xs font-semibold block uppercase">සක්‍රීය පරිශීලකයන්</span>
             <span id="metric-active-users" class="text-xl font-bold text-emerald-600 mt-1 block">...</span>
           </div>
-          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs">
             <span class="text-slate-400 text-xs font-semibold block uppercase">ප්‍රධාන පරිශීලකයා</span>
             <span id="metric-primary-user" class="text-xl font-bold text-pink-600 mt-1 block">🌸 Wosa</span>
           </div>
-          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+          <div class="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-200 shadow-xs">
             <span class="text-slate-400 text-xs font-semibold block uppercase">පිවිසුම් පිටුවේ පෙන්වන ගණන</span>
             <span class="text-xl font-bold text-indigo-600 mt-1 block">Top 5</span>
           </div>
         </div>
 
         <!-- Filter bar -->
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-3 bg-white p-3 rounded-xl border border-slate-200">
+        <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2.5 sm:gap-3 bg-white p-3 rounded-xl border border-slate-200">
           <div class="relative w-full sm:w-80">
             <i class="fas fa-search absolute left-3 top-3 text-slate-400 text-xs"></i>
-            <input type="text" id="user-search-input" placeholder="පරිශීලක නාමයෙන් සොයන්න..." class="w-full pl-9 pr-4 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:border-indigo-500">
+            <input type="text" id="user-search-input" placeholder="පරිශීලක නාමයෙන් සොයන්න..." class="w-full pl-9 pr-4 py-2 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:border-indigo-500">
           </div>
           <div class="text-xs text-slate-500 flex items-center gap-2">
             <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
@@ -234,7 +234,11 @@ export class UserManager {
     }
 
     const html = `
-      <table class="w-full text-left border-collapse text-xs">
+      <div class="sm:hidden flex items-center justify-between px-3 py-2 bg-indigo-50/70 border-b border-indigo-100 text-[11px] text-indigo-700 font-semibold table-scroll-hint">
+        <span><i class="fas fa-arrows-left-right text-indigo-500 mr-1.5"></i>දෙපසට Scroll කරන්න (Swipe horizontally)</span>
+        <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold">පරිශීලකයන්</span>
+      </div>
+      <table class="w-full min-w-[650px] text-left border-collapse text-xs">
         <thead>
           <tr class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
             <th class="p-3 w-14 text-center">Rank</th>

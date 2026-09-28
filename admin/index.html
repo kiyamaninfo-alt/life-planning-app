@@ -22,24 +22,24 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/admin/css/admin.css">
 </head>
-<body class="bg-slate-100 text-slate-800 font-['Poppins'] overflow-hidden">
+<body class="bg-slate-100 text-slate-800 font-['Poppins'] overflow-x-hidden min-h-screen">
     
     <!-- Login Modal (Hidden by default) -->
-    <div id="login-modal" class="fixed inset-0 bg-slate-900 bg-opacity-75 z-50 flex items-center justify-center hidden">
-        <div id="login-container" class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full text-center">
+    <div id="login-modal" class="fixed inset-0 bg-slate-900 bg-opacity-75 z-50 flex items-center justify-center p-4 hidden">
+        <div id="login-container" class="bg-white p-5 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
             <!-- Rendered by AdminAuth -->
         </div>
     </div>
 
     <!-- Main App Container -->
-    <div id="app-container" class="flex h-screen hidden">
+    <div id="app-container" class="flex h-screen h-[100dvh] w-full overflow-hidden hidden">
         <!-- Sidebar -->
-        <aside class="w-64 bg-slate-800 text-slate-300 flex flex-col transition-transform duration-300 transform -translate-x-full md:translate-x-0 fixed md:relative z-40 h-full font-['Noto_Sans_Sinhala']" id="sidebar">
-            <div class="p-6 flex items-center justify-between border-b border-slate-700">
-                <h1 class="text-xl font-bold text-white flex items-center gap-2">
+        <aside class="w-64 bg-slate-800 text-slate-300 flex flex-col transition-transform duration-300 transform -translate-x-full md:translate-x-0 fixed md:relative inset-y-0 left-0 z-40 h-full h-[100dvh] font-['Noto_Sans_Sinhala'] shadow-2xl md:shadow-none" id="sidebar">
+            <div class="p-4 sm:p-6 flex items-center justify-between border-b border-slate-700">
+                <h1 class="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
                     <i class="fas fa-cogs text-indigo-400"></i> පරිපාලන පුවරුව
                 </h1>
-                <button id="close-sidebar" class="md:hidden text-slate-400 hover:text-white">
+                <button id="close-sidebar" class="md:hidden text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-700 transition" aria-label="Close Sidebar">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
@@ -108,25 +108,25 @@
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 flex flex-col h-full overflow-hidden w-full bg-slate-50 relative z-10 font-['Noto_Sans_Sinhala']">
+        <main class="flex-1 flex flex-col h-full overflow-hidden w-full bg-slate-50 relative z-10 font-['Noto_Sans_Sinhala'] min-w-0">
             <!-- Header -->
-            <header class="bg-white shadow-sm h-16 flex items-center justify-between px-3 sm:px-6 z-20">
+            <header class="bg-white shadow-sm min-h-14 sm:h-16 flex items-center justify-between px-3 sm:px-6 z-20 shrink-0">
                 <div class="flex items-center gap-2 sm:gap-4">
-                    <button id="open-sidebar" class="text-slate-500 hover:text-indigo-600 p-2 rounded-lg hover:bg-slate-100 transition flex items-center justify-center cursor-pointer" title="Toggle Sidebar">
+                    <button id="open-sidebar" class="text-slate-500 hover:text-indigo-600 p-2 sm:p-2.5 rounded-xl hover:bg-slate-100 transition flex items-center justify-center cursor-pointer" title="Toggle Sidebar" aria-label="Toggle Sidebar">
                         <i class="fas fa-bars text-lg sm:text-xl"></i>
                     </button>
-                    <h2 class="text-sm sm:text-lg font-bold text-slate-800 truncate max-w-[200px] sm:max-w-none" id="header-title">දළ විශ්ලේෂණය (Overview)</h2>
+                    <h2 class="text-xs sm:text-base md:text-lg font-bold text-slate-800 truncate max-w-[170px] sm:max-w-xs md:max-w-none" id="header-title">දළ විශ්ලේෂණය (Overview)</h2>
                 </div>
                 
-                <div class="flex items-center gap-2 sm:gap-4">
-                    <button id="logout-btn" class="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 hover:text-red-600 transition-colors cursor-pointer">
+                <div class="flex items-center gap-1.5 sm:gap-4">
+                    <button id="logout-btn" class="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 hover:text-red-600 transition-colors cursor-pointer">
                         <i class="fas fa-sign-out-alt"></i> <span class="hidden sm:inline">ඉවත් වන්න (Sign Out)</span>
                     </button>
                 </div>
             </header>
 
             <!-- Tab Contents -->
-            <div class="flex-1 overflow-y-auto p-3 sm:p-6" id="main-content">
+            <div class="flex-1 overflow-y-auto overflow-x-auto p-3 sm:p-6" id="main-content">
                 
                 <!-- Overview Tab -->
                 <div id="tab-overview" class="tab-pane active">
@@ -169,10 +169,10 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
                             <h3 class="text-base font-bold text-slate-800 mb-4">ක්ෂණික ක්‍රියාමාර්ග (Quick Actions)</h3>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                 <button onclick="document.querySelector('[data-tab=\'tasks\']').click()" class="p-4 border border-slate-200 rounded-lg hover:bg-indigo-50 hover:border-indigo-200 transition-colors text-left flex flex-col gap-2">
                                     <i class="fas fa-plus-circle text-indigo-500 text-xl"></i>
                                     <span class="font-bold text-xs text-slate-700">නව කාර්යයක් එක් කරන්න (Add Task)</span>
