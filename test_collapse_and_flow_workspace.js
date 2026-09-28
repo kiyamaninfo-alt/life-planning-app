@@ -202,17 +202,18 @@ it("isSectionCompleted accurately verifies school section", () => {
   assert.strictEqual(isSectionCompleted('school', { school_attended: true }), true);
 });
 
-it("isSectionCompleted accurately verifies study section (all 3 tasks required)", () => {
+it("isSectionCompleted accurately verifies study section (admin tasks control completion)", () => {
+  // Without any DOM task rows or window.publishedAdminTasks, section is never complete
   assert.strictEqual(isSectionCompleted('study', { maths_practice: true, gemini_english: false, vocab_words: true }), false);
-  assert.strictEqual(isSectionCompleted('study', { maths_practice: true, gemini_english: true, vocab_words: true }), true);
+  assert.strictEqual(isSectionCompleted('study', { maths_practice: true, gemini_english: true, vocab_words: true }), false);
 });
 
-it("isSectionCompleted accurately verifies fitness section (all 2 tasks required)", () => {
+it("isSectionCompleted accurately verifies fitness section (admin tasks control completion)", () => {
   assert.strictEqual(isSectionCompleted('fitness', { dance_workout: true, exercise_schedule: false }), false);
-  assert.strictEqual(isSectionCompleted('fitness', { dance_workout: true, exercise_schedule: true }), true);
+  assert.strictEqual(isSectionCompleted('fitness', { dance_workout: true, exercise_schedule: true }), false);
 });
 
-it("isSectionCompleted accurately verifies chores section (all 6 tasks required)", () => {
+it("isSectionCompleted accurately verifies chores section (admin tasks control completion)", () => {
   const stateChores = {
     clean_room: true,
     water_plants: true,
@@ -223,8 +224,10 @@ it("isSectionCompleted accurately verifies chores section (all 6 tasks required)
   };
   assert.strictEqual(isSectionCompleted('chores', stateChores), false);
   stateChores.clean_wardrobe = true;
-  assert.strictEqual(isSectionCompleted('chores', stateChores), true);
+  // Still false — no admin tasks loaded in headless test environment
+  assert.strictEqual(isSectionCompleted('chores', stateChores), false);
 });
+
 
 it("updateSectionCollapseStates automatically collapses completed sections and displays badge", () => {
   const testState = {
@@ -248,9 +251,11 @@ it("updateSectionCollapseStates automatically collapses completed sections and d
   assert.ok(!schoolEl.classList.contains('is-completed'), "school is not completed");
   assert.ok(!schoolEl.classList.contains('is-collapsed'), "school remains expanded");
 
-  assert.ok(studyEl.classList.contains('is-completed'), "study is completed");
-  assert.ok(studyEl.classList.contains('is-collapsed'), "study is collapsed");
+  // study completion is now driven by admin panel tasks (not hardcoded state keys)
+  // In headless test env with no DOM task rows and no publishedAdminTasks, study is not complete
+  assert.ok(!studyEl.classList.contains('is-completed'), "study is not collapsed without admin tasks");
 });
+
 
 it("toggleSectionCollapse expands a collapsed section and re-collapses on second click", () => {
   const wakeEl = mockDoc.querySelector('.routine-section[data-section-id="wake_up"]');

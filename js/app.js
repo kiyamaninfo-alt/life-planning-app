@@ -7,17 +7,8 @@ let state = {
   wake_up: null,
   school_attended: false,
   school_subjects: {},
-  maths_practice: false,
-  gemini_english: false,
-  vocab_words: false,
-  dance_workout: false,
-  exercise_schedule: false,
-  clean_room: false,
-  water_plants: false,
-  sweep_floor: false,
-  dispose_garbage: false,
-  hair_care: false,
-  clean_wardrobe: false
+  flow_completed: false,
+  flow_points: 0
 };
 if (typeof window !== "undefined") window.state = state;
 
@@ -145,7 +136,7 @@ function isSectionCompleted(sectionId, stateObj = state) {
       if (adminStudyTasks.length > 0) {
         return adminStudyTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
       }
-      return Boolean(stateObj.maths_practice && stateObj.gemini_english && stateObj.vocab_words);
+      return false;
     }
     case 'fitness': {
       if (typeof document !== 'undefined') {
@@ -168,7 +159,7 @@ function isSectionCompleted(sectionId, stateObj = state) {
       if (adminFitTasks.length > 0) {
         return adminFitTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
       }
-      return Boolean(stateObj.dance_workout && stateObj.exercise_schedule);
+      return false;
     }
     case 'chores': {
       if (typeof document !== 'undefined') {
@@ -191,7 +182,7 @@ function isSectionCompleted(sectionId, stateObj = state) {
       if (adminChoresTasks.length > 0) {
         return adminChoresTasks.every(t => Boolean(stateObj[t.id] || (t.schema_definition?.linked_state_key && stateObj[t.schema_definition.linked_state_key])));
       }
-      return Boolean(stateObj.clean_room && stateObj.water_plants && stateObj.sweep_floor && stateObj.dispose_garbage && stateObj.hair_care && stateObj.clean_wardrobe);
+      return false;
     }
     default:
       return Boolean(stateObj[sectionId]);
@@ -896,17 +887,6 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
       wake_up: null,
       school_attended: false,
       school_subjects: {},
-      maths_practice: false,
-      gemini_english: false,
-      vocab_words: false,
-      dance_workout: false,
-      exercise_schedule: false,
-      clean_room: false,
-      water_plants: false,
-      sweep_floor: false,
-      dispose_garbage: false,
-      hair_care: false,
-      clean_wardrobe: false,
       flow_completed: false,
       flow_points: 0
     };

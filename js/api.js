@@ -36,12 +36,24 @@ function initCircularGraph() {
  */
 async function estimateDayOfWeekBenchmark() {
   const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
   const dayOfWeek = today.getDay();
   const meta = DOW_META[dayOfWeek];
   const dowEl = document.getElementById("dow-benchmark");
 
+  // Cache in localStorage — skip Supabase fetch if already computed today
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs?select=log_date,earned_points,total_possible_points&order=log_date.desc&limit=35`, {
+    const cached = localStorage.getItem('wosandi_dow_benchmark_' + todayStr);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      currentDayBenchmark = parsed.benchmark || meta.defaultTarget;
+      if (dowEl && parsed.label) dowEl.innerText = parsed.label;
+      return;
+    }
+  } catch (e) {}
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs?select=log_date,earned_points&order=log_date.desc&limit=35`, {
       headers: {
         apikey: SUPABASE_ANON_KEY,
         Authorization: `Bearer ${SUPABASE_ANON_KEY}`
@@ -50,33 +62,25 @@ async function estimateDayOfWeekBenchmark() {
 
     if (res.ok) {
       const logs = await res.json();
-      const todayStr = today.toISOString().split("T")[0];
-
-      // Filter historical logs matching exact same day of week (excluding today and zero-scores)
       const sameDowLogs = (Array.isArray(logs) ? logs : []).filter(log => {
         if (!log.log_date || log.log_date === todayStr) return false;
         const d = new Date(log.log_date);
         return d.getDay() === dayOfWeek && Number(log.earned_points) > 0;
-      }).slice(0, 4); // Take last 3-4 same days of week
+      }).slice(0, 4);
 
       if (sameDowLogs.length >= 1) {
         const sum = sameDowLogs.reduce((acc, curr) => acc + Number(curr.earned_points), 0);
         currentDayBenchmark = Math.round(sum / sameDowLogs.length);
-        if (dowEl) {
-          dowEl.innerText = `🎯 ${meta.name} ඉලක්කය: ${currentDayBenchmark} ලකුණු (${sameDowLogs.length} සති සාමාන්‍යය)`;
-        }
+        const label = `🎯 ${meta.name} ඉලක්කය: ${currentDayBenchmark} ලකුණු (${sameDowLogs.length} සති සාමාන්‍යය)`;
+        if (dowEl) dowEl.innerText = label;
+        try { localStorage.setItem('wosandi_dow_benchmark_' + todayStr, JSON.stringify({ benchmark: currentDayBenchmark, label })); } catch (e) {}
         return;
       }
     }
-  } catch (e) {
-    console.warn("Could not query historical day-of-week seasonality, using baseline", e);
-  }
+  } catch (e) {}
 
-  // Fallback before calculation
   currentDayBenchmark = meta.defaultTarget;
-  if (dowEl) {
-    dowEl.innerText = `🎯 ${meta.name} දෛනික ඉලක්කය: ගණනය වෙමින්...`;
-  }
+  if (dowEl) dowEl.innerText = `🎯 ${meta.name} දෛනික ඉලක්කය: ගණනය වෙමින්...`;
 }
 
 // 1. පිටුව Refresh කළ විට අද දවසේ දත්ත ලබා ගැනීම
@@ -103,7 +107,6 @@ async function loadTodayData() {
       const parsed = JSON.parse(cached);
       Object.assign(state, parsed);
       if (typeof syncStateToUI === 'function') syncStateToUI();
-      syncProgressWithServer(state, true);
     }
   } catch (e) {}
 
