@@ -95,20 +95,8 @@
     <!-- Fasting & Routine Tracker Main Dashboard Card -->
     <div id="fasting-tracker-card-container"></div>
 
-    <!-- Recent Changes Section (Directly Below Daily Routine) -->
-    <section id="recent-changes-section" class="bg-white p-4 rounded-2xl shadow-sm border border-purple-100 transition-all font-['Noto_Sans_Sinhala']">
-      <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-        <h3 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-          <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> මෑත වෙනස්කම් (Recent Changes)
-        </h3>
-        <span id="recent-changes-count" class="text-[10px] font-semibold text-slate-400">වාර්තා පූරණය වෙමින්...</span>
-      </div>
-      <div id="recent-changes-list" class="space-y-2">
-        <div class="p-3 text-center text-xs text-slate-400">
-          දත්ත සකස් වෙමින් පවතී...
-        </div>
-      </div>
-    </section>
+    <!-- Recent Changes Section (Directly Below Daily Routine, integrated as tab in timer card) -->
+    <section id="recent-changes-section" class="hidden"></section>
     
     <!-- Published Interactive Flow Section -->
     <section id="published-flow-section" data-section-id="flow" class="hidden routine-section bg-white p-4 rounded-2xl shadow-sm border border-purple-50 transition-all">

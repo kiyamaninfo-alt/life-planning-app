@@ -26,6 +26,7 @@ export class MetabolicTracker {
     this.activeMeal = null; // { id, user_id, meal_timestamp, created_at, target_gap_seconds, goal_awarded }
     this.targetGapSeconds = FIVE_HOURS_SECONDS;
     this.state = 'A'; // 'A' (Ready/Idle) | 'B' (Active Fasting) | 'C' (Goal Met)
+    this.currentTab = 'timer'; // 'timer' | 'changes'
     this.isInitialized = false;
     this.systemDate = this.getSystemDate();
   }
@@ -422,7 +423,7 @@ export class MetabolicTracker {
     this.tick();
   }
 
-  // Requirement 1 & Dashboard Placement
+  // Requirement 1 & Dashboard Placement (with Timer & Recent Changes Tabs)
   renderDashboardCard() {
     if (typeof document === 'undefined') return;
 
@@ -443,6 +444,8 @@ export class MetabolicTracker {
 
     const dateInfo = this.getSystemDate();
     const pts = this.getTodayFastingPoints();
+    const changes = this.getRecentChanges();
+    const recentCount = changes.length;
 
     container.innerHTML = `
       <section id="fasting-routine-tracker-card" class="bg-gradient-to-br from-white via-purple-50/40 to-pink-50/30 p-4 sm:p-5 rounded-3xl shadow-sm border border-purple-100 font-['Noto_Sans_Sinhala'] transition-all">
@@ -459,83 +462,112 @@ export class MetabolicTracker {
           </div>
         </div>
 
-        <!-- Prominently Centered Header Notice (Requirement 5) -->
-        <div class="text-center my-2">
-          <div id="fasting-header-notice" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs sm:text-sm font-extrabold shadow-2xs transition-all ${this.state === 'B' ? 'animate-pulse' : ''}">
-            <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
-            <span>කෑම කාලා පැය 5ක් නෑ, ආයෙත් කෑවද?</span>
-          </div>
-        </div>
-
-        <!-- Kid-Friendly Graphical Time Display (Requirement 3 & 6) -->
-        <div class="py-2 flex items-center justify-center">
-          <!-- Stylized Graphical Circular Dial for 8th Grader (Requirement 3) -->
-          <div class="relative w-40 h-40 sm:w-48 sm:h-48 flex items-center justify-center select-none">
-            <svg class="w-full h-full -rotate-90 drop-shadow-sm" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="42" stroke="#f1f5f9" stroke-width="8" fill="transparent" />
-              <circle id="fasting-circle-dial" cx="50" cy="50" r="42" stroke="url(#fasting-dial-gradient)" stroke-width="8.5" fill="transparent" 
-                      stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round" class="transition-all duration-500" />
-              <defs>
-                <linearGradient id="fasting-dial-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#8b5cf6" />
-                  <stop offset="50%" stop-color="#ec4899" />
-                  <stop offset="100%" stop-color="#10b981" />
-                </linearGradient>
-              </defs>
-            </svg>
-
-            <!-- Responsive Timer Countdown in Dial Center (Requirement 6) -->
-            <div class="absolute flex flex-col items-center justify-center text-center px-1">
-              <span id="fasting-dial-center-icon" class="text-xl sm:text-2xl animate-bounce">⏱️</span>
-              <span id="fasting-countdown-display" class="text-2xl sm:text-3xl md:text-4xl font-black font-mono tracking-tight text-slate-800 leading-none my-1">
-                05:00:00
-              </span>
-              <span id="fasting-dial-subtext" class="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider">
-                5-Hour Gap
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Status Label & Progress Bar (Requirement 7) -->
-        <div class="mt-1">
-          <div id="fasting-status-label" class="text-xs sm:text-sm font-extrabold text-purple-700 text-center transition-all">
-            ආහාර විවේකය ක්රියාත්මකයි (0% සම්පූර්ණයි)
-          </div>
-
-          <!-- Progress Bar & Tooltip Interactivity (Requirement 8) -->
-          <div id="fasting-progress-wrapper" class="relative mt-2 w-full">
-            <div id="fasting-progress-container" class="w-full bg-slate-100 hover:bg-slate-200/90 rounded-full h-3 sm:h-3.5 overflow-hidden relative cursor-pointer border border-slate-200/80 shadow-inner transition-colors">
-              <div id="fasting-progress-bar-fill" class="h-full rounded-full bg-gradient-to-r from-violet-500 via-pink-500 to-emerald-400 transition-all duration-500 shadow-sm" style="width: 0%"></div>
-            </div>
-
-            <!-- Floating Interactive Tooltip (Requirement 8) -->
-            <div id="fasting-tooltip" class="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[11px] font-bold px-3 py-1 rounded-lg shadow-xl opacity-0 transition-opacity duration-200 z-30 whitespace-nowrap">
-              <span id="fasting-tooltip-text">0.0% සම්පූර්ණයි • පැය 05:00 ඉතිරියි</span>
-              <div class="w-2 h-2 bg-slate-900 rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Action Button Trigger -->
-        <div class="mt-3">
-          <button id="fasting-card-action-btn" type="button" class="w-full py-2.5 px-4 text-xs font-black rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
-            <i class="fa-solid fa-circle-check text-emerald-300"></i> [✔] කෑම වේලක් ගත්තා දැන්
+        <!-- Navigation Tabs: Timer & Recent Changes -->
+        <div class="flex items-center p-1 bg-purple-100/70 rounded-2xl gap-1 my-2 border border-purple-200/50">
+          <button type="button" id="tab-btn-fasting-timer" class="flex-1 py-1.5 px-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${this.currentTab === 'timer' ? 'bg-white text-purple-700 shadow-xs border border-purple-200/80 font-black' : 'bg-transparent text-slate-500 hover:text-slate-700 font-bold'}">
+            <i class="fa-solid fa-stopwatch ${this.currentTab === 'timer' ? 'text-purple-500' : 'text-slate-400'}"></i>
+            <span>ටයිමරය (Timer)</span>
+          </button>
+          <button type="button" id="tab-btn-recent-changes" class="flex-1 py-1.5 px-3 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer ${this.currentTab === 'changes' ? 'bg-white text-purple-700 shadow-xs border border-purple-200/80 font-black' : 'bg-transparent text-slate-500 hover:text-slate-700 font-bold'}">
+            <i class="fa-solid fa-clock-rotate-left ${this.currentTab === 'changes' ? 'text-purple-500' : 'text-slate-400'}"></i>
+            <span>මෑත වෙනස්කම්</span>
+            <span id="recent-changes-tab-badge" class="ml-0.5 px-1.5 py-0.2 rounded-full text-[10px] font-black bg-purple-200/80 text-purple-800">
+              ${recentCount}
+            </span>
           </button>
         </div>
 
-        <!-- Gamification & Bonus Reward Matrix (Requirement 9) -->
-        <div class="mt-3 pt-2.5 border-t border-purple-100 flex items-center justify-between text-[11px]">
-          <div class="flex items-center gap-1.5 font-bold text-slate-600">
-            <span>🎯 දෛනික චක්‍ර:</span>
-            <span id="fasting-cycle-tracker" class="px-2 py-0.5 rounded-full font-black ${pts.completedCount >= 3 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-purple-100 text-purple-700'}">
-              ${pts.completedCount}/3 සම්පූර්ණයි
-            </span>
+        <!-- TAB PANE 1: Timer Content -->
+        <div id="fasting-timer-tab-pane" class="${this.currentTab === 'timer' ? '' : 'hidden'}">
+          <!-- Prominently Centered Header Notice (Requirement 5) -->
+          <div class="text-center my-2">
+            <div id="fasting-header-notice" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200 text-amber-800 text-xs sm:text-sm font-extrabold shadow-2xs transition-all ${this.state === 'B' ? 'animate-pulse' : ''}">
+              <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+              <span>කෑම කාලා පැය 5ක් නෑ, ආයෙත් කෑවද?</span>
+            </div>
           </div>
-          <div class="font-extrabold ${pts.hasBonus ? 'text-emerald-600' : 'text-slate-500'} flex items-center gap-1">
-            <i class="fa-solid fa-star text-amber-400"></i>
-            <span id="fasting-bonus-status">${pts.hasBonus ? '🏆 +50 බෝනස් ලකුණු ලැබුණි!' : '3ම සම්පූර්ණ කළ විට +50 බෝනස්'}</span>
+
+          <!-- Kid-Friendly Graphical Time Display (Requirement 3 & 6) -->
+          <div class="py-2 flex items-center justify-center">
+            <!-- Stylized Graphical Circular Dial for 8th Grader (Requirement 3) -->
+            <div class="relative w-40 h-40 sm:w-48 sm:h-48 flex items-center justify-center select-none">
+              <svg class="w-full h-full -rotate-90 drop-shadow-sm" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" stroke="#f1f5f9" stroke-width="8" fill="transparent" />
+                <circle id="fasting-circle-dial" cx="50" cy="50" r="42" stroke="url(#fasting-dial-gradient)" stroke-width="8.5" fill="transparent" 
+                        stroke-dasharray="264" stroke-dashoffset="264" stroke-linecap="round" class="transition-all duration-500" />
+                <defs>
+                  <linearGradient id="fasting-dial-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#8b5cf6" />
+                    <stop offset="50%" stop-color="#ec4899" />
+                    <stop offset="100%" stop-color="#10b981" />
+                  </linearGradient>
+                </defs>
+              </svg>
+
+              <!-- Responsive Timer Countdown in Dial Center (Requirement 6) -->
+              <div class="absolute flex flex-col items-center justify-center text-center px-1">
+                <span id="fasting-dial-center-icon" class="text-xl sm:text-2xl animate-bounce">⏱️</span>
+                <span id="fasting-countdown-display" class="text-2xl sm:text-3xl md:text-4xl font-black font-mono tracking-tight text-slate-800 leading-none my-1">
+                  05:00:00
+                </span>
+                <span id="fasting-dial-subtext" class="text-[10px] font-extrabold text-purple-600 uppercase tracking-wider">
+                  5-Hour Gap
+                </span>
+              </div>
+            </div>
           </div>
+
+          <!-- Status Label & Progress Bar (Requirement 7) -->
+          <div class="mt-1">
+            <div id="fasting-status-label" class="text-xs sm:text-sm font-extrabold text-purple-700 text-center transition-all">
+              ආහාර විවේකය ක්රියාත්මකයි (0% සම්පූර්ණයි)
+            </div>
+
+            <!-- Progress Bar & Tooltip Interactivity (Requirement 8) -->
+            <div id="fasting-progress-wrapper" class="relative mt-2 w-full">
+              <div id="fasting-progress-container" class="w-full bg-slate-100 hover:bg-slate-200/90 rounded-full h-3 sm:h-3.5 overflow-hidden relative cursor-pointer border border-slate-200/80 shadow-inner transition-colors">
+                <div id="fasting-progress-bar-fill" class="h-full rounded-full bg-gradient-to-r from-violet-500 via-pink-500 to-emerald-400 transition-all duration-500 shadow-sm" style="width: 0%"></div>
+              </div>
+
+              <!-- Floating Interactive Tooltip (Requirement 8) -->
+              <div id="fasting-tooltip" class="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[11px] font-bold px-3 py-1 rounded-lg shadow-xl opacity-0 transition-opacity duration-200 z-30 whitespace-nowrap">
+                <span id="fasting-tooltip-text">0.0% සම්පූර්ණයි • පැය 05:00 ඉතිරියයි</span>
+                <div class="w-2 h-2 bg-slate-900 rotate-45 absolute -bottom-1 left-1/2 -translate-x-1/2"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Button Trigger -->
+          <div class="mt-3">
+            <button id="fasting-card-action-btn" type="button" class="w-full py-2.5 px-4 text-xs font-black rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+              <i class="fa-solid fa-circle-check text-emerald-300"></i> [✔] කෑම වේලක් ගත්තා දැන්
+            </button>
+          </div>
+
+          <!-- Gamification & Bonus Reward Matrix (Requirement 9) -->
+          <div class="mt-3 pt-2.5 border-t border-purple-100 flex items-center justify-between text-[11px]">
+            <div class="flex items-center gap-1.5 font-bold text-slate-600">
+              <span>🎯 දෛනික චක්‍ර:</span>
+              <span id="fasting-cycle-tracker" class="px-2 py-0.5 rounded-full font-black ${pts.completedCount >= 3 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-purple-100 text-purple-700'}">
+                ${pts.completedCount}/3 සම්පූර්ණයි
+              </span>
+            </div>
+            <div class="font-extrabold ${pts.hasBonus ? 'text-emerald-600' : 'text-slate-500'} flex items-center gap-1">
+              <i class="fa-solid fa-star text-amber-400"></i>
+              <span id="fasting-bonus-status">${pts.hasBonus ? '🏆 +50 බෝනස් ලකුණු ලැබුණි!' : '3ම සම්පූර්ණ කළ විට +50 බෝනස්'}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB PANE 2: Recent Changes Tab Content -->
+        <div id="recent-changes-tab-pane" class="${this.currentTab === 'changes' ? '' : 'hidden'} pt-2">
+          <div class="flex items-center justify-between pb-2 mb-2 border-b border-purple-100">
+            <h3 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+              <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> මෑත වෙනස්කම් (Recent Changes)
+            </h3>
+            <span id="recent-changes-count" class="text-[10px] font-semibold text-slate-400">${recentCount} සටහන්</span>
+          </div>
+          <div id="recent-changes-list" class="space-y-2 max-h-80 overflow-y-auto pr-1"></div>
         </div>
       </section>
     `;
@@ -543,8 +575,51 @@ export class MetabolicTracker {
     // Bind Primary Action Button
     document.getElementById('fasting-card-action-btn')?.addEventListener('click', () => this.handleActionClick());
 
+    // Bind Tabs
+    document.getElementById('tab-btn-fasting-timer')?.addEventListener('click', () => this.switchTab('timer'));
+    document.getElementById('tab-btn-recent-changes')?.addEventListener('click', () => this.switchTab('changes'));
+
     // Bind Tooltip Events (Requirement 8)
     this.setupTooltipEvents();
+  }
+
+  switchTab(tabName) {
+    this.currentTab = tabName;
+    const timerTabBtn = document.getElementById('tab-btn-fasting-timer');
+    const changesTabBtn = document.getElementById('tab-btn-recent-changes');
+    const timerPane = document.getElementById('fasting-timer-tab-pane');
+    const changesPane = document.getElementById('recent-changes-tab-pane');
+
+    if (tabName === 'changes') {
+      if (timerPane) timerPane.classList.add('hidden');
+      if (changesPane) changesPane.classList.remove('hidden');
+
+      if (timerTabBtn) {
+        timerTabBtn.className = 'flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-transparent text-slate-500 hover:text-slate-700';
+        const icon = timerTabBtn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-stopwatch text-slate-400';
+      }
+      if (changesTabBtn) {
+        changesTabBtn.className = 'flex-1 py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-white text-purple-700 shadow-xs border border-purple-200/80';
+        const icon = changesTabBtn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-clock-rotate-left text-purple-500';
+      }
+      this.renderRecentChanges();
+    } else {
+      if (timerPane) timerPane.classList.remove('hidden');
+      if (changesPane) changesPane.classList.add('hidden');
+
+      if (timerTabBtn) {
+        timerTabBtn.className = 'flex-1 py-1.5 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-white text-purple-700 shadow-xs border border-purple-200/80';
+        const icon = timerTabBtn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-stopwatch text-purple-500';
+      }
+      if (changesTabBtn) {
+        changesTabBtn.className = 'flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer bg-transparent text-slate-500 hover:text-slate-700';
+        const icon = changesTabBtn.querySelector('i');
+        if (icon) icon.className = 'fa-solid fa-clock-rotate-left text-slate-400';
+      }
+    }
   }
 
   // Requirement 8: Tooltip Interactivity on Desktop Hover & Mobile Touch
@@ -580,25 +655,15 @@ export class MetabolicTracker {
     });
   }
 
-  // Requirement 1: Recent Changes Section Directly Below Daily Routine
+  // Requirement 1: Recent Changes Tab inside Timer Card
   renderRecentChanges() {
     if (typeof document === 'undefined') return;
 
-    let section = document.getElementById('recent-changes-section');
-    if (!section) {
-      const routineContainer = document.getElementById('routine-main-container');
-      const cardContainer = document.getElementById('fasting-tracker-card-container');
-      section = document.createElement('section');
-      section.id = 'recent-changes-section';
-      section.className = "bg-white p-4 rounded-2xl shadow-sm border border-purple-100 transition-all font-['Noto_Sans_Sinhala']";
-      if (cardContainer && cardContainer.nextSibling) {
-        routineContainer.insertBefore(section, cardContainer.nextSibling);
-      } else if (routineContainer) {
-        routineContainer.appendChild(section);
-      }
+    // Hide any legacy/external stand-alone section if present in the document outside our card
+    const legacySection = document.getElementById('recent-changes-section');
+    if (legacySection && legacySection.parentElement && legacySection.parentElement.id !== 'fasting-routine-tracker-card') {
+      legacySection.style.display = 'none';
     }
-
-    if (!section) return;
 
     const changes = this.getRecentChanges();
     const countBadge = document.getElementById('recent-changes-count');
@@ -606,17 +671,9 @@ export class MetabolicTracker {
       countBadge.textContent = `${changes.length} සටහන්`;
     }
 
-    const listEl = document.getElementById('recent-changes-list');
-    if (!listEl) {
-      section.innerHTML = `
-        <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100">
-          <h3 class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-            <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> මෑත වෙනස්කම් (Recent Changes)
-          </h3>
-          <span id="recent-changes-count" class="text-[10px] font-semibold text-slate-400">${changes.length} සටහන්</span>
-        </div>
-        <div id="recent-changes-list" class="space-y-2"></div>
-      `;
+    const tabBadge = document.getElementById('recent-changes-tab-badge');
+    if (tabBadge) {
+      tabBadge.textContent = `${changes.length}`;
     }
 
     const targetList = document.getElementById('recent-changes-list');
@@ -624,14 +681,15 @@ export class MetabolicTracker {
 
     if (changes.length === 0) {
       targetList.innerHTML = `
-        <div class="p-3 text-center text-xs text-slate-400">
-          <i class="fa-solid fa-check-double text-slate-300 mr-1"></i> අද දින මෑත වෙනස්කම් නොමැත.
+        <div class="p-6 text-center text-xs text-slate-400 bg-white/70 rounded-2xl border border-purple-100/60 my-2">
+          <i class="fa-solid fa-clock-rotate-left text-slate-300 text-lg mb-1 block"></i>
+          අද දින මෑත වෙනස්කම් නොමැත.
         </div>
       `;
       return;
     }
 
-    targetList.innerHTML = changes.slice(0, 8).map(c => {
+    targetList.innerHTML = changes.slice(0, 15).map(c => {
       const d = new Date(c.timestamp);
       const timeStr = !isNaN(d.getTime()) 
         ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -640,7 +698,7 @@ export class MetabolicTracker {
       const isWarn = c.type === 'early_break';
 
       return `
-        <div class="p-2 sm:p-2.5 rounded-xl border ${isGoal ? 'bg-emerald-50/70 border-emerald-200' : isWarn ? 'bg-amber-50/70 border-amber-200' : 'bg-slate-50 border-slate-200/70'} flex items-center justify-between gap-2 transition">
+        <div class="p-2.5 rounded-xl border ${isGoal ? 'bg-emerald-50/70 border-emerald-200' : isWarn ? 'bg-amber-50/70 border-amber-200' : 'bg-white border-slate-200/70'} flex items-center justify-between gap-2 shadow-2xs transition">
           <div class="flex items-center gap-2 min-w-0">
             <span class="text-sm shrink-0">${c.icon || '📝'}</span>
             <span class="text-xs font-semibold text-slate-700 truncate">${c.text}</span>
