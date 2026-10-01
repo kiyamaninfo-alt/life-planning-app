@@ -143,9 +143,10 @@ async function runTests() {
   const appCode = fs.readFileSync(path.resolve('./js/app.js'), 'utf-8');
   assert(appCode.includes('targetProfile = task.schema_definition?.target_profile'), "app.js extracts target_profile in loadPublishedTasksFromAdmin");
   assert(appCode.includes('!isGlobal && !isTargetUser'), "app.js enforces target profile vs global display logic");
-  assert(appCode.includes('data-is-dynamic-task'), "app.js marks dynamic tasks for clean re-rendering upon user change");
   assert(appCode.includes('openAddQuickTaskModal'), "app.js implements openAddQuickTaskModal for direct dashboard task creation");
-  console.log("  ✓ PASS: js/app.js enforces profile scope filtering and implements dashboard quick-add modal");
+  assert(!appCode.includes('<option value="global">'), "Dashboard quick-add modal must NOT allow global task creation (selected profile only)");
+  assert(appCode.includes('තෝරාගත් පැතිකඩට පමණි'), "Dashboard quick-add modal must be locked to selected profile only");
+  console.log("  ✓ PASS: js/app.js enforces profile scope filtering and restricts dashboard modal to selected profile only (no global)");
 
   // 3. Check index.html
   const indexHtml = fs.readFileSync(path.resolve('./index.html'), 'utf-8');

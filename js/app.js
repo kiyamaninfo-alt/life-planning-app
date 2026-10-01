@@ -525,28 +525,24 @@ async function openAddQuickTaskModal() {
             </div>
           </div>
 
-          <!-- Target Profile / Scope -->
+          <!-- Target Profile / Scope (Selected Profile Only - Global Not Allowed) -->
           <div class="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
             <div class="flex items-center justify-between">
               <label class="block text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                <i class="fas fa-user-tag text-indigo-600"></i> අදාළ පැතිකඩ / පරිශීලකයා (Target Profile / Scope) *
+                <i class="fas fa-user-lock text-indigo-600"></i> අදාළ පැතිකඩ (Target Profile) *
               </label>
-              <span class="text-[11px] text-indigo-600 font-bold bg-white px-2 py-0.5 rounded-full border border-indigo-200">
-                පෙරනිමි: ඔබගේ පැතිකඩට පමණි
+              <span class="text-[11px] text-indigo-700 font-extrabold bg-white px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
+                🔒 තෝරාගත් පැතිකඩට පමණි
               </span>
             </div>
-            <select id="qt-target-profile" class="w-full p-2.5 border border-indigo-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-indigo-200">
-              <optgroup label="පැතිකඩ අනුව (Individual Profile - Default)">
-                ${users.map(u => `
-                  <option value="${u.id}" ${u.id === currentUser.id ? 'selected' : ''}>
-                    ${u.avatar || '👤'} ${u.display_name || u.username} (මෙම පැතිකඩට පමණි)
-                  </option>
-                `).join('')}
-              </optgroup>
-              <optgroup label="පොදු / සියලු දෙනාට (Global)">
-                <option value="global">🌐 සියලු දෙනාටම පෙන්වන්න (Global - All Profiles)</option>
-              </optgroup>
+            <select id="qt-target-profile" disabled class="w-full p-2.5 border border-indigo-300 rounded-xl text-xs font-bold bg-indigo-100/60 text-indigo-950 cursor-not-allowed">
+              <option value="${currentUser.id}" selected>
+                ${currentUser.avatar || '👤'} ${currentUser.display_name || currentUser.username} (තෝරාගත් මෙම පැතිකඩට පමණි)
+              </option>
             </select>
+            <p class="text-[10px] text-indigo-600 font-medium">
+              * ඩෑෂ්බෝඩ් එකෙන් කාර්යයන් එක් කළ හැක්කේ තෝරාගත් මෙම පැතිකඩට පමණි. (පොදු / Global කාර්යයන් සඳහා Admin Panel භාවිතා කරන්න)
+            </p>
           </div>
 
           <!-- Subject, Category & Tier -->
@@ -701,7 +697,8 @@ async function openAddQuickTaskModal() {
     if (!titleSi) return;
 
     const titleEn = modal.querySelector("#qt-title-en").value.trim();
-    const targetProfile = modal.querySelector("#qt-target-profile").value;
+    // Strictly lock to selected profile only (disallowing global and cross-profile task creation from dashboard)
+    const targetProfile = currentUser?.id || modal.querySelector("#qt-target-profile")?.value || 'user_wosa';
     const subject = modal.querySelector("#qt-subject").value;
     const category = modal.querySelector("#qt-category").value;
     const tier = modal.querySelector("#qt-tier").value;
