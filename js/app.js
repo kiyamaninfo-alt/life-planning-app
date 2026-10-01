@@ -1200,11 +1200,32 @@ async function openPastPerformanceModal() {
         </p>
       </div>
 
-      <!-- Content -->
-      <div id="perf-modal-content" class="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1 font-['Noto_Sans_Sinhala']">
-        <div class="p-8 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
-          <i class="fas fa-spinner fa-spin text-xl text-indigo-500"></i>
-          <span>දත්ත ලබා ගනිමින් පවතී...</span>
+      <!-- Tab Switcher -->
+      <div class="flex border-b border-slate-200 bg-slate-50 shrink-0 font-['Noto_Sans_Sinhala']">
+        <button id="perf-tab-routine" type="button" class="flex-1 py-3 px-3 text-xs font-bold text-center border-b-2 border-indigo-600 text-indigo-600 bg-white transition cursor-pointer flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-list-check"></i> දෛනික චර්යාව (Routine)
+        </button>
+        <button id="perf-tab-metabolic" type="button" class="flex-1 py-3 px-3 text-xs font-bold text-center border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-stopwatch text-amber-500"></i> ආහාර පරතරය (5h Gap)
+        </button>
+      </div>
+
+      <!-- Content Panels -->
+      <div class="p-4 sm:p-6 overflow-y-auto flex-1 font-['Noto_Sans_Sinhala']">
+        <!-- Routine Tasks Pane -->
+        <div id="perf-pane-routine" class="space-y-4">
+          <div class="p-8 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
+            <i class="fas fa-spinner fa-spin text-xl text-indigo-500"></i>
+            <span>දත්ත ලබා ගනිමින් පවතී...</span>
+          </div>
+        </div>
+
+        <!-- Metabolic Fasting Pane -->
+        <div id="perf-pane-metabolic" class="space-y-4 hidden">
+          <div class="p-8 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
+            <i class="fas fa-spinner fa-spin text-xl text-amber-500"></i>
+            <span>ආහාර පරතර දත්ත ලබා ගනිමින් පවතී...</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1213,140 +1234,254 @@ async function openPastPerformanceModal() {
   const closeModal = () => modal.remove();
   modal.querySelector("#close-past-performance-modal").addEventListener("click", closeModal);
 
-  const contentEl = modal.querySelector("#perf-modal-content");
-  let performanceLogs = [];
+  const tabRoutine = modal.querySelector("#perf-tab-routine");
+  const tabMetabolic = modal.querySelector("#perf-tab-metabolic");
+  const paneRoutine = modal.querySelector("#perf-pane-routine");
+  const paneMetabolic = modal.querySelector("#perf-pane-metabolic");
 
-  // 1. Fetch from Supabase daily_logs
-  try {
-    const res = await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/daily_logs?order=log_date.desc&limit=30", {
-      headers: {
-        apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
-        Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn"
-      }
-    });
-    if (res.ok) {
-      const rows = await res.json();
-      if (Array.isArray(rows)) {
-        performanceLogs = rows;
-      }
+  let metabolicLoaded = false;
+
+  tabRoutine.addEventListener("click", () => {
+    tabRoutine.className = "flex-1 py-3 px-3 text-xs font-bold text-center border-b-2 border-indigo-600 text-indigo-600 bg-white transition cursor-pointer flex items-center justify-center gap-1.5";
+    tabMetabolic.className = "flex-1 py-3 px-3 text-xs font-bold text-center border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center justify-center gap-1.5";
+    paneRoutine.classList.remove("hidden");
+    paneMetabolic.classList.add("hidden");
+  });
+
+  tabMetabolic.addEventListener("click", () => {
+    tabMetabolic.className = "flex-1 py-3 px-3 text-xs font-bold text-center border-b-2 border-amber-500 text-amber-700 bg-white transition cursor-pointer flex items-center justify-center gap-1.5";
+    tabRoutine.className = "flex-1 py-3 px-3 text-xs font-bold text-center border-b-2 border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer flex items-center justify-center gap-1.5";
+    paneMetabolic.classList.remove("hidden");
+    paneRoutine.classList.add("hidden");
+    if (!metabolicLoaded) {
+      metabolicLoaded = true;
+      loadMetabolicData();
     }
-  } catch (e) {
-    console.warn("Could not fetch daily_logs from Supabase:", e);
-  }
+  });
 
-  // 2. Fetch user-specific config logs from wosandi_admin_config
-  try {
-    const res2 = await fetch(`https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config?config_key=like.user_log_${currentUser.id}_*&order=created_at.desc&limit=30`, {
-      headers: {
-        apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
-        Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn"
+  // Load Routine Data
+  loadRoutineData();
+
+  async function loadRoutineData() {
+    let performanceLogs = [];
+
+    // 1. Fetch from Supabase daily_logs
+    try {
+      const res = await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/daily_logs?order=log_date.desc&limit=30", {
+        headers: {
+          apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+          Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn"
+        }
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows)) {
+          performanceLogs = rows;
+        }
       }
-    });
-    if (res2.ok) {
-      const userRows = await res2.json();
-      if (Array.isArray(userRows)) {
-        userRows.forEach(r => {
-          if (r.config_data && r.config_data.log_date) {
-            const exists = performanceLogs.findIndex(p => p.log_date === r.config_data.log_date);
-            if (exists >= 0) {
-              performanceLogs[exists] = { ...performanceLogs[exists], ...r.config_data };
-            } else {
-              performanceLogs.push(r.config_data);
+    } catch (e) {
+      console.warn("Could not fetch daily_logs from Supabase:", e);
+    }
+
+    // 2. Fetch user-specific config logs from wosandi_admin_config
+    try {
+      const res2 = await fetch(`https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config?config_key=like.user_log_${currentUser.id}_*&order=created_at.desc&limit=30`, {
+        headers: {
+          apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+          Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn"
+        }
+      });
+      if (res2.ok) {
+        const userRows = await res2.json();
+        if (Array.isArray(userRows)) {
+          userRows.forEach(r => {
+            if (r.config_data && r.config_data.log_date) {
+              const exists = performanceLogs.findIndex(p => p.log_date === r.config_data.log_date);
+              if (exists >= 0) {
+                performanceLogs[exists] = { ...performanceLogs[exists], ...r.config_data };
+              } else {
+                performanceLogs.push(r.config_data);
+              }
             }
-          }
-        });
+          });
+        }
       }
-    }
-  } catch (e) {}
+    } catch (e) {}
 
-  // 3. Fallback to localStorage history
-  try {
-    const cachedHist = localStorage.getItem(`wosandi_perf_history_${currentUser.id}`);
-    if (cachedHist) {
-      const parsed = JSON.parse(cachedHist);
-      if (Array.isArray(parsed)) {
-        parsed.forEach(p => {
-          if (!performanceLogs.some(existing => existing.log_date === p.log_date)) {
-            performanceLogs.push(p);
-          }
-        });
+    // 3. Fallback to localStorage history
+    try {
+      const cachedHist = localStorage.getItem(`wosandi_perf_history_${currentUser.id}`);
+      if (cachedHist) {
+        const parsed = JSON.parse(cachedHist);
+        if (Array.isArray(parsed)) {
+          parsed.forEach(p => {
+            if (!performanceLogs.some(existing => existing.log_date === p.log_date)) {
+              performanceLogs.push(p);
+            }
+          });
+        }
       }
+    } catch (e) {}
+
+    // Sort logs by date descending
+    performanceLogs.sort((a, b) => new Date(b.log_date || 0) - new Date(a.log_date || 0));
+
+    // Compute metrics
+    const totalDays = performanceLogs.length;
+    const totalEarned = performanceLogs.reduce((acc, curr) => acc + (Number(curr.earned_points) || 0), 0);
+    const avgPercent = totalDays > 0 ? Math.round(performanceLogs.reduce((acc, curr) => acc + (Number(curr.percentage) || 0), 0) / totalDays) : 0;
+
+    if (totalDays === 0) {
+      paneRoutine.innerHTML = `
+        <div class="p-8 text-center text-slate-400 text-xs space-y-2">
+          <i class="fas fa-calendar-xmark text-3xl text-slate-300 block mb-2"></i>
+          <span class="font-bold text-slate-600 block">පසුගිය දත්ත කිසිවක් හමු නොවීය</span>
+          <span>අද දින කාර්යයන් සම්පූර්ණ කිරීමෙන් ප්‍රගති සටහන ආරම්භ කරන්න.</span>
+        </div>
+      `;
+      return;
     }
-  } catch (e) {}
 
-  // Sort logs by date descending
-  performanceLogs.sort((a, b) => new Date(b.log_date || 0) - new Date(a.log_date || 0));
+    paneRoutine.innerHTML = `
+      <!-- Summary Stats -->
+      <div class="grid grid-cols-3 gap-2.5 pb-2">
+        <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl text-center">
+          <span class="text-[10px] uppercase font-bold text-indigo-500 block">සක්‍රීය දින</span>
+          <span class="text-lg font-black text-indigo-900">${totalDays}</span>
+        </div>
+        <div class="bg-purple-50 border border-purple-100 p-3 rounded-2xl text-center">
+          <span class="text-[10px] uppercase font-bold text-purple-500 block">මුළු ලකුණු</span>
+          <span class="text-lg font-black text-purple-900">${Math.round(totalEarned)}</span>
+        </div>
+        <div class="bg-pink-50 border border-pink-100 p-3 rounded-2xl text-center">
+          <span class="text-[10px] uppercase font-bold text-pink-500 block">සාමාන්‍යය</span>
+          <span class="text-lg font-black text-pink-900">${avgPercent}%</span>
+        </div>
+      </div>
 
-  // Compute metrics
-  const totalDays = performanceLogs.length;
-  const totalEarned = performanceLogs.reduce((acc, curr) => acc + (Number(curr.earned_points) || 0), 0);
-  const avgPercent = totalDays > 0 ? Math.round(performanceLogs.reduce((acc, curr) => acc + (Number(curr.percentage) || 0), 0) / totalDays) : 0;
+      <!-- Daily Log Entries List -->
+      <div class="space-y-2.5 pt-1">
+        ${performanceLogs.map(log => {
+          const dateObj = new Date(log.log_date);
+          const dayNames = ["ඉරිදා", "සඳුදා", "අඟහරුවාදා", "බදාදා", "බ්‍රහස්පතින්දා", "සිකුරාදා", "සෙනසුරාදා"];
+          const dayName = !isNaN(dateObj.getDay()) ? dayNames[dateObj.getDay()] : "";
+          const earned = Math.round(Number(log.earned_points) || 0);
+          const total = Math.round(Number(log.total_possible_points) || 0);
+          const pct = Math.min(100, Math.round(Number(log.percentage) || 0));
+          const isFull = pct >= 90 || log.is_fully_completed === true;
 
-  if (totalDays === 0) {
-    contentEl.innerHTML = `
-      <div class="p-8 text-center text-slate-400 text-xs space-y-2">
-        <i class="fas fa-calendar-xmark text-3xl text-slate-300 block mb-2"></i>
-        <span class="font-bold text-slate-600 block">පසුගිය දත්ත කිසිවක් හමු නොවීය</span>
-        <span>අද දින කාර්යයන් සම්පූර්ණ කිරීමෙන් ප්‍රගති සටහන ආරම්භ කරන්න.</span>
+          return `
+            <div class="p-3.5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-xs transition flex flex-col gap-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-8 h-8 rounded-xl ${isFull ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'} flex items-center justify-center text-sm font-bold shrink-0">
+                    ${isFull ? '👑' : '📅'}
+                  </span>
+                  <div>
+                    <span class="font-bold text-slate-800 text-xs block">${log.log_date} (${dayName})</span>
+                    <span class="text-[11px] text-slate-500 font-semibold">${earned} / ${total} ලකුණු</span>
+                  </div>
+                </div>
+                <span class="px-2.5 py-1 rounded-full text-xs font-black ${isFull ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
+                  ${pct}%
+                </span>
+              </div>
+              <!-- Progress Bar -->
+              <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div class="bg-gradient-to-r from-pink-500 to-indigo-600 h-2 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
       </div>
     `;
-    return;
   }
 
-  // Render performance cards
-  contentEl.innerHTML = `
-    <!-- Summary Stats -->
-    <div class="grid grid-cols-3 gap-2.5 pb-2">
-      <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-2xl text-center">
-        <span class="text-[10px] uppercase font-bold text-indigo-500 block">සක්‍රීය දින</span>
-        <span class="text-lg font-black text-indigo-900">${totalDays}</span>
-      </div>
-      <div class="bg-purple-50 border border-purple-100 p-3 rounded-2xl text-center">
-        <span class="text-[10px] uppercase font-bold text-purple-500 block">මුළු ලකුණු</span>
-        <span class="text-lg font-black text-purple-900">${Math.round(totalEarned)}</span>
-      </div>
-      <div class="bg-pink-50 border border-pink-100 p-3 rounded-2xl text-center">
-        <span class="text-[10px] uppercase font-bold text-pink-500 block">සාමාන්‍යය</span>
-        <span class="text-lg font-black text-pink-900">${avgPercent}%</span>
-      </div>
-    </div>
+  async function loadMetabolicData() {
+    let mealLogs = [];
+    if (window.metabolicTracker && typeof window.metabolicTracker.fetchMealLogs === 'function') {
+      mealLogs = await window.metabolicTracker.fetchMealLogs();
+    } else {
+      try {
+        const raw = localStorage.getItem(`wosandi_meal_logs_${currentUser.id}`);
+        if (raw) mealLogs = JSON.parse(raw);
+      } catch (e) {}
+    }
 
-    <!-- Daily Log Entries List -->
-    <div class="space-y-2.5 pt-1">
-      ${performanceLogs.map(log => {
-        const dateObj = new Date(log.log_date);
-        const dayNames = ["ඉරිදා", "සඳුදා", "අඟහරුවාදා", "බදාදා", "බ්‍රහස්පතින්දා", "සිකුරාදා", "සෙනසුරාදා"];
-        const dayName = !isNaN(dateObj.getDay()) ? dayNames[dateObj.getDay()] : "";
-        const earned = Math.round(Number(log.earned_points) || 0);
-        const total = Math.round(Number(log.total_possible_points) || 0);
-        const pct = Math.min(100, Math.round(Number(log.percentage) || 0));
-        const isFull = pct >= 90 || log.is_fully_completed === true;
+    const analytics = (window.metabolicTracker && typeof window.metabolicTracker.calculateAnalytics === 'function')
+      ? window.metabolicTracker.calculateAnalytics(mealLogs)
+      : {
+          avgDurationFormatted: '0h 0m',
+          complianceRate: 0,
+          complianceLabel: '0%',
+          streak: 0,
+          totalLogs: mealLogs ? mealLogs.length : 0
+        };
 
-        return `
-          <div class="p-3.5 bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-xs transition flex flex-col gap-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span class="w-8 h-8 rounded-xl ${isFull ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'} flex items-center justify-center text-sm font-bold shrink-0">
-                  ${isFull ? '👑' : '📅'}
-                </span>
-                <div>
-                  <span class="font-bold text-slate-800 text-xs block">${log.log_date} (${dayName})</span>
-                  <span class="text-[11px] text-slate-500 font-semibold">${earned} / ${total} ලකුණු</span>
+    if (!mealLogs || mealLogs.length === 0) {
+      paneMetabolic.innerHTML = `
+        <div class="p-8 text-center text-slate-400 text-xs space-y-2">
+          <i class="fas fa-utensils text-3xl text-slate-300 block mb-2"></i>
+          <span class="font-bold text-slate-600 block">කෑම පරතර වාර්තා කිසිවක් හමු නොවීය</span>
+          <span>ඉහළ ඇති ට්‍රැකරයෙන් "[✔] කෑම වේලක් ගත්තා දැන්" ක්ලික් කර ප්‍රථම වාර්තාව එක් කරන්න.</span>
+        </div>
+      `;
+      return;
+    }
+
+    paneMetabolic.innerHTML = `
+      <!-- Core KPIs -->
+      <div class="grid grid-cols-3 gap-2 pb-2">
+        <div class="bg-amber-50 border border-amber-200/60 p-2.5 rounded-2xl text-center">
+          <span class="text-[9px] sm:text-[10px] uppercase font-bold text-amber-600 block">සාමාන්‍ය පරතරය</span>
+          <span class="text-base sm:text-lg font-black text-amber-900">${analytics.avgDurationFormatted}</span>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200/60 p-2.5 rounded-2xl text-center">
+          <span class="text-[9px] sm:text-[10px] uppercase font-bold text-emerald-600 block">සතිපතා අනුකූලතාව</span>
+          <span class="text-base sm:text-lg font-black text-emerald-900">${analytics.complianceRate}%</span>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200/60 p-2.5 rounded-2xl text-center">
+          <span class="text-[9px] sm:text-[10px] uppercase font-bold text-indigo-600 block">අඛණ්ඩ Streak</span>
+          <span class="text-base sm:text-lg font-black text-indigo-900">${analytics.streak} 🔥</span>
+        </div>
+      </div>
+
+      <!-- Chronological Meal History List -->
+      <div class="space-y-2 pt-1">
+        <div class="text-[11px] font-bold text-slate-500 px-1 flex items-center justify-between">
+          <span>ආහාර වේල් කාලානුක්‍රමය (Meal Timeline)</span>
+          <span>වාර්තා ${mealLogs.length}ක්</span>
+        </div>
+        ${mealLogs.map(log => {
+          const d = new Date(log.meal_timestamp || log.created_at || Date.now());
+          const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric', weekday: 'short' });
+          const isGoalMet = log.goal_met === true;
+          const durationMins = Math.round((log.duration_elapsed || 0) / 60);
+          const durHours = Math.floor(durationMins / 60);
+          const durRemMins = durationMins % 60;
+          const durFormatted = durHours > 0 ? `${durHours}h ${durRemMins}m` : `${durRemMins}m`;
+
+          return `
+            <div class="p-3 bg-white border ${isGoalMet ? 'border-emerald-200' : 'border-amber-200'} rounded-2xl shadow-2xs flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 rounded-xl ${isGoalMet ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} flex items-center justify-center text-sm font-bold shrink-0">
+                  ${isGoalMet ? '🏆' : '🥪'}
+                </div>
+                <div class="min-w-0">
+                  <div class="text-xs font-bold text-slate-800 truncate">${dateStr} • ${timeStr}</div>
+                  <div class="text-[10px] text-slate-500 font-medium">පරතරය: <strong class="text-slate-700">${durFormatted}</strong> (${isGoalMet ? 'පැය 5 සම්පූර්ණයි' : 'පැය 5ට අඩුයි'})</div>
                 </div>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-xs font-black ${isFull ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-purple-50 text-purple-700 border border-purple-200'}">
-                ${pct}%
+              <span class="shrink-0 px-2 py-0.5 rounded-full text-[10px] font-black ${isGoalMet ? 'bg-emerald-50 text-emerald-700 border border-emerald-300' : 'bg-amber-50 text-amber-700 border border-amber-300'}">
+                ${isGoalMet ? '✓ Goal Met' : '⚠️ Broken Early'}
               </span>
             </div>
-            <!-- Progress Bar -->
-            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-              <div class="bg-gradient-to-r from-pink-500 to-indigo-600 h-2 rounded-full transition-all duration-300" style="width: ${pct}%"></div>
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
 }
 
 // Expose functions globally for HTML event attributes and tests

@@ -8,6 +8,7 @@ import { UiConfigurator } from './uiConfigurator.js?v=20260926-v2';
 import { PublishManager } from './publishManager.js?v=20260926-v2';
 import { RoutineOrderManager } from './routineOrderManager.js?v=20260926-v3';
 import { UserManager } from './userManager.js?v=20260926-v4';
+import { NotificationManager } from './notificationManager.js?v=20261001-v1';
 
 class AdminApp {
     constructor() {
@@ -148,6 +149,9 @@ class AdminApp {
             if (pathname.includes('/admin/widgets') || hash === 'widgets' || queryTab === 'widgets') {
                 return 'widgets';
             }
+            if (pathname.includes('/admin/notifications') || hash === 'notifications' || queryTab === 'notifications') {
+                return 'notifications';
+            }
             if (pathname.includes('/admin/settings') || hash === 'settings' || queryTab === 'settings') {
                 return 'settings';
             }
@@ -173,6 +177,7 @@ class AdminApp {
             this.managers['routine-order'] = new RoutineOrderManager(document.getElementById('tab-routine-order'), this.api, toastFn);
             this.managers.users = new UserManager(document.getElementById('tab-users'), this.api, toastFn);
             this.managers.widgets = new UiConfigurator(document.getElementById('tab-widgets'), this.api, toastFn);
+            this.managers.notifications = new NotificationManager(document.getElementById('tab-notifications'), this.api, toastFn);
             this.managers.publish = new PublishManager(this.api, toastFn);
         } catch (e) {
             console.warn('Some managers could not be initialized:', e);
