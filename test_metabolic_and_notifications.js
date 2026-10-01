@@ -45,17 +45,24 @@ const appJs = fs.readFileSync(path.resolve('js/app.js'), 'utf8');
 const apiJs = fs.readFileSync(path.resolve('js/api.js'), 'utf8');
 
 // 1.1 index.html checks
-assert.ok(indexHtml.includes('id="metabolic-tracker-sticky-container"'), 'index.html must contain metabolic-tracker-sticky-container');
+assert.ok(!indexHtml.includes('id="metabolic-tracker-sticky-container"'), 'Duplicate top container must be removed from index.html');
 assert.ok(indexHtml.includes('id="fasting-tracker-card-container"'), 'index.html must contain fasting-tracker-card-container');
 assert.ok(indexHtml.includes('id="recent-changes-section"'), 'index.html must contain recent-changes-section directly below Daily Routine');
 assert.ok(indexHtml.includes('js/metabolicTracker.js'), 'index.html must load js/metabolicTracker.js');
 assert.ok(indexHtml.includes('js/notificationClient.js'), 'index.html must load js/notificationClient.js');
 
-// 1.2 Layout Hierarchy Check (Requirement 1)
+// 1.2 Layout Hierarchy Check (Requirement 1: Only single section under Daily Routine remains)
 const routineIdx = indexHtml.indexOf('දෛනික කාර්යයන් (Daily Routine)');
 const recentChangesIdx = indexHtml.indexOf('id="recent-changes-section"');
 assert.ok(routineIdx > 0, 'Daily Routine section header must exist');
 assert.ok(recentChangesIdx > routineIdx, 'Recent Changes section must be positioned directly below Daily Routine');
+
+// 1.3 metabolicTracker.js code checks (Buttons relocated to modal, automated date input)
+const metabolicJs = fs.readFileSync(path.resolve('js/metabolicTracker.js'), 'utf8');
+assert.ok(!metabolicJs.includes('id="meal-timestamp-input"'), 'Manual date/time input field must be removed');
+assert.ok(metabolicJs.includes('modal-duration-dec'), 'Setup modal must contain - duration control button');
+assert.ok(metabolicJs.includes('modal-duration-inc'), 'Setup modal must contain + duration control button');
+assert.ok(metabolicJs.includes('meal-auto-datetime-display'), 'Setup modal must contain automated datetime display');
 
 // 1.3 admin/index.html checks
 assert.ok(adminIndexHtml.includes('data-tab="notifications"'), 'admin/index.html must contain notifications tab navigation link');

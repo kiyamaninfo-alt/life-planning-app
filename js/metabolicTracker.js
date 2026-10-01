@@ -23,10 +23,18 @@ export class MetabolicTracker {
   constructor() {
     this.timerInterval = null;
     this.currentUser = this.getActiveUser();
-    this.activeMeal = null; // { id, user_id, meal_timestamp, created_at, goal_awarded }
+    this.activeMeal = null; // { id, user_id, meal_timestamp, created_at, target_gap_seconds, goal_awarded }
+    this.targetGapSeconds = FIVE_HOURS_SECONDS;
     this.state = 'A'; // 'A' (Ready/Idle) | 'B' (Active Fasting) | 'C' (Goal Met)
     this.isInitialized = false;
     this.systemDate = this.getSystemDate();
+  }
+
+  getTargetGapSeconds() {
+    if (this.activeMeal && this.activeMeal.target_gap_seconds) {
+      return Number(this.activeMeal.target_gap_seconds);
+    }
+    return this.targetGapSeconds || FIVE_HOURS_SECONDS;
   }
 
   getSystemDate() {
@@ -188,14 +196,15 @@ export class MetabolicTracker {
     const mealTimeMs = new Date(this.activeMeal.meal_timestamp).getTime();
     const nowMs = Date.now();
     const elapsedSeconds = Math.max(0, Math.floor((nowMs - mealTimeMs) / 1000));
+    const targetSeconds = this.getTargetGapSeconds();
 
-    if (elapsedSeconds < FIVE_HOURS_SECONDS) {
+    if (elapsedSeconds < targetSeconds) {
       this.state = 'B'; // Active Fasting Countdown
     } else {
-      // 5-Hour Goal Met!
+      // Goal Met!
       this.state = 'C';
       
-      // Auto-award 10 points when completing 5 hours if not yet awarded
+      // Auto-award 10 points when completing interval if not yet awarded
       if (this.activeMeal && !this.activeMeal.goal_awarded) {
         this.activeMeal.goal_awarded = true;
         this.activeMeal.goal_met = true;
@@ -207,6 +216,7 @@ export class MetabolicTracker {
           id: this.activeMeal.id || `meal_${Date.now()}`,
           user_id: this.currentUser?.id || 'user_wosa',
           meal_timestamp: this.activeMeal.meal_timestamp,
+          target_gap_seconds: targetSeconds,
           duration_elapsed: elapsedSeconds,
           goal_met: true,
           created_at: new Date().toISOString()
@@ -364,18 +374,10 @@ export class MetabolicTracker {
           </div>
         </div>
 
-        <!-- Kid-Friendly Graphical Time Display & Time Controls (Requirements 3, 4, 6) -->
-        <div class="py-2 flex items-center justify-center gap-3 sm:gap-6">
-          <!-- '-' Time Control Button (Requirement 4) -->
-          <div class="flex flex-col items-center">
-            <button type="button" id="fasting-btn-dec" class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white hover:bg-purple-100 border border-purple-200 text-purple-700 font-black text-2xl flex items-center justify-center shadow-xs transition active:scale-90 cursor-pointer" title="විනාඩි 15ක් අඩු කරන්න (-15m)">
-              -
-            </button>
-            <span class="text-[9px] font-bold text-purple-500 mt-1">-15m</span>
-          </div>
-
+        <!-- Kid-Friendly Graphical Time Display (Requirement 3 & 6) -->
+        <div class="py-2 flex items-center justify-center">
           <!-- Stylized Graphical Circular Dial for 8th Grader (Requirement 3) -->
-          <div class="relative w-36 h-36 sm:w-44 sm:h-44 flex items-center justify-center select-none">
+          <div class="relative w-40 h-40 sm:w-48 sm:h-48 flex items-center justify-center select-none">
             <svg class="w-full h-full -rotate-90 drop-shadow-sm" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="42" stroke="#f1f5f9" stroke-width="8" fill="transparent" />
               <circle id="fasting-circle-dial" cx="50" cy="50" r="42" stroke="url(#fasting-dial-gradient)" stroke-width="8.5" fill="transparent" 
@@ -399,14 +401,6 @@ export class MetabolicTracker {
                 5-Hour Gap
               </span>
             </div>
-          </div>
-
-          <!-- '+' Time Control Button (Requirement 4) -->
-          <div class="flex flex-col items-center">
-            <button type="button" id="fasting-btn-inc" class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-white hover:bg-purple-100 border border-purple-200 text-purple-700 font-black text-2xl flex items-center justify-center shadow-xs transition active:scale-90 cursor-pointer" title="විනාඩි 15ක් වැඩි කරන්න (+15m)">
-              +
-            </button>
-            <span class="text-[9px] font-bold text-purple-500 mt-1">+15m</span>
           </div>
         </div>
 
@@ -452,10 +446,6 @@ export class MetabolicTracker {
         </div>
       </section>
     `;
-
-    // Bind Time Control Buttons (Requirement 4)
-    document.getElementById('fasting-btn-dec')?.addEventListener('click', () => this.adjustTime(-15));
-    document.getElementById('fasting-btn-inc')?.addEventListener('click', () => this.adjustTime(15));
 
     // Bind Primary Action Button
     document.getElementById('fasting-card-action-btn')?.addEventListener('click', () => this.handleActionClick());
@@ -575,63 +565,13 @@ export class MetabolicTracker {
     }).join('');
   }
 
-  // Top Sticky Banner (Synchronized)
+  // Top Sticky Banner (Duplicate element removed; only single correct section under Daily Routine remains)
   renderBanner() {
     if (typeof document === 'undefined') return;
-    let bannerContainer = document.getElementById('metabolic-tracker-sticky-container');
-    if (!bannerContainer) {
-      bannerContainer = document.createElement('div');
-      bannerContainer.id = 'metabolic-tracker-sticky-container';
-      bannerContainer.className = 'sticky top-0 z-40 w-full backdrop-blur-md bg-white/95 border-b border-indigo-100 shadow-xs transition-all';
-      
-      const body = document.body;
-      if (body) {
-        body.insertBefore(bannerContainer, body.firstChild);
-      }
+    const bannerContainer = document.getElementById('metabolic-tracker-sticky-container');
+    if (bannerContainer) {
+      bannerContainer.remove();
     }
-
-    bannerContainer.innerHTML = `
-      <div class="max-w-md mx-auto px-3 py-2 sm:px-4 sm:py-2.5 font-['Noto_Sans_Sinhala']">
-        <div class="flex items-center justify-between gap-2">
-          <!-- Left: Title, Live Digital Countdown, Status -->
-          <div class="flex items-center gap-2.5 min-w-0">
-            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center text-base sm:text-lg shadow-inner shrink-0">
-              ⏱️
-            </div>
-            <div class="min-w-0">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="text-xs sm:text-sm font-extrabold text-slate-800 font-mono tracking-tight" id="metabolic-countdown-display">05:00:00</span>
-                <span id="metabolic-badge-container"></span>
-              </div>
-              <div id="metabolic-status-label" class="text-[11px] font-semibold text-slate-500 truncate max-w-[200px] sm:max-w-none">
-                පරිවෘත්තීය කෑම පරතර ට්‍රැකරය (5-Hour Fasting Gap)
-              </div>
-            </div>
-          </div>
-
-          <!-- Right: Trigger Action Button -->
-          <div class="shrink-0">
-            <button id="metabolic-action-btn" type="button" class="px-3 py-1.5 sm:px-4 sm:py-2 text-xs font-bold rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
-              [✔] කෑම වේලක් ගත්තා දැන්
-            </button>
-          </div>
-        </div>
-
-        <!-- Metabolic Resting Progress Bar -->
-        <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1.5 overflow-hidden">
-          <div id="metabolic-progress-bar" class="h-1.5 rounded-full bg-gradient-to-r from-amber-400 via-purple-500 to-emerald-500 transition-all duration-500" style="width: 0%"></div>
-        </div>
-      </div>
-    `;
-
-    const actionBtn = document.getElementById('metabolic-action-btn');
-    if (actionBtn) {
-      actionBtn.addEventListener('click', () => {
-        this.handleActionClick();
-      });
-    }
-
-    this.tick();
   }
 
   handleActionClick() {
@@ -644,21 +584,23 @@ export class MetabolicTracker {
     }
   }
 
-  // Ticker execution (Synchronized across sticky banner & graphical dashboard card)
+  // Ticker execution (Synchronized across graphical dashboard card)
   tick() {
     if (typeof document === 'undefined') return;
     this.updateState();
 
+    const targetGapSeconds = this.getTargetGapSeconds();
+
     // 1. Calculate time components
     let elapsedSeconds = 0;
-    let remainingSeconds = FIVE_HOURS_SECONDS;
+    let remainingSeconds = targetGapSeconds;
     let pct = 0;
 
     if (this.activeMeal && this.activeMeal.meal_timestamp) {
       const mealTimeMs = new Date(this.activeMeal.meal_timestamp).getTime();
       elapsedSeconds = Math.max(0, Math.floor((Date.now() - mealTimeMs) / 1000));
-      remainingSeconds = Math.max(0, FIVE_HOURS_SECONDS - elapsedSeconds);
-      pct = Math.min(100, Math.round((elapsedSeconds / FIVE_HOURS_SECONDS) * 100));
+      remainingSeconds = Math.max(0, targetGapSeconds - elapsedSeconds);
+      pct = Math.min(100, Math.round((elapsedSeconds / targetGapSeconds) * 100));
     }
 
     const hours = String(Math.floor(remainingSeconds / 3600)).padStart(2, '0');
@@ -668,23 +610,14 @@ export class MetabolicTracker {
     const remH = Math.floor(remainingSeconds / 3600);
     const remM = Math.floor((remainingSeconds % 3600) / 60);
 
-    // 2. Update Sticky Top Banner Elements
-    const bannerCountdownEl = document.getElementById('metabolic-countdown-display');
-    const bannerStatusEl = document.getElementById('metabolic-status-label');
-    const bannerActionBtn = document.getElementById('metabolic-action-btn');
-    const bannerRingEl = document.getElementById('metabolic-progress-bar');
-    const bannerBadgeContainer = document.getElementById('metabolic-badge-container');
-
-    if (bannerCountdownEl) bannerCountdownEl.textContent = timeDisplay;
-    if (bannerRingEl) bannerRingEl.style.width = `${pct}%`;
-
-    // 3. Update Graphical Dashboard Card Elements (Requirements 3, 5, 6, 7, 8, 9)
+    // 2. Update Graphical Dashboard Card Elements (Requirements 3, 5, 6, 7, 8, 9)
     const cardDial = document.getElementById('fasting-circle-dial');
     const cardCountdown = document.getElementById('fasting-countdown-display');
     const cardStatusLabel = document.getElementById('fasting-status-label');
     const cardProgressBar = document.getElementById('fasting-progress-bar-fill');
     const cardActionBtn = document.getElementById('fasting-card-action-btn');
     const cardDialIcon = document.getElementById('fasting-dial-center-icon');
+    const cardDialSubtext = document.getElementById('fasting-dial-subtext');
     const cardTooltipText = document.getElementById('fasting-tooltip-text');
 
     // Update Circular Dial Arc (Circumference: 264)
@@ -696,9 +629,14 @@ export class MetabolicTracker {
     // Responsive Countdown Display (Requirement 6)
     if (cardCountdown) cardCountdown.textContent = timeDisplay;
 
+    if (cardDialSubtext) {
+      const targetHours = Math.round((targetGapSeconds / 3600) * 10) / 10;
+      cardDialSubtext.textContent = targetHours === 5 ? '5-Hour Gap' : `${targetHours}h Gap`;
+    }
+
     // Tooltip text (Requirement 8)
     if (cardTooltipText) {
-      cardTooltipText.textContent = `${pct}% සම්පූර්ණයි • පැය ${remH}m ${mins}s ඉතිරියි`;
+      cardTooltipText.textContent = `${pct}% සම්පූර්ණයි • පැය ${remH}h ${mins}m ${secs}s ඉතිරියි`;
     }
 
     if (cardProgressBar) {
@@ -779,43 +717,88 @@ export class MetabolicTracker {
 
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
-    const localIso = prefillTimestamp || `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const dateInfo = this.getSystemDate();
+    const timeFormatted = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const autoDateTimeDisplay = `${dateInfo.formatted} • ${timeFormatted}`;
+
+    let durationMinutes = Math.round((this.targetGapSeconds || FIVE_HOURS_SECONDS) / 60);
 
     modalContainer.innerHTML = `
       <dialog id="meal-logger-dialog" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 w-full h-full font-['Noto_Sans_Sinhala'] border-none" open>
-        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 sm:p-6 border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-5 sm:p-6 border border-purple-100 animate-in fade-in zoom-in-95 duration-200">
           <div class="flex items-center justify-between pb-3 border-b border-slate-100">
             <div class="flex items-center gap-2">
               <span class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">🍽️</span>
-              <h3 class="text-sm sm:text-base font-extrabold text-slate-800">කෑම වේලක් සටහන් කිරීම</h3>
+              <h3 class="text-sm sm:text-base font-extrabold text-slate-800">කෑම වේලක් සහ ටයිමරය සැකසීම</h3>
             </div>
-            <button type="button" id="close-meal-dialog" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer">&times;</button>
+            <button type="button" id="close-meal-dialog" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer leading-none">&times;</button>
           </div>
 
           <form id="meal-logger-form" class="mt-4 space-y-4 text-xs">
             ${isEarlyBreak ? `
-              <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[11px] flex items-start gap-2">
+              <div class="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-[11px] flex items-start gap-2 shadow-2xs">
                 <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0"></i>
                 <div>
-                  <strong>නියමිත පැය 5ට පෙර කෑමක්:</strong> මෙම කෑම වේල සටහන් කිරීමෙන් පසුගිය විවේක කාලය අවසන් වී නව පැය 5ක ටයිමරයක් ආරම්භ වේ.
+                  <strong>නියමිත කාලයට පෙර කෑමක්:</strong> මෙම කෑම වේල සටහන් කිරීමෙන් පසුගිය විවේක කාලය අවසන් වී නව ටයිමරයක් ආරම්භ වේ.
                 </div>
               </div>
             ` : `
-              <p class="text-slate-500 text-[11px]">
-                ආහාර ගත් වේලාව සටහන් කරන්න. එතැන් සිට පැය 5ක පරිවෘත්තීය විවේක කාලයක් (Metabolic Rest Window) ගණනය කෙරේ.
+              <p class="text-slate-500 text-[11px] leading-relaxed">
+                ආහාර ගත් වේලාව පසුබිමෙන් ස්වයංක්‍රීයව සටහන් වන අතර, පහතින් ඔබ කැමති විවේක කාල සීමාව (+/- මගින්) සකසා ආරම්භ කළ හැක.
               </p>
             `}
 
-            <div>
-              <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1">කෑම ගත් වේලාව (Meal Timestamp)</label>
-              <div class="flex gap-2">
-                <input type="datetime-local" id="meal-timestamp-input" value="${localIso}" required class="flex-1 p-2.5 border border-slate-300 rounded-xl font-mono text-xs focus:ring-2 focus:ring-purple-200 focus:outline-hidden">
-                <button type="button" id="meal-now-btn" class="px-3 py-2 bg-slate-100 hover:bg-purple-100 text-purple-700 font-bold rounded-xl border border-slate-200 text-xs transition cursor-pointer" title="දැන්ම (Right Now)">
-                  <i class="fa-solid fa-clock mr-1"></i>දැන්
+            <!-- Automated System Date Selection (Requirement 3: Zero manual date input needed) -->
+            <div class="p-3 bg-slate-50 border border-purple-100 rounded-2xl flex items-center justify-between gap-2 shadow-2xs">
+              <div class="flex items-center gap-2 text-indigo-700 font-bold min-w-0">
+                <i class="fa-regular fa-calendar-check text-indigo-500 text-sm shrink-0"></i>
+                <span class="text-[11px] truncate">ආරම්භක දිනය & වේලාව:</span>
+              </div>
+              <div class="text-right shrink-0">
+                <span id="meal-auto-datetime-display" class="font-extrabold text-slate-700 font-mono text-[11px] block">${autoDateTimeDisplay}</span>
+                <span class="text-[9px] font-bold text-emerald-600 flex items-center justify-end gap-1">
+                  <i class="fa-solid fa-circle-check text-[8px]"></i> ස්වයංක්‍රීයව සටහන් වේ
+                </span>
+              </div>
+            </div>
+
+            <!-- Timer Duration Setup Controls (+ and - buttons) (Requirement 2) -->
+            <div class="bg-gradient-to-br from-purple-50/80 via-indigo-50/50 to-pink-50/50 p-4 rounded-2xl border border-purple-200/80 text-center shadow-2xs">
+              <label class="block text-[11px] font-black text-purple-900 uppercase tracking-wider mb-2.5">
+                ⏱️ විවේක කාල සීමාව (Rest Duration)
+              </label>
+              
+              <div class="flex items-center justify-center gap-3 sm:gap-4 my-1">
+                <!-- '-' Button -->
+                <button type="button" id="modal-duration-dec" class="w-11 h-11 rounded-2xl bg-white hover:bg-purple-100 border border-purple-200 text-purple-700 font-black text-2xl flex items-center justify-center shadow-xs transition active:scale-90 cursor-pointer" title="විනාඩි 15ක් අඩු කරන්න (-15m)">
+                  -
+                </button>
+                
+                <!-- Display -->
+                <div class="px-4 py-2 bg-white rounded-2xl border border-purple-200 shadow-2xs min-w-[130px]">
+                  <span id="modal-duration-display" class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-purple-900 block leading-none">
+                    05:00:00
+                  </span>
+                  <span id="modal-duration-label" class="text-[10px] font-extrabold text-purple-600 mt-1 block">
+                    පැය 5ක පරිවෘත්තීය විවේකය
+                  </span>
+                </div>
+                
+                <!-- '+' Button -->
+                <button type="button" id="modal-duration-inc" class="w-11 h-11 rounded-2xl bg-white hover:bg-purple-100 border border-purple-200 text-purple-700 font-black text-2xl flex items-center justify-center shadow-xs transition active:scale-90 cursor-pointer" title="විනාඩි 15ක් වැඩි කරන්න (+15m)">
+                  +
+                </button>
+              </div>
+
+              <div class="flex items-center justify-center gap-1.5 mt-2.5">
+                <span class="text-[10px] text-slate-500 font-medium">නිරෝගී සම්මතය: <strong>පැය 5කි</strong></span>
+                <button type="button" id="modal-duration-reset-btn" class="text-[10px] font-bold text-indigo-600 underline hover:text-indigo-800 ml-1 cursor-pointer">
+                  පැය 5ට සකසන්න
                 </button>
               </div>
             </div>
 
+            <!-- Meal Type Dropdown -->
             <div>
               <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1">ආහාර වේල (Meal Type)</label>
               <select id="meal-type-select" class="w-full p-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:ring-2 focus:ring-purple-200 focus:outline-hidden">
@@ -832,7 +815,7 @@ export class MetabolicTracker {
                 අවලංගු කරන්න (Cancel)
               </button>
               <button type="submit" id="confirm-meal-btn" class="px-5 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
-                <i class="fa-solid fa-check"></i> තහවුරු කරන්න (Confirm)
+                <i class="fa-solid fa-check"></i> ටයිමරය ආරම්භ කරන්න
               </button>
             </div>
           </form>
@@ -842,28 +825,62 @@ export class MetabolicTracker {
 
     const closeBtn = document.getElementById('close-meal-dialog');
     const cancelBtn = document.getElementById('cancel-meal-btn');
-    const nowBtn = document.getElementById('meal-now-btn');
     const form = document.getElementById('meal-logger-form');
-    const input = document.getElementById('meal-timestamp-input');
+    const decBtn = document.getElementById('modal-duration-dec');
+    const incBtn = document.getElementById('modal-duration-inc');
+    const resetBtn = document.getElementById('modal-duration-reset-btn');
+    const displayEl = document.getElementById('modal-duration-display');
+    const labelEl = document.getElementById('modal-duration-label');
+
+    const updateDisplay = () => {
+      const h = Math.floor(durationMinutes / 60);
+      const m = durationMinutes % 60;
+      const hStr = String(h).padStart(2, '0');
+      const mStr = String(m).padStart(2, '0');
+      if (displayEl) displayEl.textContent = `${hStr}:${mStr}:00`;
+      if (labelEl) {
+        if (h === 5 && m === 0) {
+          labelEl.textContent = 'පැය 5ක පරිවෘත්තීය විවේකය';
+        } else {
+          labelEl.textContent = `පැය ${h}යි විනාඩි ${m}ක විවේකය (${hStr}h ${mStr}m)`;
+        }
+      }
+    };
+
+    updateDisplay();
+
+    decBtn?.addEventListener('click', () => {
+      if (durationMinutes > 15) {
+        durationMinutes -= 15;
+        updateDisplay();
+      }
+    });
+
+    incBtn?.addEventListener('click', () => {
+      if (durationMinutes < 1440) {
+        durationMinutes += 15;
+        updateDisplay();
+      }
+    });
+
+    resetBtn?.addEventListener('click', () => {
+      durationMinutes = 300; // 5 hours
+      updateDisplay();
+    });
 
     const closeDialog = () => {
       modalContainer.innerHTML = '';
     };
 
-    closeBtn.addEventListener('click', closeDialog);
-    cancelBtn.addEventListener('click', closeDialog);
+    closeBtn?.addEventListener('click', closeDialog);
+    cancelBtn?.addEventListener('click', closeDialog);
 
-    nowBtn.addEventListener('click', () => {
-      const cur = new Date();
-      input.value = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}T${pad(cur.getHours())}:${pad(cur.getMinutes())}`;
-    });
-
-    form.addEventListener('submit', async (e) => {
+    form?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const val = input.value;
-      if (!val) return;
-      const selectedDate = new Date(val);
-      await this.recordMeal(selectedDate);
+      // Requirement 3: Automate Date Input - automatically assign current system date in the background
+      const autoDate = new Date();
+      const customDurationSeconds = durationMinutes * 60;
+      await this.recordMeal(autoDate, customDurationSeconds);
       closeDialog();
     });
   }
@@ -926,21 +943,25 @@ export class MetabolicTracker {
     });
   }
 
-  async recordMeal(dateObj = new Date()) {
+  async recordMeal(dateObj = new Date(), customDurationSeconds = null) {
     const isoString = dateObj.toISOString();
     const uid = this.currentUser?.id || 'user_wosa';
     const nowMs = dateObj.getTime();
+    const targetGap = customDurationSeconds || this.targetGapSeconds || FIVE_HOURS_SECONDS;
+    this.targetGapSeconds = targetGap;
 
     // 1. If there was a previous active meal, close its log entry with duration_elapsed & goal_met
     if (this.activeMeal && this.activeMeal.meal_timestamp) {
       const prevStartMs = new Date(this.activeMeal.meal_timestamp).getTime();
       const elapsedSeconds = Math.max(0, Math.floor((nowMs - prevStartMs) / 1000));
-      const goalMet = elapsedSeconds >= FIVE_HOURS_SECONDS;
+      const prevTargetGap = this.activeMeal.target_gap_seconds || FIVE_HOURS_SECONDS;
+      const goalMet = elapsedSeconds >= prevTargetGap;
 
       const completedLog = {
         id: this.activeMeal.id || `meal_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         user_id: uid,
         meal_timestamp: this.activeMeal.meal_timestamp,
+        target_gap_seconds: prevTargetGap,
         duration_elapsed: elapsedSeconds,
         goal_met: goalMet,
         created_at: this.activeMeal.created_at || this.activeMeal.meal_timestamp
@@ -960,6 +981,7 @@ export class MetabolicTracker {
       id: `meal_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       user_id: uid,
       meal_timestamp: isoString,
+      target_gap_seconds: targetGap,
       created_at: new Date().toISOString()
     };
 
