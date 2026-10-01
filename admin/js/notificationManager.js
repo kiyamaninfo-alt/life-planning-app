@@ -279,7 +279,7 @@ export class NotificationManager {
   async savePermissionsMatrix() {
     localStorage.setItem('wosandi_notification_permissions', JSON.stringify(this.permissionsMatrix));
     try {
-      await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config", {
+      await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config?on_conflict=config_key", {
         method: "POST",
         headers: {
           apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
@@ -414,7 +414,7 @@ export class NotificationManager {
   async persistNotifications() {
     localStorage.setItem('wosandi_admin_notifications', JSON.stringify(this.notifications));
     try {
-      await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config", {
+      await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config?on_conflict=config_key", {
         method: "POST",
         headers: {
           apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",

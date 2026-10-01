@@ -200,7 +200,7 @@ export async function saveRoutineConfig(config) {
 
   // Save to Supabase wosandi_admin_config
   try {
-    await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config`, {
+    await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?on_conflict=config_key`, {
       method: 'POST',
       headers: {
         apikey: SUPABASE_ANON_KEY,

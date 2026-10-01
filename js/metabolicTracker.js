@@ -113,6 +113,94 @@ export class MetabolicTracker {
       localStorage.setItem(this.getRecentChangesStorageKey(), JSON.stringify(trimmed));
     } catch (e) {}
     this.renderRecentChanges();
+    this.saveRecentChangesToRemote(trimmed);
+  }
+
+  async saveRecentChangesToRemote(changes) {
+    const uid = this.currentUser?.id || 'user_wosa';
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?on_conflict=config_key`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          config_key: `recent_changes_${uid}`,
+          config_data: { changes },
+          updated_at: new Date().toISOString()
+        })
+      });
+    } catch (e) {}
+  }
+
+  async loadRecentChanges() {
+    const uid = this.currentUser?.id || 'user_wosa';
+    const key = this.getRecentChangesStorageKey();
+    let localChanges = this.getRecentChanges();
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?config_key=eq.recent_changes_${uid}`, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows[0]?.config_data?.changes) {
+          const remoteChanges = rows[0].config_data.changes;
+          const seen = new Set();
+          const merged = [];
+          [...localChanges, ...remoteChanges].forEach(entry => {
+            if (entry && entry.id && !seen.has(entry.id)) {
+              seen.add(entry.id);
+              merged.push(entry);
+            }
+          });
+          merged.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+          const trimmed = merged.slice(0, 20);
+          localStorage.setItem(key, JSON.stringify(trimmed));
+          this.renderRecentChanges();
+          return trimmed;
+        }
+      }
+    } catch (e) {}
+    return localChanges;
+  }
+
+  async saveActiveMealToRemote(meal) {
+    const uid = this.currentUser?.id || 'user_wosa';
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?on_conflict=config_key`, {
+        method: 'POST',
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'resolution=merge-duplicates'
+        },
+        body: JSON.stringify({
+          config_key: `active_meal_${uid}`,
+          config_data: meal,
+          updated_at: new Date().toISOString()
+        })
+      });
+    } catch (e) {}
+  }
+
+  async syncRemoteData() {
+    try {
+      await Promise.allSettled([
+        this.loadActiveMeal(),
+        this.fetchMealLogs(),
+        this.loadRecentChanges()
+      ]);
+    } catch (e) {}
+    this.updateState();
+    this.renderAll();
+    this.creditScore(true);
   }
 
   async init() {
@@ -129,18 +217,17 @@ export class MetabolicTracker {
 
     // 2. Listen to user changes to isolate data per user
     if (typeof window !== 'undefined') {
-      window.addEventListener('wosandi-user-changed', (e) => {
+      window.addEventListener('wosandi-user-changed', async (e) => {
         this.currentUser = e.detail || this.getActiveUser();
         this.systemDate = this.getSystemDate();
         this.loadLocalMeal();
         this.renderAll();
-        this.loadActiveMeal().then(() => this.renderAll());
+        await this.syncRemoteData();
       });
     }
 
     // 3. Background sync with remote database
-    await this.loadActiveMeal();
-    this.renderAll();
+    await this.syncRemoteData();
   }
 
   loadLocalMeal() {
@@ -175,7 +262,7 @@ export class MetabolicTracker {
         const rows = await res.json();
         if (Array.isArray(rows) && rows[0]?.config_data) {
           const remoteMeal = rows[0].config_data;
-          if (!localMeal || new Date(remoteMeal.meal_timestamp) > new Date(localMeal.meal_timestamp)) {
+          if (!localMeal || !localMeal.meal_timestamp || new Date(remoteMeal.meal_timestamp) >= new Date(localMeal.meal_timestamp)) {
             localMeal = remoteMeal;
             localStorage.setItem(key, JSON.stringify(localMeal));
           }
@@ -210,6 +297,7 @@ export class MetabolicTracker {
         this.activeMeal.goal_met = true;
         this.activeMeal.duration_elapsed = elapsedSeconds;
         localStorage.setItem(this.getStorageKey(), JSON.stringify(this.activeMeal));
+        this.saveActiveMealToRemote(this.activeMeal);
 
         // Save completed log
         this.saveCompletedLog({
@@ -237,10 +325,10 @@ export class MetabolicTracker {
     }
   }
 
-  creditScore() {
+  creditScore(skipSave = false) {
     if (typeof window !== 'undefined') {
       if (typeof window.syncProgressWithServer === 'function' && typeof window.state !== 'undefined') {
-        window.syncProgressWithServer(window.state, false);
+        window.syncProgressWithServer(window.state, skipSave);
       }
     }
   }
@@ -278,6 +366,7 @@ export class MetabolicTracker {
 
     const uid = this.currentUser?.id || 'user_wosa';
     localStorage.setItem(this.getStorageKey(), JSON.stringify(this.activeMeal));
+    this.saveActiveMealToRemote(this.activeMeal);
 
     // Log the adjustment to Recent Changes (Requirement 1 & 4)
     const actionDesc = minutesDelta > 0 
@@ -643,6 +732,23 @@ export class MetabolicTracker {
       cardProgressBar.style.width = `${pct}%`;
     }
 
+    // Dynamic Gamification Badges Sync (Requirement 9)
+    const pts = this.getTodayFastingPoints();
+    const cardPtsEl = document.getElementById('fasting-card-pts');
+    if (cardPtsEl) cardPtsEl.textContent = `+${pts.earnedPoints} ලකුණු`;
+    const cycleTrackerEl = document.getElementById('fasting-cycle-tracker');
+    if (cycleTrackerEl) {
+      cycleTrackerEl.textContent = `${pts.completedCount}/3 සම්පූර්ණයි`;
+      cycleTrackerEl.className = `px-2 py-0.5 rounded-full font-black ${pts.completedCount >= 3 ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-purple-100 text-purple-700'}`;
+    }
+    const bonusStatusEl = document.getElementById('fasting-bonus-status');
+    if (bonusStatusEl) {
+      bonusStatusEl.textContent = pts.hasBonus ? '🏆 +50 බෝනස් ලකුණු ලැබුණි!' : '3ම සම්පූර්ණ කළ විට +50 බෝනස්';
+      if (bonusStatusEl.parentElement) {
+        bonusStatusEl.parentElement.className = `font-extrabold ${pts.hasBonus ? 'text-emerald-600' : 'text-slate-500'} flex items-center gap-1`;
+      }
+    }
+
     // Dynamic State Rendering (Requirements 5 & 7)
     if (this.state === 'A') {
       // State A: Ready / Idle
@@ -990,22 +1096,7 @@ export class MetabolicTracker {
     this.addRecentChange('නව ආහාර වේලක් සටහන් විය (ටයිමරය ආරම්භ විය)', 'meal', 0, '🍽️');
 
     // Save active meal to remote wosandi_admin_config
-    try {
-      await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config`, {
-        method: 'POST',
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
-        },
-        body: JSON.stringify({
-          config_key: `active_meal_${uid}`,
-          config_data: newMeal,
-          updated_at: new Date().toISOString()
-        })
-      });
-    } catch (e) {}
+    await this.saveActiveMealToRemote(newMeal);
 
     this.updateState();
     this.renderAll();
@@ -1038,10 +1129,10 @@ export class MetabolicTracker {
       });
     } catch (e) {}
 
-    // Dual backup in wosandi_admin_config
+    // Dual backup in wosandi_admin_config with on_conflict resolution
     try {
       const uid = this.currentUser?.id || 'user_wosa';
-      await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?on_conflict=config_key`, {
         method: 'POST',
         headers: {
           apikey: SUPABASE_ANON_KEY,

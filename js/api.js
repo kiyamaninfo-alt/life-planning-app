@@ -110,6 +110,8 @@ async function loadTodayData() {
     }
   } catch (e) {}
 
+  let loadedTasks = null;
+
   if (isPrimaryUser) {
     try {
       const res = await fetch(`${SUPABASE_URL}/rest/v1/daily_logs?select=*&log_date=eq.${today}`, {
@@ -119,51 +121,49 @@ async function loadTodayData() {
         }
       });
       const data = await res.json();
-      
-      if (data && data.length > 0) {
-        const dbState = data[0].completed_tasks;
-        Object.assign(state, dbState);
-        try {
-          localStorage.setItem('wosandi_routine_state_' + today, JSON.stringify(state));
-          localStorage.setItem(userKey, JSON.stringify(state));
-        } catch (e) {}
-        if (typeof syncStateToUI === 'function') syncStateToUI();
-        syncProgressWithServer(state, true); // UI පමණක් යාවත්කාලීන කරයි
-      } else {
-        if (typeof syncStateToUI === 'function') syncStateToUI();
-        syncProgressWithServer(state, true);
+      if (data && data.length > 0 && data[0].completed_tasks) {
+        loadedTasks = data[0].completed_tasks;
       }
     } catch (err) {
-      console.error("දත්ත ලබා ගැනීමේ දෝෂයක්:", err);
-      if (typeof syncStateToUI === 'function') syncStateToUI();
-      syncProgressWithServer(state, true);
+      console.error("daily_logs fetch error:", err);
     }
-  } else {
-    // Non-primary user: fetch their specific log from wosandi_admin_config
-    try {
-      const userConfigKey = `user_log_${currentUser.id}_${today}`;
-      const res = await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?config_key=eq.${userConfigKey}`, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-        }
-      });
-      if (res.ok) {
-        const rows = await res.json();
-        if (Array.isArray(rows) && rows.length > 0 && rows[0].config_data?.completed_tasks) {
-          const dbState = rows[0].config_data.completed_tasks;
-          Object.assign(state, dbState);
-          try {
-            localStorage.setItem(userKey, JSON.stringify(state));
-          } catch (e) {}
-        }
-      }
-    } catch (err) {
-      console.error("User log fetch error:", err);
-    }
-    if (typeof syncStateToUI === 'function') syncStateToUI();
-    syncProgressWithServer(state, true);
   }
+
+  // Also check user-specific config in wosandi_admin_config for latest updates
+  try {
+    const userConfigKey = `user_log_${currentUser.id}_${today}`;
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?config_key=eq.${userConfigKey}`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
+    if (res.ok) {
+      const rows = await res.json();
+      if (Array.isArray(rows) && rows.length > 0 && rows[0].config_data?.completed_tasks) {
+        const uTasks = rows[0].config_data.completed_tasks;
+        if (!loadedTasks) {
+          loadedTasks = uTasks;
+        } else {
+          // Merge tasks, preferring truthy / non-empty values
+          loadedTasks = { ...loadedTasks, ...uTasks };
+        }
+      }
+    }
+  } catch (err) {
+    console.error("wosandi_admin_config user log fetch error:", err);
+  }
+
+  if (loadedTasks && typeof loadedTasks === 'object') {
+    Object.assign(state, loadedTasks);
+    try {
+      localStorage.setItem('wosandi_routine_state_' + today, JSON.stringify(state));
+      localStorage.setItem(userKey, JSON.stringify(state));
+    } catch (e) {}
+  }
+
+  if (typeof syncStateToUI === 'function') syncStateToUI();
+  syncProgressWithServer(state, true);
 }
 
 // 2. ඔබගේ ගතික (Dynamic) ලකුණු ගණනය කිරීමේ ක්‍රියාවලිය
@@ -318,7 +318,7 @@ async function syncProgressWithServer(state, skipSave = false) {
     // 2. User-specific performance save in wosandi_admin_config
     try {
       const userConfigKey = `user_log_${currentUser.id}_${todayDate}`;
-      await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config`, {
+      await fetch(`${SUPABASE_URL}/rest/v1/wosandi_admin_config?on_conflict=config_key`, {
         method: "POST",
         headers: {
           apikey: SUPABASE_ANON_KEY,
