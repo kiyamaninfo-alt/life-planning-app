@@ -226,6 +226,13 @@ async function syncProgressWithServer(state, skipSave = false) {
     totalPossiblePoints += Number(state.flow_total_points);
   }
 
+  // 4. Fasting & Routine Tracker Gamification Points (Requirement 9)
+  if (typeof window !== 'undefined' && window.metabolicTracker && typeof window.metabolicTracker.getTodayFastingPoints === 'function') {
+    const fastingPts = window.metabolicTracker.getTodayFastingPoints();
+    earnedPoints += fastingPts.earnedPoints;
+    totalPossiblePoints += fastingPts.totalPossiblePoints;
+  }
+
   // Save same-day state to localStorage immediately for zero reload delay
   try {
     const userSaveKey = (typeof window !== 'undefined' && window.userManagerClient?.getRoutineStateKey)
@@ -394,3 +401,8 @@ function updateUI(percent, earned, total, rank) {
 document.addEventListener("DOMContentLoaded", () => {
   loadTodayData();
 });
+
+if (typeof window !== "undefined") {
+  window.syncProgressWithServer = syncProgressWithServer;
+  window.loadTodayData = loadTodayData;
+}
