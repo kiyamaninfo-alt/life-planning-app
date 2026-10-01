@@ -336,7 +336,11 @@ export class MetabolicTracker {
   startTicker() {
     if (this.timerInterval) clearInterval(this.timerInterval);
     this.timerInterval = setInterval(() => {
-      this.tick();
+      try {
+        this.tick();
+      } catch (err) {
+        console.error('MetabolicTracker tick error:', err);
+      }
     }, 1000);
   }
 
@@ -659,7 +663,11 @@ export class MetabolicTracker {
     if (typeof document === 'undefined') return;
     const bannerContainer = document.getElementById('metabolic-tracker-sticky-container');
     if (bannerContainer) {
-      bannerContainer.remove();
+      if (typeof bannerContainer.remove === 'function') {
+        bannerContainer.remove();
+      } else if (bannerContainer.parentNode) {
+        bannerContainer.parentNode.removeChild(bannerContainer);
+      }
     }
   }
 
@@ -761,14 +769,6 @@ export class MetabolicTracker {
         cardActionBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i> [✔] කෑම වේලක් ගත්තා දැන්';
         cardActionBtn.className = 'w-full py-2.5 px-4 text-xs font-black rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white';
       }
-      if (bannerStatusEl) {
-        bannerStatusEl.textContent = 'විවේක කාලය නිමයි • කෑමට සූදානම්';
-        bannerStatusEl.className = 'text-[11px] font-semibold text-emerald-700';
-      }
-      if (bannerActionBtn) {
-        bannerActionBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-500 mr-1.5"></i> [✔] කෑම වේලක් ගත්තා දැන්';
-        bannerActionBtn.className = 'w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center cursor-pointer';
-      }
     } else if (this.state === 'B') {
       // State B: Active Fasting (Requirement 7)
       const statusText = `ආහාර විවේකය ක්රියාත්මකයි (${pct}% සම්පූර්ණයි)`;
@@ -781,14 +781,6 @@ export class MetabolicTracker {
         cardActionBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-200 animate-pulse"></i> [⚠️] කෑම කාලා පැය 5ක් නෑ, ආයෙත් කෑවද?';
         cardActionBtn.className = 'w-full py-2.5 px-4 text-xs font-black rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white';
       }
-      if (bannerStatusEl) {
-        bannerStatusEl.textContent = statusText;
-        bannerStatusEl.className = 'text-[11px] font-semibold text-amber-700';
-      }
-      if (bannerActionBtn) {
-        bannerActionBtn.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-300 mr-1.5 animate-pulse"></i> [⚠️] කෑම කාලා පැය 5ක් නෑ, ආයෙත් කෑවද?';
-        bannerActionBtn.className = 'w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center cursor-pointer';
-      }
     } else if (this.state === 'C') {
       // State C: 5-Hour Goal Met
       if (cardStatusLabel) {
@@ -799,14 +791,6 @@ export class MetabolicTracker {
       if (cardActionBtn) {
         cardActionBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300"></i> [✔] කෑම වේලක් ගත්තා දැන්';
         cardActionBtn.className = 'w-full py-2.5 px-4 text-xs font-black rounded-xl shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white';
-      }
-      if (bannerStatusEl) {
-        bannerStatusEl.textContent = 'පැය 5ක ආහාර විවේකය සාර්ථකව සම්පූර්ණයි! 🎯';
-        bannerStatusEl.className = 'text-[11px] font-extrabold text-emerald-600';
-      }
-      if (bannerActionBtn) {
-        bannerActionBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-300 mr-1.5"></i> [✔] කෑම වේලක් ගත්තා දැන්';
-        bannerActionBtn.className = 'w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all flex items-center justify-center cursor-pointer';
       }
     }
   }
@@ -1138,13 +1122,25 @@ export class MetabolicTracker {
       }
 
       // Date is automatically set from current system date (Requirement 1)
-      const mealDate = new Date();
-      mealDate.setHours(h24, currentMinute, 0, 0);
+      const now = new Date();
+      let mealDate = new Date();
+      // If user kept the current hour & minute as now, preserve current seconds/ms so it starts immediately
+      if (h24 === now.getHours() && currentMinute === now.getMinutes()) {
+        mealDate.setSeconds(now.getSeconds(), now.getMilliseconds());
+      } else {
+        mealDate.setSeconds(0, 0);
+      }
+      if (mealDate > now) {
+        mealDate = now;
+      }
 
       const customDurationSeconds = durationMinutes * 60;
       const mealType = mealSelect?.value || 'dinner';
-      await this.recordMeal(mealDate, customDurationSeconds, mealType);
-      closeDialog();
+      try {
+        await this.recordMeal(mealDate, customDurationSeconds, mealType);
+      } finally {
+        closeDialog();
+      }
     });
   }
 
@@ -1267,6 +1263,7 @@ export class MetabolicTracker {
     this.updateState();
     this.renderAll();
     this.creditScore();
+    this.startTicker();
   }
 
   async saveCompletedLog(log) {
