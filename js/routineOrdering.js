@@ -255,8 +255,14 @@ export function applyRoutineOrderAndDependencies(stateObj) {
   const activeSections = [];
   const completedSections = [];
   sortedSections.forEach(sec => {
+    const el = container.querySelector(`[data-section-id="${sec.id}"]`);
+    const isPending = Boolean(el && el.getAttribute && el.getAttribute('data-pending-reorder'));
     if (isSecDone(sec.id)) {
-      completedSections.push(sec);
+      if (isPending) {
+        activeSections.push(sec);
+      } else {
+        completedSections.push(sec);
+      }
     } else {
       activeSections.push(sec);
     }

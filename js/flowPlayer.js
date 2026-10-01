@@ -324,6 +324,9 @@ class FlowPlayer {
             localStorage.setItem('wosandi_flow_completed_' + todayDate, 'true');
             localStorage.setItem('wosandi_flow_points_' + todayDate, String(this.accumulatedScore));
           } catch(e) {}
+          if (typeof window !== 'undefined' && typeof window.scheduleSectionReorder === 'function') {
+            window.scheduleSectionReorder('flow');
+          }
           if (typeof state !== 'undefined') {
             state.flow_completed = true;
             state.flow_points = this.accumulatedScore;
@@ -362,6 +365,9 @@ class FlowPlayer {
         localStorage.setItem('wosandi_flow_points_' + todayDate, String(this.accumulatedScore));
       }
     } catch(e) {}
+    if (typeof window !== 'undefined' && typeof window.scheduleSectionReorder === 'function') {
+      window.scheduleSectionReorder('flow');
+    }
     if (typeof state !== 'undefined') {
       state.flow_completed = true;
       state.flow_points = this.accumulatedScore;

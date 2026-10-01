@@ -189,7 +189,113 @@ function isSectionCompleted(sectionId, stateObj = state) {
   }
 }
 
-// 3. Tick box tasks sent to bottom of their list when completed
+// =========================================================================
+// Delayed Reordering Controller (5-Second Grace Delay for Ticked / Filled Items)
+// =========================================================================
+const pendingTaskReorders = new Map();
+const pendingSectionReorders = new Map();
+
+function scheduleTaskReorder(key, row) {
+  if (!row && key && typeof document !== 'undefined') {
+    row = document.querySelector(`[data-task-id="${key}"]`);
+  }
+  if (!row) return;
+
+  const rowKey = key || row.getAttribute('data-task-id') || Math.random().toString();
+  if (pendingTaskReorders.has(rowKey)) {
+    clearTimeout(pendingTaskReorders.get(rowKey));
+    pendingTaskReorders.delete(rowKey);
+  }
+
+  if (typeof row.setAttribute === 'function') {
+    row.setAttribute('data-pending-reorder', 'true');
+  }
+
+  const timerId = setTimeout(() => {
+    pendingTaskReorders.delete(rowKey);
+    if (typeof row.removeAttribute === 'function') {
+      row.removeAttribute('data-pending-reorder');
+    } else if (typeof row.setAttribute === 'function') {
+      row.setAttribute('data-pending-reorder', '');
+    }
+    const container = row.parentElement;
+    if (container) {
+      reorderTasksInList(container);
+    } else {
+      reorderAllTaskLists();
+    }
+  }, 5000);
+
+  pendingTaskReorders.set(rowKey, timerId);
+}
+
+function cancelTaskReorder(key, row) {
+  if (!row && key && typeof document !== 'undefined') {
+    row = document.querySelector(`[data-task-id="${key}"]`);
+  }
+  if (row) {
+    if (typeof row.removeAttribute === 'function') {
+      row.removeAttribute('data-pending-reorder');
+    } else if (typeof row.setAttribute === 'function') {
+      row.setAttribute('data-pending-reorder', '');
+    }
+  }
+  const rowKey = key || (row?.getAttribute && row.getAttribute('data-task-id'));
+  if (rowKey && pendingTaskReorders.has(rowKey)) {
+    clearTimeout(pendingTaskReorders.get(rowKey));
+    pendingTaskReorders.delete(rowKey);
+  }
+}
+
+function scheduleSectionReorder(secId, secEl) {
+  if (!secEl && secId && typeof document !== 'undefined') {
+    secEl = document.querySelector(`[data-section-id="${secId}"]`);
+  }
+  if (!secEl) return;
+
+  if (pendingSectionReorders.has(secId)) {
+    clearTimeout(pendingSectionReorders.get(secId));
+    pendingSectionReorders.delete(secId);
+  }
+
+  if (typeof secEl.setAttribute === 'function') {
+    secEl.setAttribute('data-pending-reorder', 'true');
+  }
+
+  const timerId = setTimeout(() => {
+    pendingSectionReorders.delete(secId);
+    if (typeof secEl.removeAttribute === 'function') {
+      secEl.removeAttribute('data-pending-reorder');
+    } else if (typeof secEl.setAttribute === 'function') {
+      secEl.setAttribute('data-pending-reorder', '');
+    }
+    if (typeof window !== 'undefined' && window.routineOrdering?.applyRoutineOrderAndDependencies) {
+      window.routineOrdering.applyRoutineOrderAndDependencies(state);
+    }
+    updateSectionCollapseStates(state);
+  }, 5000);
+
+  pendingSectionReorders.set(secId, timerId);
+}
+
+function cancelSectionReorder(secId, secEl) {
+  if (!secEl && secId && typeof document !== 'undefined') {
+    secEl = document.querySelector(`[data-section-id="${secId}"]`);
+  }
+  if (secEl) {
+    if (typeof secEl.removeAttribute === 'function') {
+      secEl.removeAttribute('data-pending-reorder');
+    } else if (typeof secEl.setAttribute === 'function') {
+      secEl.setAttribute('data-pending-reorder', '');
+    }
+  }
+  if (secId && pendingSectionReorders.has(secId)) {
+    clearTimeout(pendingSectionReorders.get(secId));
+    pendingSectionReorders.delete(secId);
+  }
+}
+
+// 3. Tick box tasks sent to bottom of their list when completed (delayed 5s when freshly ticked)
 function reorderTasksInList(container) {
   if (!container) return;
   const taskRows = Array.from(container.children || []).filter(el => Boolean(el.querySelector && el.querySelector('input[type="checkbox"]')));
@@ -201,16 +307,22 @@ function reorderTasksInList(container) {
   taskRows.forEach(row => {
     const cb = row.querySelector('input[type="checkbox"]');
     const isDone = cb ? cb.checked : false;
+    const isPending = Boolean(row.getAttribute && row.getAttribute('data-pending-reorder'));
     if (isDone) {
       row.classList.add('task-is-completed', 'opacity-75', 'bg-emerald-50/40', 'border-emerald-200');
-      completed.push(row);
+      if (isPending) {
+        // Keep in place (top/active) until 5-second grace period completes
+        active.push(row);
+      } else {
+        completed.push(row);
+      }
     } else {
       row.classList.remove('task-is-completed', 'opacity-75', 'bg-emerald-50/40', 'border-emerald-200');
       active.push(row);
     }
   });
 
-  // Re-append: unchecked at top, checked at bottom!
+  // Re-append: unchecked & pending at top, completed at bottom!
   [...active, ...completed].forEach(row => container.appendChild(row));
 }
 
@@ -232,12 +344,13 @@ function updateSectionCollapseStates(stateObj = state) {
 
     const completed = isSectionCompleted(secId, stateObj);
     const badge = sec.querySelector('.completion-badge');
+    const isPending = Boolean(sec.getAttribute && sec.getAttribute('data-pending-reorder'));
 
     if (completed) {
       sec.classList.add('is-completed');
       if (badge) badge.classList.remove('hidden');
 
-      if (!manualExpandedSections.has(secId)) {
+      if (!isPending && !manualExpandedSections.has(secId)) {
         sec.classList.add('is-collapsed');
       } else {
         sec.classList.remove('is-collapsed');
@@ -935,9 +1048,17 @@ async function toggleSchool(val, el = null) {
     }
   }
 
+  const wasCompleted = Boolean(state.school_attended);
   state.school_attended = val;
   const container = document.getElementById("subjects-container");
   if (container) container.classList.toggle("hidden", !val);
+
+  if (val === true && !wasCompleted) {
+    scheduleSectionReorder('school');
+  } else if (val === false) {
+    cancelSectionReorder('school');
+  }
+
   syncProgressWithServer(state);
 }
 
@@ -1031,6 +1152,7 @@ async function setWakeTime(slot) {
     if (!ok) return;
   }
 
+  const wasCompleted = Boolean(state.wake_up);
   state.wake_up = slot;
   document.querySelectorAll(".wake-btn").forEach(b => {
     const isSelected = b.dataset.val === slot;
@@ -1038,6 +1160,11 @@ async function setWakeTime(slot) {
     b.classList.toggle("text-white", isSelected);
     b.classList.toggle("border-pink-500", isSelected);
   });
+
+  if (!wasCompleted) {
+    scheduleSectionReorder('wake_up');
+  }
+
   syncProgressWithServer(state);
 }
 
@@ -1067,6 +1194,10 @@ async function toggleTask(key, val, el = null) {
     }
   }
 
+  const parentSec = taskRow?.closest('.routine-section');
+  const secId = parentSec?.getAttribute('data-section-id');
+  const secWasCompleted = secId ? isSectionCompleted(secId, state) : false;
+
   state[key] = val;
   if (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks)) {
     const matched = window.publishedAdminTasks.find(t => t.id === key);
@@ -1074,6 +1205,20 @@ async function toggleTask(key, val, el = null) {
       state[matched.schema_definition.linked_state_key] = val;
     }
   }
+
+  if (val === true) {
+    // Delay ticked task from moving to bottom for 5 seconds
+    if (taskRow) scheduleTaskReorder(key, taskRow);
+
+    // If section just completed now with this task, also delay section moving to bottom for 5s
+    if (secId && !secWasCompleted && isSectionCompleted(secId, state)) {
+      scheduleSectionReorder(secId, parentSec);
+    }
+  } else {
+    if (taskRow) cancelTaskReorder(key, taskRow);
+    if (secId) cancelSectionReorder(secId, parentSec);
+  }
+
   reorderAllTaskLists();
   updateSectionCollapseStates(state);
   syncProgressWithServer(state);
@@ -1502,6 +1647,10 @@ if (typeof window !== "undefined") {
   window.toggleSectionCollapse = toggleSectionCollapse;
   window.reorderTasksInList = reorderTasksInList;
   window.reorderAllTaskLists = reorderAllTaskLists;
+  window.scheduleTaskReorder = scheduleTaskReorder;
+  window.cancelTaskReorder = cancelTaskReorder;
+  window.scheduleSectionReorder = scheduleSectionReorder;
+  window.cancelSectionReorder = cancelSectionReorder;
   window.loadPublishedTasksFromAdmin = loadPublishedTasksFromAdmin;
   window.openPastPerformanceModal = openPastPerformanceModal;
 }
