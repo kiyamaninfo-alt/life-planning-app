@@ -63,6 +63,11 @@ assert.ok(!metabolicJs.includes('id="meal-timestamp-input"'), 'Manual date/time 
 assert.ok(metabolicJs.includes('modal-duration-dec'), 'Setup modal must contain - duration control button');
 assert.ok(metabolicJs.includes('modal-duration-inc'), 'Setup modal must contain + duration control button');
 assert.ok(metabolicJs.includes('meal-auto-datetime-display'), 'Setup modal must contain automated datetime display');
+assert.ok(metabolicJs.includes('meal-time-dec-btn'), 'Setup modal must contain - button for meal time adjustment');
+assert.ok(metabolicJs.includes('meal-time-inc-btn'), 'Setup modal must contain + button for meal time adjustment');
+assert.ok(metabolicJs.includes('meal-time-am-btn'), 'Setup modal must contain separate AM button');
+assert.ok(metabolicJs.includes('meal-time-pm-btn'), 'Setup modal must contain separate PM button');
+assert.ok(!metabolicJs.includes('value="main"'), 'Meal type dropdown must NOT contain Main Meal option');
 
 // 1.3 admin/index.html checks
 assert.ok(adminIndexHtml.includes('data-tab="notifications"'), 'admin/index.html must contain notifications tab navigation link');

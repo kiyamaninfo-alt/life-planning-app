@@ -821,11 +821,8 @@ export class MetabolicTracker {
       document.body.appendChild(modalContainer);
     }
 
-    const now = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
+    const initialDate = prefillTimestamp ? new Date(prefillTimestamp) : new Date();
     const dateInfo = this.getSystemDate();
-    const timeFormatted = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    const autoDateTimeDisplay = `${dateInfo.formatted} • ${timeFormatted}`;
 
     let durationMinutes = Math.round((this.targetGapSeconds || FIVE_HOURS_SECONDS) / 60);
 
@@ -840,7 +837,7 @@ export class MetabolicTracker {
             <button type="button" id="close-meal-dialog" class="text-slate-400 hover:text-slate-600 text-lg cursor-pointer leading-none">&times;</button>
           </div>
 
-          <form id="meal-logger-form" class="mt-4 space-y-4 text-xs">
+          <form id="meal-logger-form" class="mt-4 space-y-3.5 text-xs">
             ${isEarlyBreak ? `
               <div class="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-amber-800 text-[11px] flex items-start gap-2 shadow-2xs">
                 <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0"></i>
@@ -850,27 +847,66 @@ export class MetabolicTracker {
               </div>
             ` : `
               <p class="text-slate-500 text-[11px] leading-relaxed">
-                ආහාර ගත් වේලාව පසුබිමෙන් ස්වයංක්‍රීයව සටහන් වන අතර, පහතින් ඔබ කැමති විවේක කාල සීමාව (+/- මගින්) සකසා ආරම්භ කළ හැක.
+                ආහාර ගත් වේලාව සහ විවේක කාල සීමාව පහතින් (+/- මගින්) සකසා ආරම්භ කළ හැක (දිනය ස්වයංක්‍රීයයි).
               </p>
             `}
 
-            <!-- Automated System Date Selection (Requirement 3: Zero manual date input needed) -->
-            <div class="p-3 bg-slate-50 border border-purple-100 rounded-2xl flex items-center justify-between gap-2 shadow-2xs">
-              <div class="flex items-center gap-2 text-indigo-700 font-bold min-w-0">
+            <!-- Automated System Date Selection (Date is set automatically) -->
+            <div class="p-2.5 sm:p-3 bg-slate-50 border border-purple-100 rounded-2xl flex items-center justify-between gap-2 shadow-2xs">
+              <div class="flex items-center gap-1.5 text-indigo-700 font-bold min-w-0 text-[11px] sm:text-xs">
                 <i class="fa-regular fa-calendar-check text-indigo-500 text-sm shrink-0"></i>
-                <span class="text-[11px] truncate">ආරම්භක දිනය & වේලාව:</span>
+                <span class="truncate">දිනය (ස්වයංක්‍රීයයි):</span>
               </div>
               <div class="text-right shrink-0">
-                <span id="meal-auto-datetime-display" class="font-extrabold text-slate-700 font-mono text-[11px] block">${autoDateTimeDisplay}</span>
+                <span id="meal-auto-datetime-display" class="font-extrabold text-slate-700 font-mono text-[11px] sm:text-xs block">${dateInfo.formatted}</span>
                 <span class="text-[9px] font-bold text-emerald-600 flex items-center justify-end gap-1">
                   <i class="fa-solid fa-circle-check text-[8px]"></i> ස්වයංක්‍රීයව සටහන් වේ
                 </span>
               </div>
             </div>
 
-            <!-- Timer Duration Setup Controls (+ and - buttons) (Requirement 2) -->
-            <div class="bg-gradient-to-br from-purple-50/80 via-indigo-50/50 to-pink-50/50 p-4 rounded-2xl border border-purple-200/80 text-center shadow-2xs">
-              <label class="block text-[11px] font-black text-purple-900 uppercase tracking-wider mb-2.5">
+            <!-- Time Adjustment Controls (+ / - buttons, HH:MM no seconds, and separate AM/PM buttons) (Requirement 1) -->
+            <div class="p-3 sm:p-3.5 bg-gradient-to-br from-purple-50/70 via-white to-pink-50/40 border border-purple-200/80 rounded-2xl shadow-2xs">
+              <div class="flex items-center justify-between mb-2">
+                <label class="text-[11px] font-black text-purple-900 uppercase tracking-wider flex items-center gap-1">
+                  <i class="fa-regular fa-clock text-purple-600"></i> කෑම ගත් වේලාව (Meal Time)
+                </label>
+                <span class="text-[9px] font-semibold text-purple-600 bg-purple-100/70 px-2 py-0.5 rounded-full">තත්පර රහිතයි</span>
+              </div>
+
+              <div class="flex items-center justify-center gap-2 sm:gap-2.5">
+                <!-- '-' Button (Requirement 1.1) -->
+                <button type="button" id="meal-time-dec-btn" class="w-10 h-10 rounded-2xl bg-white hover:bg-purple-100 border border-purple-200 text-purple-700 font-black text-2xl flex items-center justify-center shadow-xs transition active:scale-90 cursor-pointer" title="විනාඩි 1ක් අඩු කරන්න (-1m)">
+                  -
+                </button>
+
+                <!-- Time Input Display (HH:MM - Seconds not required, Requirement 1.2) -->
+                <div class="flex items-center gap-1 bg-white border border-purple-200 rounded-2xl px-3 py-1.5 shadow-2xs">
+                  <input type="number" id="meal-time-hour" min="1" max="12" class="w-9 sm:w-10 text-center font-mono font-black text-2xl text-purple-950 bg-transparent focus:outline-none focus:bg-purple-50 rounded" title="පැය (1-12)" />
+                  <span class="font-mono font-black text-2xl text-purple-400 select-none pb-0.5">:</span>
+                  <input type="number" id="meal-time-minute" min="0" max="59" class="w-9 sm:w-10 text-center font-mono font-black text-2xl text-purple-950 bg-transparent focus:outline-none focus:bg-purple-50 rounded" title="විනාඩි (00-59)" />
+                </div>
+
+                <!-- '+' Button (Requirement 1.1) -->
+                <button type="button" id="meal-time-inc-btn" class="w-10 h-10 rounded-2xl bg-white hover:bg-purple-100 border border-purple-200 text-purple-700 font-black text-2xl flex items-center justify-center shadow-xs transition active:scale-90 cursor-pointer" title="විනාඩි 1ක් වැඩි කරන්න (+1m)">
+                  +
+                </button>
+
+                <!-- Separate AM / PM Buttons (Requirement 1.3) -->
+                <div class="flex flex-col rounded-xl p-1 bg-slate-100 border border-slate-200 gap-1 select-none">
+                  <button type="button" id="meal-time-am-btn" class="px-2.5 py-1 text-[11px] font-black rounded-lg transition cursor-pointer">
+                    AM
+                  </button>
+                  <button type="button" id="meal-time-pm-btn" class="px-2.5 py-1 text-[11px] font-black rounded-lg transition cursor-pointer">
+                    PM
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Timer Duration Setup Controls (+ and - buttons, no seconds) -->
+            <div class="bg-gradient-to-br from-purple-50/80 via-indigo-50/50 to-pink-50/50 p-3.5 sm:p-4 rounded-2xl border border-purple-200/80 text-center shadow-2xs">
+              <label class="block text-[11px] font-black text-purple-900 uppercase tracking-wider mb-2">
                 ⏱️ විවේක කාල සීමාව (Rest Duration)
               </label>
               
@@ -880,10 +916,10 @@ export class MetabolicTracker {
                   -
                 </button>
                 
-                <!-- Display -->
-                <div class="px-4 py-2 bg-white rounded-2xl border border-purple-200 shadow-2xs min-w-[130px]">
+                <!-- Display (Seconds not required, Requirement 1.2) -->
+                <div class="px-4 py-2 bg-white rounded-2xl border border-purple-200 shadow-2xs min-w-[120px]">
                   <span id="modal-duration-display" class="text-2xl sm:text-3xl font-black font-mono tracking-tight text-purple-900 block leading-none">
-                    05:00:00
+                    05:00
                   </span>
                   <span id="modal-duration-label" class="text-[10px] font-extrabold text-purple-600 mt-1 block">
                     පැය 5ක පරිවෘත්තීය විවේකය
@@ -896,7 +932,7 @@ export class MetabolicTracker {
                 </button>
               </div>
 
-              <div class="flex items-center justify-center gap-1.5 mt-2.5">
+              <div class="flex items-center justify-center gap-1.5 mt-2">
                 <span class="text-[10px] text-slate-500 font-medium">නිරෝගී සම්මතය: <strong>පැය 5කි</strong></span>
                 <button type="button" id="modal-duration-reset-btn" class="text-[10px] font-bold text-indigo-600 underline hover:text-indigo-800 ml-1 cursor-pointer">
                   පැය 5ට සකසන්න
@@ -904,11 +940,10 @@ export class MetabolicTracker {
               </div>
             </div>
 
-            <!-- Meal Type Dropdown -->
+            <!-- Meal Type Dropdown (Requirement 2: Main Meal option removed) -->
             <div>
               <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1">ආහාර වේල (Meal Type)</label>
               <select id="meal-type-select" class="w-full p-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:ring-2 focus:ring-purple-200 focus:outline-hidden">
-                <option value="main">ප්‍රධාන කෑම වේලක් (Main Meal)</option>
                 <option value="breakfast">උදෑසන ආහාරය (Breakfast)</option>
                 <option value="lunch">දිවා ආහාරය (Lunch)</option>
                 <option value="dinner">රාත්‍රී ආහාරය (Dinner)</option>
@@ -938,12 +973,118 @@ export class MetabolicTracker {
     const displayEl = document.getElementById('modal-duration-display');
     const labelEl = document.getElementById('modal-duration-label');
 
+    // Time adjustment controls (Requirement 1.1, 1.2, 1.3)
+    const hourInput = document.getElementById('meal-time-hour');
+    const minuteInput = document.getElementById('meal-time-minute');
+    const timeDecBtn = document.getElementById('meal-time-dec-btn');
+    const timeIncBtn = document.getElementById('meal-time-inc-btn');
+    const timeAmBtn = document.getElementById('meal-time-am-btn');
+    const timePmBtn = document.getElementById('meal-time-pm-btn');
+    const mealSelect = document.getElementById('meal-type-select');
+
+    let currentHour24 = initialDate.getHours();
+    let currentAmPm = currentHour24 >= 12 ? 'PM' : 'AM';
+    let currentHour = currentHour24 % 12;
+    if (currentHour === 0) currentHour = 12;
+    let currentMinute = initialDate.getMinutes();
+
+    // Smart default meal type based on hour
+    if (mealSelect) {
+      if (currentHour24 >= 4 && currentHour24 < 11) {
+        mealSelect.value = 'breakfast';
+      } else if (currentHour24 >= 11 && currentHour24 < 16) {
+        mealSelect.value = 'lunch';
+      } else if (currentHour24 >= 16 && currentHour24 < 22) {
+        mealSelect.value = 'dinner';
+      } else {
+        mealSelect.value = 'snack';
+      }
+    }
+
+    const updateTimeDisplay = () => {
+      if (hourInput) hourInput.value = String(currentHour).padStart(2, '0');
+      if (minuteInput) minuteInput.value = String(currentMinute).padStart(2, '0');
+
+      if (timeAmBtn && timePmBtn) {
+        if (currentAmPm === 'AM') {
+          timeAmBtn.className = 'px-2.5 py-1 text-[11px] font-black rounded-lg transition cursor-pointer bg-purple-600 text-white shadow-xs';
+          timePmBtn.className = 'px-2.5 py-1 text-[11px] font-bold rounded-lg transition cursor-pointer bg-transparent text-slate-500 hover:text-slate-800';
+        } else {
+          timePmBtn.className = 'px-2.5 py-1 text-[11px] font-black rounded-lg transition cursor-pointer bg-purple-600 text-white shadow-xs';
+          timeAmBtn.className = 'px-2.5 py-1 text-[11px] font-bold rounded-lg transition cursor-pointer bg-transparent text-slate-500 hover:text-slate-800';
+        }
+      }
+    };
+
+    updateTimeDisplay();
+
+    timeAmBtn?.addEventListener('click', () => {
+      currentAmPm = 'AM';
+      updateTimeDisplay();
+    });
+
+    timePmBtn?.addEventListener('click', () => {
+      currentAmPm = 'PM';
+      updateTimeDisplay();
+    });
+
+    timeDecBtn?.addEventListener('click', () => {
+      currentMinute -= 1;
+      if (currentMinute < 0) {
+        currentMinute = 59;
+        currentHour -= 1;
+        if (currentHour < 1) currentHour = 12;
+      }
+      updateTimeDisplay();
+    });
+
+    timeIncBtn?.addEventListener('click', () => {
+      currentMinute += 1;
+      if (currentMinute > 59) {
+        currentMinute = 0;
+        currentHour += 1;
+        if (currentHour > 12) currentHour = 1;
+      }
+      updateTimeDisplay();
+    });
+
+    hourInput?.addEventListener('input', () => {
+      let val = parseInt(hourInput.value, 10);
+      if (!isNaN(val) && val >= 1 && val <= 12) {
+        currentHour = val;
+      }
+    });
+
+    minuteInput?.addEventListener('input', () => {
+      let val = parseInt(minuteInput.value, 10);
+      if (!isNaN(val) && val >= 0 && val <= 59) {
+        currentMinute = val;
+      }
+    });
+
+    hourInput?.addEventListener('blur', () => {
+      let val = parseInt(hourInput.value, 10);
+      if (isNaN(val) || val < 1) currentHour = 12;
+      else if (val > 12) currentHour = 12;
+      else currentHour = val;
+      updateTimeDisplay();
+    });
+
+    minuteInput?.addEventListener('blur', () => {
+      let val = parseInt(minuteInput.value, 10);
+      if (isNaN(val) || val < 0) currentMinute = 0;
+      else if (val > 59) currentMinute = 59;
+      else currentMinute = val;
+      updateTimeDisplay();
+    });
+
     const updateDisplay = () => {
       const h = Math.floor(durationMinutes / 60);
       const m = durationMinutes % 60;
       const hStr = String(h).padStart(2, '0');
       const mStr = String(m).padStart(2, '0');
-      if (displayEl) displayEl.textContent = `${hStr}:${mStr}:00`;
+      // Requirement 1.2: Seconds are not required
+      if (displayEl) displayEl.textContent = `${hStr}:${mStr}`;
       if (labelEl) {
         if (h === 5 && m === 0) {
           labelEl.textContent = 'පැය 5ක පරිවෘත්තීය විවේකය';
@@ -983,10 +1124,26 @@ export class MetabolicTracker {
 
     form?.addEventListener('submit', async (e) => {
       e.preventDefault();
-      // Requirement 3: Automate Date Input - automatically assign current system date in the background
-      const autoDate = new Date();
+      
+      let typedH = parseInt(hourInput?.value, 10);
+      if (!isNaN(typedH) && typedH >= 1 && typedH <= 12) currentHour = typedH;
+      let typedM = parseInt(minuteInput?.value, 10);
+      if (!isNaN(typedM) && typedM >= 0 && typedM <= 59) currentMinute = typedM;
+
+      let h24 = currentHour;
+      if (currentAmPm === 'AM') {
+        if (h24 === 12) h24 = 0;
+      } else {
+        if (h24 < 12) h24 += 12;
+      }
+
+      // Date is automatically set from current system date (Requirement 1)
+      const mealDate = new Date();
+      mealDate.setHours(h24, currentMinute, 0, 0);
+
       const customDurationSeconds = durationMinutes * 60;
-      await this.recordMeal(autoDate, customDurationSeconds);
+      const mealType = mealSelect?.value || 'dinner';
+      await this.recordMeal(mealDate, customDurationSeconds, mealType);
       closeDialog();
     });
   }
@@ -1049,7 +1206,7 @@ export class MetabolicTracker {
     });
   }
 
-  async recordMeal(dateObj = new Date(), customDurationSeconds = null) {
+  async recordMeal(dateObj = new Date(), customDurationSeconds = null, mealType = null) {
     const isoString = dateObj.toISOString();
     const uid = this.currentUser?.id || 'user_wosa';
     const nowMs = dateObj.getTime();
@@ -1087,13 +1244,22 @@ export class MetabolicTracker {
       id: `meal_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       user_id: uid,
       meal_timestamp: isoString,
+      meal_type: mealType || 'dinner',
       target_gap_seconds: targetGap,
       created_at: new Date().toISOString()
     };
 
     this.activeMeal = newMeal;
     localStorage.setItem(this.getStorageKey(), JSON.stringify(newMeal));
-    this.addRecentChange('නව ආහාර වේලක් සටහන් විය (ටයිමරය ආරම්භ විය)', 'meal', 0, '🍽️');
+
+    const mealNames = {
+      breakfast: 'උදෑසන ආහාරය',
+      lunch: 'දිවා ආහාරය',
+      dinner: 'රාත්‍රී ආහාරය',
+      snack: 'සුළු ආහාරයක්'
+    };
+    const mealLabel = mealType ? (mealNames[mealType] || 'කෑම වේලක්') : 'ආහාර වේලක්';
+    this.addRecentChange(`නව ${mealLabel} සටහන් විය (ටයිමරය ආරම්භ විය)`, 'meal', 0, '🍽️');
 
     // Save active meal to remote wosandi_admin_config
     await this.saveActiveMealToRemote(newMeal);
