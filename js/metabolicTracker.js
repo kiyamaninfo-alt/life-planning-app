@@ -54,18 +54,35 @@ export class MetabolicTracker {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
-    // Listen to user changes to isolate data per user
+    // 1. Immediately load local meal state from localStorage & render banner (zero delay)
+    this.loadLocalMeal();
+    this.renderBanner();
+    this.startTicker();
+
+    // 2. Listen to user changes to isolate data per user
     if (typeof window !== 'undefined') {
       window.addEventListener('wosandi-user-changed', (e) => {
         this.currentUser = e.detail || this.getActiveUser();
-        this.loadActiveMeal();
+        this.loadLocalMeal();
         this.renderBanner();
+        this.loadActiveMeal().then(() => this.renderBanner());
       });
     }
 
+    // 3. Background sync with remote database
     await this.loadActiveMeal();
     this.renderBanner();
-    this.startTicker();
+  }
+
+  loadLocalMeal() {
+    const key = this.getStorageKey();
+    let localMeal = null;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) localMeal = JSON.parse(raw);
+    } catch (e) {}
+    this.activeMeal = localMeal;
+    this.updateState();
   }
 
   async loadActiveMeal() {
