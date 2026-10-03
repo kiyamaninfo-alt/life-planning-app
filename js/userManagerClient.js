@@ -12,9 +12,9 @@ export const DEFAULT_USERS = [
   {
     id: "user_wosa",
     username: "Wosa",
-    display_name: "Wosa (වෝසා)",
+    display_name: "Wosandi (වෝසන්දි)",
     avatar: "🌸",
-    pin: "1234",
+    pin: "3408",
     role: "primary",
     points: 120,
     is_active: true,
@@ -22,46 +22,13 @@ export const DEFAULT_USERS = [
     created_at: "2026-09-26T22:45:00Z"
   },
   {
-    id: "user_sandali",
-    username: "Sandali",
-    display_name: "Sandali (සඳලි)",
-    avatar: "👧",
-    pin: "1234",
+    id: "user_nilu",
+    username: "Nilu",
+    display_name: "Nilu (නිලූ)",
+    avatar: "🌺",
+    pin: "3408",
     role: "member",
-    points: 95,
-    is_active: true,
-    created_at: "2026-09-26T22:46:00Z"
-  },
-  {
-    id: "user_kasun",
-    username: "Kasun",
-    display_name: "Kasun (කසුන්)",
-    avatar: "🦁",
-    pin: "1234",
-    role: "member",
-    points: 80,
-    is_active: true,
-    created_at: "2026-09-26T22:47:00Z"
-  },
-  {
-    id: "user_nethmi",
-    username: "Nethmi",
-    display_name: "Nethmi (නෙත්මි)",
-    avatar: "⭐",
-    pin: "1234",
-    role: "member",
-    points: 70,
-    is_active: true,
-    created_at: "2026-09-26T22:48:00Z"
-  },
-  {
-    id: "user_amaya",
-    username: "Amaya",
-    display_name: "Amaya (අමායා)",
-    avatar: "🎨",
-    pin: "1234",
-    role: "member",
-    points: 65,
+    points: 100,
     is_active: true,
     created_at: "2026-09-26T22:49:00Z"
   },
@@ -126,13 +93,23 @@ class UserManagerClient {
       }
     }
 
+    // Filter out test runner accounts
+    if (this.users && Array.isArray(this.users)) {
+      this.users = this.users.filter(u => u && u.id !== "user_test_runner" && !u.username?.toLowerCase().includes("testrunner"));
+    }
+
     if (!this.users || this.users.length === 0) {
       this.users = [...DEFAULT_USERS];
     }
 
-    // Ensure Wosa is present
-    if (!this.users.some(u => u.username === "Wosa" || u.id === "user_wosa")) {
+    // Ensure Wosa / Wosandi is present
+    if (!this.users.some(u => u.username === "Wosa" || u.username === "Wosandi" || u.id === "user_wosa")) {
       this.users.unshift(DEFAULT_USERS[0]);
+    }
+
+    // Ensure Nilu is present
+    if (!this.users.some(u => u.username === "Nilu" || u.id === "user_nilu")) {
+      this.users.splice(1, 0, DEFAULT_USERS[1]);
     }
 
     // Ensure Admin profile is present (initial PIN 340800)
@@ -154,6 +131,32 @@ class UserManagerClient {
     }
 
     return this.users;
+  }
+
+  async persistUsers() {
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("wosandi_users_config", JSON.stringify(this.users));
+    }
+
+    try {
+      await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config?config_key=eq.users_config", {
+        method: "PATCH",
+        headers: {
+          apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+          Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+          "Content-Type": "application/json",
+          Prefer: "return=minimal"
+        },
+        body: JSON.stringify({
+          config_data: {
+            users: this.users
+          },
+          updated_at: new Date().toISOString()
+        })
+      });
+    } catch (e) {
+      console.warn("Could not sync users to Supabase:", e);
+    }
   }
 
   getTop5Users() {
@@ -476,6 +479,14 @@ class UserManagerClient {
               </div>
             ` : ''}
 
+            <!-- Add Account Button (Requirement 3: add add acount button to the select usser menu) -->
+            <div class="pt-1">
+              <button type="button" id="btn-modal-add-account" class="w-full py-2.5 px-4 bg-gradient-to-r from-purple-50 via-pink-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 text-purple-700 font-bold rounded-2xl border-2 border-dashed border-purple-300 hover:border-purple-400 transition-all flex items-center justify-center gap-2 text-xs shadow-2xs cursor-pointer group active:scale-[0.99]">
+                <span class="w-6 h-6 rounded-full bg-purple-200 group-hover:bg-purple-300 text-purple-800 flex items-center justify-center text-sm font-black transition">+</span>
+                <span class="font-['Noto_Sans_Sinhala'] font-bold">නව ගිණුමක් එක් කරන්න (Add New Account)</span>
+              </button>
+            </div>
+
             <div class="p-3 bg-purple-50 rounded-xl border border-purple-200 text-purple-800 text-[11px] font-['Noto_Sans_Sinhala'] text-center">
               <i class="fas fa-info-circle text-purple-600 mr-1"></i>
               ඕනෑම පරිශීලකයෙකුගේ කාඩ්පත මත ක්ලික් කළ සැණින් ඔවුන්ගේ සජීවී ප්‍රගති පුවරුව විවෘත වේ.
@@ -490,6 +501,15 @@ class UserManagerClient {
 
       const closeBtn = modal.querySelector("#close-user-login-modal");
       if (closeBtn) closeBtn.addEventListener("click", closeModal);
+
+      // Add Account Click Listener
+      const addAccountBtn = modal.querySelector("#btn-modal-add-account");
+      if (addAccountBtn) {
+        addAccountBtn.addEventListener("click", () => {
+          closeModal();
+          this.openCreateAccountModal(onSuccessCallback);
+        });
+      }
 
       // Click user or admin card
       modal.querySelectorAll("[data-user-id]").forEach(card => {
@@ -517,6 +537,190 @@ class UserManagerClient {
           if (onSuccessCallback) onSuccessCallback(targetUser);
         });
       });
+  }
+
+  /**
+   * Opens Modal to create a new user profile directly from frontend (Requirement 3)
+   */
+  openCreateAccountModal(onSuccessCallback = null) {
+    let modal = document.getElementById("create-account-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.id = "create-account-modal";
+      document.body.appendChild(modal);
+    }
+
+    const AVATAR_OPTIONS = ['🌸', '🌺', '👧', '👦', '⭐', '🦁', '🎨', '🚀', '🐱', '🦄', '⚽', '📚'];
+    let selectedAvatar = '👧';
+
+    modal.className = "fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 font-['Poppins']";
+    modal.innerHTML = `
+      <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full max-h-[92vh] flex flex-col overflow-hidden border border-purple-100 animate-in fade-in zoom-in-95 duration-200 font-['Noto_Sans_Sinhala']">
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 p-5 text-white text-center relative shrink-0">
+          <button type="button" id="close-create-account-modal" class="absolute top-4 right-4 text-white/80 hover:text-white text-2xl font-bold transition">&times;</button>
+          <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center mx-auto mb-2 text-2xl border border-white/30 shadow-inner">
+            <span id="create-modal-preview-avatar">${selectedAvatar}</span>
+          </div>
+          <h2 class="text-lg font-extrabold tracking-tight">නව ගිණුමක් එක් කරන්න</h2>
+          <p class="text-xs text-purple-100 mt-0.5">Add New User Account</p>
+        </div>
+
+        <!-- Form Body -->
+        <form id="create-account-form" class="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1 text-xs">
+          <!-- Username -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">පරිශීලක නම (Username) <span class="text-rose-500">*</span></label>
+            <input type="text" id="create-acc-username" required placeholder="උදා: Kaveen හෝ Sandali" autofocus
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 focus:outline-hidden focus:ring-3 focus:ring-purple-100 transition font-sans text-xs">
+          </div>
+
+          <!-- Display Name -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">පෙන්වන නම (Display Name - විකල්ප)</label>
+            <input type="text" id="create-acc-display-name" placeholder="උදා: Kaveen (කවීන්)"
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 focus:outline-hidden focus:ring-3 focus:ring-purple-100 transition text-xs">
+          </div>
+
+          <!-- Avatar Selection -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1.5">Avatar රූපය තෝරන්න</label>
+            <div class="grid grid-cols-6 gap-2" id="create-acc-avatar-grid">
+              ${AVATAR_OPTIONS.map((emoji, idx) => `
+                <button type="button" class="avatar-opt-btn h-10 rounded-xl border-2 flex items-center justify-center text-lg transition hover:scale-105 active:scale-95 ${idx === 2 ? 'border-purple-600 bg-purple-50 shadow-xs' : 'border-slate-200 bg-slate-50 hover:bg-white'}" data-emoji="${emoji}">
+                  ${emoji}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- PIN -->
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">PIN අංකය / මුරපදය (Security PIN) <span class="text-rose-500">*</span></label>
+            <input type="password" id="create-acc-pin" maxlength="8" value="3408" required placeholder="3408"
+              class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-purple-500 focus:outline-hidden focus:ring-3 focus:ring-purple-100 transition font-mono tracking-widest text-center text-sm font-bold">
+            <span class="text-[11px] text-slate-400 mt-1 block">ප්‍රගතිය සංස්කරණය කිරීමට මෙම PIN අංකය භාවිතා වේ (පෙරනිමි: 3408).</span>
+          </div>
+
+          <!-- Error Message -->
+          <div id="create-acc-error" class="hidden p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 font-bold text-[11px] flex items-center gap-1.5">
+            <i class="fas fa-exclamation-circle"></i> <span id="create-acc-error-text"></span>
+          </div>
+
+          <!-- Actions -->
+          <div class="grid grid-cols-2 gap-3 pt-2">
+            <button type="button" id="btn-cancel-create-acc" class="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition cursor-pointer">
+              අවලංගු කරන්න
+            </button>
+            <button type="submit" id="btn-submit-create-acc" class="py-2.5 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
+              <i class="fas fa-check"></i> ගිණුම තනන්න
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+
+    const closeCreateModal = () => {
+      modal.remove();
+    };
+
+    const cancelBtn = modal.querySelector("#btn-cancel-create-acc");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", () => {
+        closeCreateModal();
+        this.openUserLoginModal(onSuccessCallback);
+      });
+    }
+
+    const closeBtn = modal.querySelector("#close-create-account-modal");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", () => {
+        closeCreateModal();
+        this.openUserLoginModal(onSuccessCallback);
+      });
+    }
+
+    // Avatar Selection handlers
+    const previewEl = modal.querySelector("#create-modal-preview-avatar");
+    modal.querySelectorAll(".avatar-opt-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        modal.querySelectorAll(".avatar-opt-btn").forEach(b => {
+          b.className = "avatar-opt-btn h-10 rounded-xl border-2 border-slate-200 bg-slate-50 hover:bg-white flex items-center justify-center text-lg transition hover:scale-105 active:scale-95";
+        });
+        btn.className = "avatar-opt-btn h-10 rounded-xl border-2 border-purple-600 bg-purple-50 shadow-xs flex items-center justify-center text-lg transition hover:scale-105 active:scale-95";
+        selectedAvatar = btn.dataset.emoji;
+        if (previewEl) previewEl.innerText = selectedAvatar;
+      });
+    });
+
+    // Form submit
+    const form = modal.querySelector("#create-account-form");
+    const errorContainer = modal.querySelector("#create-acc-error");
+    const errorText = modal.querySelector("#create-acc-error-text");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const usernameInput = modal.querySelector("#create-acc-username");
+      const displayInput = modal.querySelector("#create-acc-display-name");
+      const pinInput = modal.querySelector("#create-acc-pin");
+
+      const username = usernameInput ? usernameInput.value.trim() : "";
+      const displayName = displayInput ? displayInput.value.trim() : "";
+      const pin = pinInput ? pinInput.value.trim() : "3408";
+
+      if (!username) {
+        errorContainer.classList.remove("hidden");
+        errorText.innerText = "කරුණාකර පරිශීලක නාමයක් ඇතුළත් කරන්න.";
+        return;
+      }
+
+      // Check duplicate
+      const exists = this.users.some(u => u && u.username && u.username.toLowerCase() === username.toLowerCase());
+      if (exists) {
+        errorContainer.classList.remove("hidden");
+        errorText.innerText = `"${username}" නමින් ගිණුමක් දැනටමත් පවතී. කරුණාකර වෙනත් නමක් තෝරන්න.`;
+        return;
+      }
+
+      const submitBtn = modal.querySelector("#btn-submit-create-acc");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> සාදමින් පවතී...';
+      }
+
+      const newId = "user_" + Math.random().toString(36).substring(2, 9);
+      const newUser = {
+        id: newId,
+        username: username,
+        display_name: displayName || username,
+        avatar: selectedAvatar || '👤',
+        pin: pin || '3408',
+        role: 'member',
+        points: 50,
+        is_active: true,
+        created_at: new Date().toISOString()
+      };
+
+      // Add before admin profile
+      const adminIdx = this.users.findIndex(u => u.id === 'user_admin' || u.role === 'admin');
+      if (adminIdx !== -1) {
+        this.users.splice(adminIdx, 0, newUser);
+      } else {
+        this.users.push(newUser);
+      }
+
+      // Persist to localStorage and Supabase
+      await this.persistUsers();
+
+      // Switch to new user and unlock edit mode
+      this.setCurrentUser(newUser, true);
+
+      closeCreateModal();
+
+      if (onSuccessCallback) {
+        onSuccessCallback(newUser);
+      }
+    });
   }
 
   /**

@@ -18,20 +18,63 @@ const createStorageMock = () => {
     clear: () => { store = {}; }
   };
 };
-globalThis.localStorage = createStorageMock();
-globalThis.sessionStorage = createStorageMock();
+const storageMock = createStorageMock();
+const sessionMock = createStorageMock();
+globalThis.localStorage = storageMock;
+globalThis.sessionStorage = sessionMock;
+global.localStorage = storageMock;
+global.sessionStorage = sessionMock;
 
+// Mock global fetch to prevent mutating remote Supabase during tests
+const mockSupabaseUsers = [
+  { id: "user_wosa", username: "Wosandi", display_name: "Wosandi (වෝසන්දි)", avatar: "🌸", pin: "3408", role: "primary", points: 250, is_active: true },
+  { id: "user_nilu", username: "Nilu", display_name: "Nilu (නිලූ)", avatar: "🌺", pin: "3408", role: "member", points: 100, is_active: true },
+  { id: "user_admin", username: "Admin", display_name: "Admin (පරිපාලක)", avatar: "🛡️", pin: "340800", role: "admin", points: 0, is_active: true }
+];
+
+globalThis.fetch = async (url, options = {}) => {
+  if (typeof url === 'string' && url.includes('wosandi_admin_config')) {
+    if (options.method === 'PATCH') {
+      try {
+        const body = JSON.parse(options.body);
+        if (body.config_data?.users) {
+          mockSupabaseUsers.length = 0;
+          mockSupabaseUsers.push(...body.config_data.users);
+        }
+      } catch (e) {}
+      return { ok: true, status: 200, json: async () => ({}) };
+    }
+    return {
+      ok: true,
+      status: 200,
+      json: async () => [{
+        config_key: "users_config",
+        config_data: { users: [...mockSupabaseUsers] }
+      }]
+    };
+  }
+  return { ok: true, status: 200, json: async () => ({}) };
+};
 
 async function runTests() {
   console.log("=== TEST SUITE 1: Admin User Management (UserManager) ===");
   
-  // 1. Initial State & Defaults
-  assert(Array.isArray(DEFAULT_USERS) && DEFAULT_USERS.length >= 5, "Default users has at least 5 seeded profiles");
-  const wosaUser = DEFAULT_USERS.find(u => u.username === "Wosa");
-  assert(wosaUser && wosaUser.role === "primary", "Wosa is configured as default primary user");
-  assert(wosaUser.points === 120, "Wosa initial points is 120");
-  assert(wosaUser.pin === "1234", "Wosa default PIN is 1234");
-  console.log("  ✓ PASS: Default user structure and Wosa primary profile verified");
+  // 1. Initial State & Defaults: Only Wosandi, Nilu, and Admin
+  assert(Array.isArray(DEFAULT_USERS) && DEFAULT_USERS.length === 3, "Default users contains exactly 3 seeded profiles (Wosandi, Nilu, Admin)");
+  
+  const wosaUser = DEFAULT_USERS.find(u => u.username === "Wosa" || u.username === "Wosandi" || u.id === "user_wosa");
+  assert(wosaUser && wosaUser.role === "primary", "Wosa/Wosandi is configured as default primary user");
+  assert(wosaUser.pin === "3408", "Wosa default PIN is 3408");
+
+  const niluUser = DEFAULT_USERS.find(u => u.username === "Nilu" || u.id === "user_nilu");
+  assert(niluUser && niluUser.role === "member", "Nilu profile exists with member role");
+  assert(niluUser.pin === "3408", "Nilu default PIN is 3408");
+
+  const adminUser = DEFAULT_USERS.find(u => u.username === "Admin" || u.id === "user_admin" || u.role === "admin");
+  assert(adminUser && adminUser.role === "admin", "Admin profile exists with admin role");
+  assert(adminUser.pin === "340800", "Admin profile PIN is 340800");
+
+  console.log("  ✓ PASS: Only Wosandi, Nilu, and Admin default accounts exist with verified PINs");
 
   // 2. Admin UserManager Module Initialization & Fallback
   let fakeContainer = { innerHTML: "" };
@@ -43,16 +86,19 @@ async function runTests() {
   const userManager = new UserManager(fakeContainer, mockApi, (msg) => { mockToastMsg = msg; });
   
   await userManager.loadUsers();
-  assert(userManager.users.length >= 2, "UserManager successfully loaded users");
+  assert(userManager.users.length >= 3, "UserManager successfully loaded users");
   assert(userManager.users.some(u => u.id === "user_wosa" || u.username === "Wosa" || u.username === "Wosandi"), "Wosa/primary user exists in UserManager user list");
-  console.log("  ✓ PASS: UserManager successfully initialized and loaded users");
+  assert(userManager.users.some(u => u.id === "user_nilu" || u.username === "Nilu"), "Nilu exists in UserManager user list");
+  assert(userManager.users.some(u => u.id === "user_admin" || u.role === "admin"), "Admin exists in UserManager user list");
+  assert(!userManager.users.some(u => u.id === "user_test_runner" || u.username?.toLowerCase().includes("testrunner")), "No test runner accounts exist");
+  console.log("  ✓ PASS: UserManager successfully initialized, loaded Wosandi/Nilu/Admin, and filtered test accounts");
 
   // 3. Add New User
   const initialCount = userManager.users.length;
   userManager.users.push({
-    id: "user_test_runner",
-    username: "TestRunner",
-    display_name: "Test Runner (පරීක්ෂක)",
+    id: "user_test_mock",
+    username: "TestUser",
+    display_name: "Test User (පරීක්ෂක)",
     avatar: "🤖",
     pin: "5678",
     points: 150,
@@ -63,14 +109,14 @@ async function runTests() {
   await userManager.persistUsers();
   assert(userManager.users.length === initialCount + 1, "New user added successfully");
   const cachedUsers = JSON.parse(localStorage.getItem("wosandi_users_config"));
-  assert(cachedUsers.some(u => u.username === "TestRunner"), "Persisted user found in local cache");
+  assert(cachedUsers.some(u => u.username === "TestUser"), "Persisted user found in local cache");
   console.log("  ✓ PASS: Adding user and persistence to wosandi_users_config verified");
 
   // 4. Protection Guard: Primary user "Wosa" cannot be deleted
-  const wosaInList = userManager.users.find(u => u.id === "user_wosa" || u.role === "primary" || u.username === "Wosa");
+  const wosaInList = userManager.users.find(u => u.id === "user_wosa" || u.role === "primary" || u.username === "Wosa" || u.username === "Wosandi");
   let deleteBlocked = false;
   try {
-    if (wosaInList.role === "primary" || wosaInList.id === "user_wosa" || wosaInList.username === "Wosa") {
+    if (wosaInList.role === "primary" || wosaInList.id === "user_wosa" || wosaInList.username === "Wosa" || wosaInList.username === "Wosandi") {
       deleteBlocked = true;
     }
   } catch (e) {}
@@ -202,8 +248,43 @@ async function runTests() {
   assert(flowBuilderJs.includes('w-full md:w-3/5') && flowBuilderJs.includes('w-full md:w-2/5'), "flowBuilder.js includes responsive panel width split");
   console.log("  ✓ PASS: admin/js/flowBuilder.js mobile-friendly flex layout verified");
 
+  console.log("\n=== TEST SUITE 6: User Account Creation (+ Add Account Feature) ===");
+  // Requirement 3: "add add acount button to the select usser menu"
+  
+  // 1. Verify userManagerClient methods exist
+  assert(typeof userManagerClient.openCreateAccountModal === 'function', "openCreateAccountModal is implemented as a function");
+  assert(typeof userManagerClient.persistUsers === 'function', "persistUsers is implemented as a function");
+  console.log("  ✓ PASS: userManagerClient methods for account creation and persistence verified");
+
+  // 2. Verify source code includes + Add Account button in select user menu
+  const clientJs = fs.readFileSync('./js/userManagerClient.js', 'utf-8');
+  assert(clientJs.includes('btn-modal-add-account'), "Select User Menu includes btn-modal-add-account");
+  assert(clientJs.includes('නව ගිණුමක් එක් කරන්න') || clientJs.includes('Add New Account'), "Select User Menu includes Add Account text");
+  assert(clientJs.includes('openCreateAccountModal'), "Clicking Add Account opens openCreateAccountModal");
+  console.log("  ✓ PASS: Select User Menu contains '+ Add Account' button linked to creation modal");
+
+  // 3. Verify user creation and persistence
+  const preCount = userManagerClient.users.length;
+  const newAccount = {
+    id: "user_test_custom",
+    username: "Kasun",
+    display_name: "Kasun (කසුන්)",
+    avatar: "🦁",
+    pin: "3408",
+    role: "member",
+    points: 50,
+    is_active: true,
+    created_at: new Date().toISOString()
+  };
+  userManagerClient.users.push(newAccount);
+  await userManagerClient.persistUsers();
+  assert(userManagerClient.users.length === preCount + 1, "New user added to user list");
+  const storedConfig = JSON.parse(localStorage.getItem("wosandi_users_config"));
+  assert(storedConfig.some(u => u.username === "Kasun"), "New user persisted to local storage cache");
+  console.log("  ✓ PASS: User creation and persistence flow verified");
+
   console.log("\n=================================================");
-  console.log("ALL USER MANAGEMENT, PERMISSIONS & MOBILE TESTS PASSED! (20/20)");
+  console.log("ALL USER MANAGEMENT, PERMISSIONS, ADD ACCOUNT & MOBILE TESTS PASSED! (24/24)");
   console.log("=================================================");
 }
 

@@ -9,9 +9,9 @@ export const DEFAULT_USERS = [
   {
     id: "user_wosa",
     username: "Wosa",
-    display_name: "Wosa (වෝසා)",
+    display_name: "Wosandi (වෝසන්දි)",
     avatar: "🌸",
-    pin: "1234",
+    pin: "3408",
     role: "primary",
     points: 120,
     is_active: true,
@@ -19,46 +19,13 @@ export const DEFAULT_USERS = [
     created_at: "2026-09-26T22:45:00Z"
   },
   {
-    id: "user_sandali",
-    username: "Sandali",
-    display_name: "Sandali (සඳලි)",
-    avatar: "👧",
-    pin: "1234",
+    id: "user_nilu",
+    username: "Nilu",
+    display_name: "Nilu (නිලූ)",
+    avatar: "🌺",
+    pin: "3408",
     role: "member",
-    points: 95,
-    is_active: true,
-    created_at: "2026-09-26T22:46:00Z"
-  },
-  {
-    id: "user_kasun",
-    username: "Kasun",
-    display_name: "Kasun (කසුන්)",
-    avatar: "🦁",
-    pin: "1234",
-    role: "member",
-    points: 80,
-    is_active: true,
-    created_at: "2026-09-26T22:47:00Z"
-  },
-  {
-    id: "user_nethmi",
-    username: "Nethmi",
-    display_name: "Nethmi (නෙත්මි)",
-    avatar: "⭐",
-    pin: "1234",
-    role: "member",
-    points: 70,
-    is_active: true,
-    created_at: "2026-09-26T22:48:00Z"
-  },
-  {
-    id: "user_amaya",
-    username: "Amaya",
-    display_name: "Amaya (අමායා)",
-    avatar: "🎨",
-    pin: "1234",
-    role: "member",
-    points: 65,
+    points: 100,
     is_active: true,
     created_at: "2026-09-26T22:49:00Z"
   },
@@ -171,7 +138,9 @@ export class UserManager {
         const rows = await res.json();
         if (Array.isArray(rows) && rows.length > 0 && rows[0].config_data && Array.isArray(rows[0].config_data.users)) {
           this.users = rows[0].config_data.users;
-          localStorage.setItem("wosandi_users_config", JSON.stringify(this.users));
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("wosandi_users_config", JSON.stringify(this.users));
+          }
         }
       }
     } catch (e) {
@@ -180,12 +149,19 @@ export class UserManager {
 
     // 2. LocalStorage Fallback if empty
     if (!this.users || this.users.length === 0) {
-      const cached = localStorage.getItem("wosandi_users_config");
-      if (cached) {
-        try {
-          this.users = JSON.parse(cached);
-        } catch (e) {}
+      if (typeof localStorage !== "undefined") {
+        const cached = localStorage.getItem("wosandi_users_config");
+        if (cached) {
+          try {
+            this.users = JSON.parse(cached);
+          } catch (e) {}
+        }
       }
+    }
+
+    // Filter out test runner accounts
+    if (this.users && Array.isArray(this.users)) {
+      this.users = this.users.filter(u => u && u.id !== "user_test_runner" && !u.username?.toLowerCase().includes("testrunner"));
     }
 
     // 3. Seed default users if still empty
@@ -195,8 +171,14 @@ export class UserManager {
     }
 
     // Ensure Wosa exists as primary
-    if (!this.users.some(u => u.username === "Wosa" || u.id === "user_wosa")) {
+    if (!this.users.some(u => u.username === "Wosa" || u.username === "Wosandi" || u.id === "user_wosa")) {
       this.users.unshift(DEFAULT_USERS[0]);
+      await this.persistUsers();
+    }
+
+    // Ensure Nilu exists
+    if (!this.users.some(u => u.username === "Nilu" || u.id === "user_nilu")) {
+      this.users.splice(1, 0, DEFAULT_USERS[1]);
       await this.persistUsers();
     }
 
@@ -582,7 +564,9 @@ export class UserManager {
 
   async persistUsers() {
     // 1. Save to local storage
-    localStorage.setItem("wosandi_users_config", JSON.stringify(this.users));
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem("wosandi_users_config", JSON.stringify(this.users));
+    }
 
     // 2. Sync to Supabase wosandi_admin_config
     try {
