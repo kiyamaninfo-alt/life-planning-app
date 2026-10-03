@@ -98,6 +98,8 @@ async function loadTodayData() {
     ? window.userManagerClient.getRoutineStateKey(today)
     : ('wosandi_routine_state_' + today);
 
+  const curState = (typeof state !== 'undefined') ? state : ((typeof window !== 'undefined' && window.state) ? window.state : {});
+
   // Instant zero-flicker restoration from same-day local cache
   try {
     const cached = isPrimaryUser
@@ -105,7 +107,7 @@ async function loadTodayData() {
       : localStorage.getItem(userKey);
     if (cached) {
       const parsed = JSON.parse(cached);
-      Object.assign(state, parsed);
+      Object.assign(curState, parsed);
       if (typeof syncStateToUI === 'function') syncStateToUI();
     }
   } catch (e) {}
@@ -155,15 +157,15 @@ async function loadTodayData() {
   }
 
   if (loadedTasks && typeof loadedTasks === 'object') {
-    Object.assign(state, loadedTasks);
+    Object.assign(curState, loadedTasks);
     try {
-      localStorage.setItem('wosandi_routine_state_' + today, JSON.stringify(state));
-      localStorage.setItem(userKey, JSON.stringify(state));
+      localStorage.setItem('wosandi_routine_state_' + today, JSON.stringify(curState));
+      localStorage.setItem(userKey, JSON.stringify(curState));
     } catch (e) {}
   }
 
   if (typeof syncStateToUI === 'function') syncStateToUI();
-  syncProgressWithServer(state, true);
+  syncProgressWithServer(curState, true);
 }
 
 // 2. ඔබගේ ගතික (Dynamic) ලකුණු ගණනය කිරීමේ ක්‍රියාවලිය
@@ -174,7 +176,7 @@ async function loadTodayData() {
  * 2. Scheduled tasks with start time count once start time has arrived today or completed.
  * 3. Once counted, even after scheduled end time has finished, marks remain counted for the whole day.
  */
-export function evaluateTaskScheduleAndMarks(task, state, now = new Date()) {
+function evaluateTaskScheduleAndMarks(task, state, now = new Date()) {
   const pts = Number(task.weight_points) || 10;
   const origId = task.schema_definition?.original_task_id;
   const key = task.schema_definition?.linked_state_key || origId || task.id;
@@ -225,7 +227,8 @@ export function evaluateTaskScheduleAndMarks(task, state, now = new Date()) {
   };
 }
 
-async function syncProgressWithServer(state, skipSave = false) {
+async function syncProgressWithServer(passedState, skipSave = false) {
+  const state = passedState || (typeof window !== 'undefined' && window.state ? window.state : {});
   // Admin profile: strictly monitoring only, no student routine points calculation
   const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
     ? window.userManagerClient.getCurrentUser()
@@ -274,6 +277,34 @@ async function syncProgressWithServer(state, skipSave = false) {
 
   // 3. Dynamic Published Tasks from Admin Panel (wosandi_tasks: global + user-specific)
   // Requirement 3: Cumulative scheduled time points calculation
+  if (typeof window !== 'undefined') {
+    if (!Array.isArray(window.publishedAdminTasks) || window.publishedAdminTasks.length === 0) {
+      try {
+        const cachedRaw = localStorage.getItem('wosandi_admin_wosandi_tasks');
+        if (cachedRaw) {
+          const cachedList = JSON.parse(cachedRaw);
+          if (Array.isArray(cachedList) && cachedList.length > 0) {
+            const activeUser = currentUser || (window.userManagerClient?.getCurrentUser ? window.userManagerClient.getCurrentUser() : { id: 'user_wosa', username: 'Wosa' });
+            window.publishedAdminTasks = cachedList.filter(task => {
+              if (task.status !== 'published') return false;
+              const targetProfile = task.schema_definition?.target_profile || task.target_profile;
+              const isGlobal = !targetProfile || targetProfile === 'global' || targetProfile === 'all';
+              const isTargetUser = Boolean(
+                activeUser && (
+                  targetProfile === activeUser.id ||
+                  targetProfile === activeUser.username ||
+                  ((activeUser.username === 'Wosa' || activeUser.username === 'Wosandi') && (targetProfile === 'user_wosa' || targetProfile === 'Wosa' || targetProfile === 'Wosandi')) ||
+                  (activeUser.id === 'user_wosa' && (targetProfile === 'Wosa' || targetProfile === 'Wosandi'))
+                )
+              );
+              return isGlobal || isTargetUser;
+            });
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
   if (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks)) {
     window.publishedAdminTasks.forEach(task => {
       const evalRes = evaluateTaskScheduleAndMarks(task, state, todayObj);
@@ -449,6 +480,10 @@ function updateUI(percent, earned, total, rank) {
   const rankEl = document.getElementById("rank-badge");
   if (rankEl) rankEl.innerText = rank;
 
+  if (!circularGraph) {
+    initCircularGraph();
+  }
+
   if (circularGraph) {
     circularGraph.update(earned, total);
   } else {
@@ -465,14 +500,18 @@ function updateUI(percent, earned, total, rank) {
   }
 }
 
-if (typeof document !== "undefined") {
-  document.addEventListener("DOMContentLoaded", () => {
-    loadTodayData();
-  });
-}
-
 if (typeof window !== "undefined") {
   window.syncProgressWithServer = syncProgressWithServer;
   window.loadTodayData = loadTodayData;
   window.evaluateTaskScheduleAndMarks = evaluateTaskScheduleAndMarks;
+  window.estimateDayOfWeekBenchmark = estimateDayOfWeekBenchmark;
+  window.initCircularGraph = initCircularGraph;
 }
+
+export {
+  evaluateTaskScheduleAndMarks,
+  syncProgressWithServer,
+  loadTodayData,
+  estimateDayOfWeekBenchmark,
+  initCircularGraph
+};
