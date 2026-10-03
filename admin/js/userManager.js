@@ -61,6 +61,18 @@ export const DEFAULT_USERS = [
     points: 65,
     is_active: true,
     created_at: "2026-09-26T22:49:00Z"
+  },
+  {
+    id: "user_admin",
+    username: "Admin",
+    display_name: "Admin (පරිපාලක)",
+    avatar: "🛡️",
+    pin: "340800",
+    role: "admin",
+    points: 0,
+    is_active: true,
+    is_admin_profile: true,
+    created_at: "2026-10-03T00:00:00Z"
   }
 ];
 
@@ -185,6 +197,13 @@ export class UserManager {
     // Ensure Wosa exists as primary
     if (!this.users.some(u => u.username === "Wosa" || u.id === "user_wosa")) {
       this.users.unshift(DEFAULT_USERS[0]);
+      await this.persistUsers();
+    }
+
+    // Ensure Admin profile exists with initial PIN 340800
+    const adminUserDef = DEFAULT_USERS.find(u => u.id === "user_admin" || u.role === "admin");
+    if (adminUserDef && !this.users.some(u => u.id === "user_admin" || u.role === "admin")) {
+      this.users.push(adminUserDef);
       await this.persistUsers();
     }
 

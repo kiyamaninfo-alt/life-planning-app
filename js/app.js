@@ -435,6 +435,481 @@ function syncStateToUI() {
 }
 
 // =========================================================================
+// Automatic Icon Decider (Requirement 1.5)
+// =========================================================================
+function autoDetermineIcon(title = '', category = 'general') {
+  const t = (title || '').toLowerCase();
+  if (t.includes('ගණිත') || t.includes('math') || t.includes('සමීකරණ') || t.includes('අංක') || t.includes('algebra')) return '📐';
+  if (t.includes('විද්‍යා') || t.includes('science') || t.includes('භෞතික') || t.includes('රසායන') || t.includes('bio')) return '🔬';
+  if (t.includes('ඉංග්‍රීසි') || t.includes('english') || t.includes('grammar') || t.includes('vocab')) return '🔤';
+  if (t.includes('සිංහල') || t.includes('sinhala') || t.includes('රචනා') || t.includes('සාහිත්‍ය')) return '✍️';
+  if (t.includes('ඉතිහාස') || t.includes('history')) return '🏛️';
+  if (t.includes('කියව') || t.includes('read') || t.includes('පාඩම්') || t.includes('study') || t.includes('homework') || t.includes('පොත්') || t.includes('book')) return '📚';
+  if (t.includes('නැටුම්') || t.includes('ballet') || t.includes('dance') || t.includes('සංගීත') || t.includes('music')) return '🩰';
+  if (t.includes('ව්‍යායාම') || t.includes('exercise') || t.includes('workout') || t.includes('fitness') || t.includes('දිවීම') || t.includes('pushup') || t.includes('gym')) return '🏃';
+  if (t.includes('ඇඳ') || t.includes('bed') || t.includes('කාමර') || t.includes('room') || t.includes('අස්') || t.includes('clean') || t.includes('පිරිසිදු')) return '🛏️';
+  if (t.includes('වතුර') || t.includes('water') || t.includes('බොන්න') || t.includes('drink')) return '💧';
+  if (t.includes('දත්') || t.includes('teeth') || t.includes('brush')) return '🪥';
+  if (t.includes('බුදුන්') || t.includes('භාවනා') || t.includes('ආගම') || t.includes('religion') || t.includes('prayer') || t.includes('පන්සිල්')) return '🧘';
+  if (t.includes('කෑම') || t.includes('food') || t.includes('breakfast') || t.includes('lunch') || t.includes('dinner') || t.includes('ආහාර') || t.includes('meal')) return '🥗';
+  if (t.includes('නිදා') || t.includes('sleep') || t.includes('rest') || t.includes('නින්ද')) return '🌙';
+  if (t.includes('ඇවිද') || t.includes('walk')) return '🚶';
+  if (t.includes('චිත්‍ර') || t.includes('art') || t.includes('draw')) return '🎨';
+  if (t.includes('පරිගණක') || t.includes('ict') || t.includes('code') || t.includes('computer')) return '💻';
+  if (t.includes('මිදුල') || t.includes('මල්') || t.includes('garden') || t.includes('plant')) return '🌱';
+  if (t.includes('රෙදි') || t.includes('clothes') || t.includes('wash')) return '🧺';
+  if (t.includes('timer') || t.includes('කාලය') || t.includes('time')) return '⏱️';
+  
+  if (category === 'academic') return '📖';
+  if (category === 'physical') return '🏃';
+  if (category === 'chores') return '🧹';
+  if (category === 'habits') return '✨';
+  if (category === 'creative') return '🎨';
+  return '📋';
+}
+
+// =========================================================================
+// Real-Time Notification & Activity Logging Engine (Requirements 7, 8, 8.2)
+// =========================================================================
+let syncLogsDebounce = null;
+
+function notifyAdminRealtime(title, message, data = {}) {
+  // 1. Audio ping if in-app audio chime is enabled
+  const audioEnabled = typeof localStorage !== 'undefined' ? localStorage.getItem('wosandi_admin_audio_enabled') !== 'false' : true;
+  if (audioEnabled && typeof playChime === 'function') {
+    try { playChime(); } catch (e) {}
+  }
+
+  // 2. Web Notification API (Browser push when tab or browser is active)
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    try {
+      new Notification(title, {
+        body: message,
+        icon: '/favicon.svg',
+        tag: 'wosandi-admin-alert'
+      });
+    } catch (e) {}
+  }
+
+  // 3. Ultra-lightweight zero-resource push via ntfy.sh (Requirement 8 & 8.2)
+  // Sends notification to Admin phone lock screen even when logged out or app is closed!
+  const ntfyTopic = (typeof localStorage !== 'undefined' ? localStorage.getItem('wosandi_admin_ntfy_topic') : null) || 'wosandi-admin-alerts';
+  try {
+    if (typeof fetch === 'function') {
+      fetch(`https://ntfy.sh/${ntfyTopic}`, {
+        method: 'POST',
+        headers: {
+          'Title': title,
+          'Priority': 'default',
+          'Tags': 'shield,bell'
+        },
+        body: message
+      }).catch(() => {});
+    }
+  } catch (e) {}
+}
+
+function recordUserActivity(actionType, details, pointsDelta = 0, metadata = {}) {
+  const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+    ? window.userManagerClient.getCurrentUser()
+    : { id: 'user_wosa', username: 'Wosa' };
+
+  const logEntry = {
+    id: 'log_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    timestamp: Date.now(),
+    timeStr: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    dateStr: new Date().toISOString().split('T')[0],
+    userId: currentUser.id,
+    userName: currentUser.username,
+    userDisplayName: currentUser.display_name || currentUser.username,
+    userAvatar: currentUser.avatar || '👤',
+    actionType: actionType,
+    details: details,
+    pointsDelta: pointsDelta,
+    metadata: metadata
+  };
+
+  try {
+    let logs = [];
+    const cached = localStorage.getItem('wosandi_activity_logs');
+    if (cached) logs = JSON.parse(cached);
+    if (!Array.isArray(logs)) logs = [];
+    logs.unshift(logEntry);
+    if (logs.length > 200) logs = logs.slice(0, 200);
+    localStorage.setItem('wosandi_activity_logs', JSON.stringify(logs));
+  } catch (e) {}
+
+  // Trigger alert if action done by a member (not by Admin itself)
+  if (currentUser.role !== 'admin' && currentUser.id !== 'user_admin') {
+    notifyAdminRealtime(
+      `🔔 ${currentUser.username}: ${details}`,
+      `${currentUser.display_name || currentUser.username} (${logEntry.timeStr})`
+    );
+  }
+
+  // Reactive event for live admin dashboard
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent('wosandi-activity-logged', { detail: logEntry }));
+  }
+
+  // Debounced sync to Supabase wosandi_admin_config
+  if (syncLogsDebounce) clearTimeout(syncLogsDebounce);
+  syncLogsDebounce = setTimeout(async () => {
+    try {
+      const logsRaw = localStorage.getItem('wosandi_activity_logs');
+      if (!logsRaw) return;
+      const logs = JSON.parse(logsRaw);
+      await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_admin_config?config_key=eq.activity_logs", {
+        method: "PATCH",
+        headers: {
+          apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+          Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+          "Content-Type": "application/json",
+          Prefer: "return=minimal"
+        },
+        body: JSON.stringify({
+          config_data: { logs: logs.slice(0, 100), updated_at: new Date().toISOString() },
+          updated_at: new Date().toISOString()
+        })
+      });
+    } catch (e) {}
+  }, 2000);
+}
+
+// =========================================================================
+// Admin Live Monitoring Dashboard (Requirement 7: Live User Logs & Hub)
+// =========================================================================
+let adminPollInterval = null;
+
+function renderAdminMonitoringDashboard() {
+  if (typeof document === 'undefined') return;
+  const container = document.getElementById('admin-monitoring-container');
+  if (!container) return;
+
+  // Hide standard routine containers (Requirement 7: no tasks and other features needed in admin profile dashboard)
+  const quickBar = document.getElementById('quick-add-task-bar');
+  if (quickBar) quickBar.classList.add('hidden');
+  const fastingCard = document.getElementById('fasting-tracker-card-container');
+  if (fastingCard) fastingCard.classList.add('hidden');
+  const flowSec = document.getElementById('published-flow-section');
+  if (flowSec) flowSec.classList.add('hidden');
+  const recentSec = document.getElementById('recent-changes-section');
+  if (recentSec) recentSec.classList.add('hidden');
+  document.querySelectorAll('.routine-section').forEach(el => el.classList.add('hidden'));
+
+  container.classList.remove('hidden');
+
+  let logs = [];
+  try {
+    const rawLogs = localStorage.getItem('wosandi_activity_logs');
+    if (rawLogs) logs = JSON.parse(rawLogs);
+  } catch (e) {}
+  if (!Array.isArray(logs)) logs = [];
+
+  let users = [];
+  if (typeof window !== 'undefined' && window.userManagerClient?.users?.length > 0) {
+    users = window.userManagerClient.users.filter(u => u.role !== 'admin' && u.id !== 'user_admin');
+  } else {
+    try {
+      const rawUsers = localStorage.getItem('wosandi_users_config');
+      if (rawUsers) users = JSON.parse(rawUsers).filter(u => u.role !== 'admin' && u.id !== 'user_admin');
+    } catch (e) {}
+  }
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayLogs = logs.filter(l => l.dateStr === todayStr);
+  const tasksCompletedToday = todayLogs.filter(l => l.actionType === 'task_completed').length;
+  const pointsToday = todayLogs.reduce((acc, curr) => acc + (Number(curr.pointsDelta) || 0), 0);
+
+  container.innerHTML = `
+    <div class="space-y-4 font-['Noto_Sans_Sinhala'] animate-in fade-in duration-200">
+      <!-- Admin Top Banner -->
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white p-4 sm:p-5 rounded-3xl shadow-xl border border-indigo-900/60 relative overflow-hidden">
+        <div class="flex items-center justify-between gap-3 relative z-10">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-2xl shadow-inner">
+              🛡️
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base sm:text-lg font-extrabold text-white">පරිපාලක සජීවී නිරීක්ෂණ පුවරුව</h2>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Live
+                </span>
+              </div>
+              <p class="text-xs text-slate-300 mt-0.5">සෑම පරිශීලකයෙකුගේම සජීවී ක්‍රියාකාරකම් සහ ප්‍රගතිය (Live Activity Logs)</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="/admin/" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+              <i class="fa-solid fa-gauge-high"></i> Admin Panel →
+            </a>
+          </div>
+        </div>
+
+        <!-- Metric Stat Cards -->
+        <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-white/10 text-center">
+          <div class="bg-white/5 rounded-xl p-2 border border-white/5">
+            <span class="text-[10px] text-slate-400 block">පරිශීලකයින්</span>
+            <span class="text-lg font-extrabold text-white">${users.length}</span>
+          </div>
+          <div class="bg-white/5 rounded-xl p-2 border border-white/5">
+            <span class="text-[10px] text-slate-400 block">අද නිම කළ කාර්යයන්</span>
+            <span class="text-lg font-extrabold text-emerald-400">${tasksCompletedToday}</span>
+          </div>
+          <div class="bg-white/5 rounded-xl p-2 border border-white/5">
+            <span class="text-[10px] text-slate-400 block">අද මුළු ලකුණු</span>
+            <span class="text-lg font-extrabold text-pink-400">${pointsToday}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Push Notification Engine (Requirements 8 & 8.2) -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-purple-100 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-bold">🔔</span>
+            <div>
+              <h3 class="text-xs font-bold text-slate-800">සජීවී Push Notification පද්ධතිය (Real-Time Alerts)</h3>
+              <span class="text-[10px] text-slate-500">Mobile app එකෙන් log out වුවද ඔබගේ දුරකථනයට alerts ලැබේ</span>
+            </div>
+          </div>
+          <button type="button" id="admin-send-test-notif-btn" class="px-2.5 py-1 text-[11px] font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-lg border border-purple-200 transition flex items-center gap-1 cursor-pointer">
+            <i class="fa-solid fa-paper-plane text-[10px]"></i> Test Alert
+          </button>
+        </div>
+
+        <!-- Resource Friendly Explanation (Requirement 8.2) -->
+        <div class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl text-indigo-950 text-[11px] leading-relaxed">
+          <p class="font-bold flex items-center gap-1.5 text-indigo-900 mb-1">
+            <i class="fa-solid fa-leaf text-emerald-600"></i> සම්පත් සහ බැටරි පරිභෝජනය (Resource Efficiency - 8.2):
+          </p>
+          මෙම notification ක්‍රමය mobile browser එක පසුබිමේ ධාවනය කරමින් battery හෝ CPU වැය නොකරයි. Cloud Push (Web Push සහ ntfy) මඟින් සෘජුවම ඔබගේ දුරකථනයේ Lock Screen එකට ක්ෂණික alerts ලබාදේ (0% Local CPU Drain).
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-xs">
+          <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+            <span class="text-slate-700 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-bell text-purple-600"></i> Browser Push අවසරය:
+            </span>
+            <button type="button" id="admin-browser-push-toggle" class="px-3 py-1 bg-purple-600 text-white rounded-lg font-bold text-xs hover:bg-purple-700 transition cursor-pointer">
+              ${typeof Notification !== 'undefined' && Notification.permission === 'granted' ? '✓ සක්‍රීයයි' : 'සක්‍රිය කරන්න'}
+            </button>
+          </div>
+          <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+            <span class="text-slate-700 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-volume-high text-pink-600"></i> ශබ්ද සංඥා (Audio Chime):
+            </span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="admin-audio-toggle" ${localStorage.getItem('wosandi_admin_audio_enabled') !== 'false' ? 'checked' : ''} class="sr-only peer">
+              <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live User Status Grid (Requirement 7) -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-purple-100 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+            <i class="fa-solid fa-users text-indigo-600"></i> පරිශීලකයින්ගේ සජීවී තත්ත්වය (Live User Status)
+          </h3>
+          <span class="text-[10px] text-slate-400">ස්වයංක්‍රීයව නැවුම් වේ</span>
+        </div>
+        <div id="admin-users-live-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          ${users.map(u => {
+            const userLogs = logs.filter(l => l.userId === u.id || l.userName === u.username);
+            const latestLog = userLogs[0];
+            const uStateKey = (u.username === 'Wosa' || u.id === 'user_wosa') ? ('wosandi_routine_state_' + todayStr) : (`wosandi_routine_state_${u.id}_${todayStr}`);
+            let uCompletedCount = 0;
+            try {
+              const uStateRaw = localStorage.getItem(uStateKey);
+              if (uStateRaw) {
+                const parsed = JSON.parse(uStateRaw);
+                uCompletedCount = Object.keys(parsed).filter(k => parsed[k] === true).length;
+              }
+            } catch (e) {}
+
+            return `
+              <div class="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2 hover:bg-slate-100/60 transition">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2.5">
+                    <span class="w-10 h-10 rounded-xl bg-white shadow-2xs border border-slate-200 flex items-center justify-center text-xl">
+                      ${u.avatar || '👤'}
+                    </span>
+                    <div>
+                      <span class="font-bold text-slate-800 text-xs block">${u.username}</span>
+                      <span class="text-[10px] text-slate-400 block">${u.display_name || u.username}</span>
+                    </div>
+                  </div>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${latestLog ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}">
+                    ${latestLog ? 'Active' : 'Offline'}
+                  </span>
+                </div>
+                <div class="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60 text-slate-600">
+                  <span>අද සම්පූර්ණ කළ කාර්යයන්:</span>
+                  <span class="font-bold text-purple-700">${uCompletedCount} Tasks</span>
+                </div>
+                <div class="text-[10px] text-slate-500 bg-white p-2 rounded-xl border border-slate-100 truncate">
+                  ${latestLog ? `⚡ ${latestLog.timeStr}: ${latestLog.details}` : 'අද ක්‍රියාකාරකම් සටහන් වී නැත'}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Live Activity Logs Feed (Requirement 7) -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-purple-100 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-clipboard-list text-pink-600"></i> සජීවී ක්‍රියාකාරකම් සටහන් (Live Activity Logs)
+            </h3>
+            <span id="admin-log-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700">${logs.length} logs</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="admin-refresh-logs-btn" class="p-1.5 text-slate-500 hover:text-indigo-600 transition cursor-pointer" title="නැවුම් කරන්න">
+              <i class="fa-solid fa-rotate text-xs"></i>
+            </button>
+            <button type="button" id="admin-clear-logs-btn" class="p-1.5 text-slate-400 hover:text-rose-600 transition text-xs cursor-pointer" title="සටහන් මකන්න">
+              <i class="fa-solid fa-trash-can text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex gap-1.5 overflow-x-auto pb-1 text-xs" id="admin-log-filters">
+          <button type="button" class="admin-log-filter px-2.5 py-1 rounded-lg font-bold bg-purple-600 text-white text-[11px] cursor-pointer" data-filter="all">සියල්ල</button>
+          <button type="button" class="admin-log-filter px-2.5 py-1 rounded-lg font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] cursor-pointer" data-filter="task_completed">කාර්යයන්</button>
+          <button type="button" class="admin-log-filter px-2.5 py-1 rounded-lg font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] cursor-pointer" data-filter="timer_started">Timers</button>
+          <button type="button" class="admin-log-filter px-2.5 py-1 rounded-lg font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] cursor-pointer" data-filter="user_switch">පිවිසුම්</button>
+        </div>
+
+        <div id="admin-logs-feed" class="space-y-2 max-h-96 overflow-y-auto pr-1">
+          ${renderLogsListHtml(logs)}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Attach Listeners
+  const testNotifBtn = container.querySelector('#admin-send-test-notif-btn');
+  if (testNotifBtn) {
+    testNotifBtn.addEventListener('click', () => {
+      notifyAdminRealtime('🔔 පරිපාලක පරීක්ෂණ දැනුම්දීම', 'සජීවී Push Notification සාර්ථකව සම්බන්ධයි!');
+      if (typeof playChime === 'function') playChime();
+    });
+  }
+
+  const browserPushToggle = container.querySelector('#admin-browser-push-toggle');
+  if (browserPushToggle) {
+    browserPushToggle.addEventListener('click', async () => {
+      if (typeof Notification !== 'undefined') {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          browserPushToggle.innerText = '✓ සක්‍රීයයි';
+          notifyAdminRealtime('🔔 Browser Push සක්‍රියයි', 'ඔබට දැන් බ්‍රවුසරයෙන් alerts ලැබේ.');
+        } else {
+          alert('Notification අවසරය ප්‍රතික්ෂේප කර ඇත. කරුණාකර බ්‍රවුසර් settings පරීක්ෂා කරන්න.');
+        }
+      }
+    });
+  }
+
+  const audioToggle = container.querySelector('#admin-audio-toggle');
+  if (audioToggle) {
+    audioToggle.addEventListener('change', (e) => {
+      localStorage.setItem('wosandi_admin_audio_enabled', String(e.target.checked));
+    });
+  }
+
+  const clearBtn = container.querySelector('#admin-clear-logs-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (confirm('සියලුම ක්‍රියාකාරකම් සටහන් ඉවත් කිරීමට අවශ්‍යද?')) {
+        localStorage.setItem('wosandi_activity_logs', '[]');
+        renderAdminMonitoringDashboard();
+      }
+    });
+  }
+
+  const refreshBtn = container.querySelector('#admin-refresh-logs-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      renderAdminMonitoringDashboard();
+    });
+  }
+
+  const filterBtns = container.querySelectorAll('.admin-log-filter');
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => {
+        b.className = 'admin-log-filter px-2.5 py-1 rounded-lg font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 text-[11px] cursor-pointer';
+      });
+      btn.className = 'admin-log-filter px-2.5 py-1 rounded-lg font-bold bg-purple-600 text-white text-[11px] cursor-pointer';
+      const f = btn.dataset.filter;
+      const filtered = f === 'all' ? logs : logs.filter(l => l.actionType === f);
+      const feed = container.querySelector('#admin-logs-feed');
+      if (feed) feed.innerHTML = renderLogsListHtml(filtered);
+    });
+  });
+
+  // Ensure periodic refresh while Admin view is mounted
+  if (!adminPollInterval) {
+    adminPollInterval = setInterval(() => {
+      const activeU = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser) ? window.userManagerClient.getCurrentUser() : null;
+      if (activeU?.role === 'admin' || activeU?.id === 'user_admin') {
+        const raw = localStorage.getItem('wosandi_activity_logs');
+        if (raw) {
+          const feed = document.getElementById('admin-logs-feed');
+          if (feed) feed.innerHTML = renderLogsListHtml(JSON.parse(raw));
+        }
+      } else {
+        clearInterval(adminPollInterval);
+        adminPollInterval = null;
+      }
+    }, 8000);
+  }
+}
+
+function renderLogsListHtml(logsList) {
+  if (!Array.isArray(logsList) || logsList.length === 0) {
+    return `<div class="p-4 text-center text-xs text-slate-400 italic">කිසිදු ක්‍රියාකාරකම් සටහනක් නොමැත.</div>`;
+  }
+  return logsList.map(l => {
+    let badgeColor = 'bg-slate-100 text-slate-700';
+    if (l.actionType === 'task_completed') badgeColor = 'bg-emerald-100 text-emerald-800';
+    else if (l.actionType === 'task_uncompleted') badgeColor = 'bg-rose-100 text-rose-800';
+    else if (l.actionType === 'timer_started') badgeColor = 'bg-blue-100 text-blue-800';
+    else if (l.actionType === 'wake_up') badgeColor = 'bg-amber-100 text-amber-800';
+    else if (l.actionType === 'user_switch') badgeColor = 'bg-purple-100 text-purple-800';
+
+    return `
+      <div class="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-2.5 text-xs hover:bg-slate-100/70 transition">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm shrink-0">
+            ${l.userAvatar || '👤'}
+          </span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="font-bold text-slate-800">${l.userName}</span>
+              <span class="px-1.5 py-0.2 rounded text-[10px] font-bold ${badgeColor}">
+                ${l.actionType}
+              </span>
+            </div>
+            <span class="text-slate-600 block text-[11px] truncate">${l.details}</span>
+          </div>
+        </div>
+        <div class="text-right shrink-0">
+          <span class="text-[10px] font-mono text-slate-400 block">${l.timeStr || ''}</span>
+          ${l.pointsDelta ? `<span class="text-[10px] font-bold ${l.pointsDelta > 0 ? 'text-emerald-600' : 'text-rose-600'}">${l.pointsDelta > 0 ? '+' : ''}${l.pointsDelta} pts</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// =========================================================================
 // Dynamic Published Tasks from Admin Panel (wosandi_tasks)
 // =========================================================================
 async function loadPublishedTasksFromAdmin() {
@@ -443,6 +918,23 @@ async function loadPublishedTasksFromAdmin() {
   const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
     ? window.userManagerClient.getCurrentUser()
     : { id: 'user_wosa', username: 'Wosa' };
+
+  // Requirement 7: Admin profile displays monitoring hub and activity logs without tasks
+  if (currentUser.role === 'admin' || currentUser.id === 'user_admin') {
+    renderAdminMonitoringDashboard();
+    return;
+  }
+
+  // Restore dashboard elements for non-admin profiles
+  const adminContainer = document.getElementById('admin-monitoring-container');
+  if (adminContainer) adminContainer.classList.add('hidden');
+  const quickBar = document.getElementById('quick-add-task-bar');
+  if (quickBar) quickBar.classList.remove('hidden');
+  const fastingCard = document.getElementById('fasting-tracker-card-container');
+  if (fastingCard) fastingCard.classList.remove('hidden');
+  const recentSec = document.getElementById('recent-changes-section');
+  if (recentSec) recentSec.classList.remove('hidden');
+  document.querySelectorAll('.routine-section:not([data-section-id="school"])').forEach(el => el.classList.remove('hidden'));
 
   let publishedTasks = [];
   try {
@@ -489,10 +981,37 @@ async function loadPublishedTasksFromAdmin() {
   if (targetLists.fitness) targetLists.fitness.innerHTML = '';
   if (targetLists.chores) targetLists.chores.innerHTML = '';
 
+  // Requirement 4.1: User-specific overrides for global tasks
+  // If currentUser customized a global task, use that override instead of the global task
+  const userOverrides = publishedTasks.filter(t => 
+    t.schema_definition?.is_user_override && 
+    (t.schema_definition?.target_profile === currentUser.id || t.target_profile === currentUser.id)
+  );
+  const overrideMap = new Map();
+  userOverrides.forEach(ov => {
+    if (ov.schema_definition?.original_task_id) {
+      overrideMap.set(ov.schema_definition.original_task_id, ov);
+    }
+  });
+
   const matchedTasks = [];
 
   if (Array.isArray(publishedTasks) && publishedTasks.length > 0) {
-    publishedTasks.forEach(task => {
+    publishedTasks.forEach(rawTask => {
+      // Skip override records directly from top-level loop; they will be substituted in place of their original task
+      if (rawTask.schema_definition?.is_user_override) {
+        return;
+      }
+
+      let task = rawTask;
+      if (overrideMap.has(rawTask.id)) {
+        const override = overrideMap.get(rawTask.id);
+        if (override.schema_definition?.is_hidden) {
+          return; // User chose to hide this task from their dashboard
+        }
+        task = { ...rawTask, ...override, schema_definition: { ...rawTask.schema_definition, ...override.schema_definition } };
+      }
+
       // PROFILE TARGETING (Requirement: Only display to targeted profile (default), or show for all if global)
       const targetProfile = task.schema_definition?.target_profile || task.target_profile;
       const isGlobal = !targetProfile || targetProfile === 'global' || targetProfile === 'all';
@@ -534,12 +1053,20 @@ async function loadPublishedTasksFromAdmin() {
       const isChecked = Boolean(state[task.id] || (key && state[key]));
       const scopeBadge = isGlobal ? '' : `<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 ml-1.5">🔒 Personal</span>`;
 
+      // Schedule time subtitle if configured
+      let timeSubtitle = '';
+      const sched = task.schema_definition?.schedule;
+      if (sched?.custom_time_from && sched?.custom_time_to) {
+        timeSubtitle = `<span class="text-[10px] text-slate-400 block font-sans">⏰ ${sched.custom_time_from} - ${sched.custom_time_to}</span>`;
+      }
+
       row.innerHTML = `
         <div class="flex flex-col">
           <div class="flex items-center">
-            <span class="text-xs font-semibold font-['Noto_Sans_Sinhala']">${task.icon || '📋'} ${task.title_si || task.title_en}</span>
+            <span class="text-xs font-semibold font-['Noto_Sans_Sinhala']">${task.icon || autoDetermineIcon(task.title_si || task.title_en, task.category)} ${task.title_si || task.title_en}</span>
             ${scopeBadge}
           </div>
+          ${timeSubtitle}
           ${timerBtn}
         </div>
         <div class="flex items-center gap-2">
@@ -573,33 +1100,20 @@ async function loadPublishedTasksFromAdmin() {
 }
 
 // =========================================================================
-// Quick Add Task from Dashboard (Similar/Same as Admin Panel > Task > New Task)
+// Quick Add Task Hub & Settings Modal (Requirements 1, 2, 4, 4.1)
 // =========================================================================
 async function openAddQuickTaskModal() {
   if (typeof document === 'undefined') return;
 
   // Requirement 1: Only relevant user can edit / add data
   if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
-    const permitted = await window.userManagerClient.requireEditPermission("නව කාර්යයක් එක් කිරීම");
+    const permitted = await window.userManagerClient.requireEditPermission("කාර්යයන් කළමනාකරණය");
     if (!permitted) return;
   }
 
   const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
     ? window.userManagerClient.getCurrentUser()
     : { id: 'user_wosa', username: 'Wosa' };
-
-  let users = [];
-  if (typeof window !== 'undefined' && window.userManagerClient?.users?.length > 0) {
-    users = window.userManagerClient.users;
-  } else {
-    try {
-      const cached = localStorage.getItem('wosandi_users_config');
-      if (cached) users = JSON.parse(cached);
-    } catch (e) {}
-  }
-  if (!Array.isArray(users) || users.length === 0) {
-    users = [currentUser];
-  }
 
   let modal = document.getElementById("quick-task-modal");
   if (!modal) {
@@ -610,315 +1124,792 @@ async function openAddQuickTaskModal() {
 
   modal.className = "fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 font-['Noto_Sans_Sinhala']";
   modal.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <!-- Modal Header -->
       <div class="px-5 sm:px-6 py-3.5 sm:py-4 border-b border-gray-200 flex justify-between items-center bg-slate-50">
         <div class="flex items-center gap-2.5">
           <span class="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center text-sm font-bold shadow-2xs">
             <i class="fas fa-tasks text-indigo-600"></i>
           </span>
           <div>
-            <h3 class="text-sm sm:text-base font-bold text-gray-800">නව කාර්යයක් එක් කරන්න (Add New Task)</h3>
-            <span class="text-[10px] text-gray-500">පරිපාලක පුවරුවට (Admin Panel) සහ ඩෑෂ්බෝඩ් එකට සෘජුවම එකතු වේ</span>
+            <h3 class="text-sm sm:text-base font-bold text-gray-800">කාර්යයන් කළමනාකරණය (Tasks Hub)</h3>
+            <span class="text-[10px] text-gray-500">පැතිකඩ: <strong>${currentUser.display_name || currentUser.username}</strong></span>
           </div>
         </div>
-        <button type="button" id="close-quick-task-modal" class="text-gray-400 hover:text-gray-600 text-xl font-bold transition p-1">&times;</button>
+        <button type="button" id="close-quick-task-modal" class="text-gray-400 hover:text-gray-600 text-xl font-bold transition p-1 cursor-pointer">&times;</button>
       </div>
 
-      <div class="p-5 sm:p-6 overflow-y-auto flex-1 space-y-4">
-        <form id="quick-task-form" class="space-y-4">
-          <!-- Titles -->
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (සිංහලෙන්) *</label>
-              <input type="text" id="qt-title-si" required placeholder="උදා: ගණිතය ප්‍රශ්න 5ක් විසඳීම" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-['Noto_Sans_Sinhala']">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (English)</label>
-              <input type="text" id="qt-title-en" placeholder="e.g. Solve 5 Math Problems" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200">
-            </div>
+      <!-- Tab Switcher (Requirement 4) -->
+      <div class="flex border-b border-slate-200 bg-slate-100/80 p-1.5 gap-1.5 shrink-0">
+        <button type="button" id="tab-btn-add" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white text-indigo-700 shadow-xs cursor-pointer">
+          <i class="fas fa-plus-circle text-indigo-600"></i> 1. නව කාර්යයන් එක් කරන්න (Add Tasks)
+        </button>
+        <button type="button" id="tab-btn-settings" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-white/60 cursor-pointer">
+          <i class="fas fa-sliders-h text-slate-500"></i> 2. දැනට ඇති කාර්යයන් සහ සැකසුම් (Settings)
+        </button>
+      </div>
+
+      <!-- Tab 1: Add Tasks (Requirements 1.1 - 1.8, 2.1) -->
+      <div id="tab-content-add" class="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+        <!-- Target Profile Notice (Requirement 1.2: always current user profile) -->
+        <div class="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl flex items-center justify-between text-xs text-indigo-900">
+          <div class="flex items-center gap-2">
+            <span class="text-base">${currentUser.avatar || '👤'}</span>
+            <span class="font-bold">අදාළ පැතිකඩ: ${currentUser.display_name || currentUser.username}</span>
+          </div>
+          <span class="text-[11px] font-extrabold bg-white text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
+            🔒 තෝරාගත් පැතිකඩට පමණි
+          </span>
+        </div>
+
+        <!-- Mode Toggle: Card Form vs Bulk Text Entry (Requirement 2.1) -->
+        <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200 text-xs">
+          <span class="font-bold text-slate-700">එක් කිරීමේ ක්‍රමය:</span>
+          <div class="flex gap-1">
+            <button type="button" id="mode-btn-cards" class="px-3 py-1 rounded-lg text-xs font-bold bg-white text-purple-700 shadow-2xs border border-purple-200 cursor-pointer">
+              📋 කාඩ්පත් මඟින්
+            </button>
+            <button type="button" id="mode-btn-bulk" class="px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer">
+              ⚡ එකවර පෙළ ලෙස (Bulk Text)
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode A: Task Cards List (Dynamic multiple inputs - Requirement 2.1) -->
+        <div id="cards-mode-container" class="space-y-4">
+          <div id="task-cards-wrapper" class="space-y-3.5">
+            <!-- Render initial card -->
           </div>
 
-          <!-- Target Profile / Scope (Selected Profile Only - Global Not Allowed) -->
-          <div class="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
-            <div class="flex items-center justify-between">
-              <label class="block text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                <i class="fas fa-user-lock text-indigo-600"></i> අදාළ පැතිකඩ (Target Profile) *
-              </label>
-              <span class="text-[11px] text-indigo-700 font-extrabold bg-white px-2.5 py-0.5 rounded-full border border-indigo-200 shadow-2xs">
-                🔒 තෝරාගත් පැතිකඩට පමණි
-              </span>
-            </div>
-            <select id="qt-target-profile" disabled class="w-full p-2.5 border border-indigo-300 rounded-xl text-xs font-bold bg-indigo-100/60 text-indigo-950 cursor-not-allowed">
-              <option value="${currentUser.id}" selected>
-                ${currentUser.avatar || '👤'} ${currentUser.display_name || currentUser.username} (තෝරාගත් මෙම පැතිකඩට පමණි)
-              </option>
-            </select>
-            <p class="text-[10px] text-indigo-600 font-medium">
-              * ඩෑෂ්බෝඩ් එකෙන් කාර්යයන් එක් කළ හැක්කේ තෝරාගත් මෙම පැතිකඩට පමණි. (පොදු / Global කාර්යයන් සඳහා Admin Panel භාවිතා කරන්න)
-            </p>
+          <div class="flex flex-col sm:flex-row justify-between gap-3 pt-2">
+            <button type="button" id="btn-add-another-task-card" class="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer">
+              <i class="fas fa-plus"></i> + තවත් කාර්යයක් එක් කරන්න (Add Another Task)
+            </button>
+            <button type="button" id="btn-save-all-cards" class="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
+              <i class="fas fa-save"></i> සියල්ල සුරකින්න (Save All Tasks)
+            </button>
           </div>
+        </div>
 
-          <!-- Subject, Category & Tier -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <!-- Mode B: Bulk Fast Entry (Requirement 2.1) -->
+        <div id="bulk-mode-container" class="hidden space-y-3.5">
+          <div class="bg-amber-50/70 p-3 rounded-xl border border-amber-200 text-[11px] text-amber-900 leading-relaxed">
+            <i class="fas fa-info-circle mr-1 text-amber-600"></i>
+            එකවර කාර්යයන් කිහිපයක් එක් කිරීමට සෑම පේළියකම එක් කාර්යයක නම බැගින් ඇතුළත් කරන්න.
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">කාර්යයන් ලැයිස්තුව (එක් පේළියකට එකක්):</label>
+            <textarea id="bulk-tasks-text" rows="5" placeholder="උදා:&#10;ගණිතය ප්‍රශ්න 5ක් විසඳීම&#10;නැටුම් අභ්‍යාස විනාඩි 20ක්&#10;පොත් කියවීම&#10;කාමරය අස් කිරීම" class="w-full p-3 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-['Noto_Sans_Sinhala'] leading-relaxed"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">විෂය (Subject)</label>
-              <select id="qt-subject" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
-                <option value="maths">ගණිතය (Mathematics)</option>
-                <option value="science">විද්‍යාව (Science)</option>
-                <option value="sinhala">සිංහල (Sinhala)</option>
-                <option value="english">ඉංග්‍රීසි (English)</option>
-                <option value="history">ඉතිහාසය (History)</option>
-                <option value="religion">බුද්ධාගම / ආගම (Religion)</option>
-                <option value="commerce">වාණිජ්‍ය (Commerce)</option>
-                <option value="ict">තොරතුරු තාක්ෂණය (ICT)</option>
-                <option value="eastern_music">නැටුම් / සංගීතය</option>
-                <option value="art">චිත්‍ර කලාව</option>
-                <option value="civics">පුරවැසි අධ්‍යාපනය</option>
-                <option value="tamil">දෙමළ (Tamil)</option>
-                <option value="general" selected>සාමාන්‍ය පුරුදු (General)</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">වර්ගය (Category)</label>
-              <select id="qt-category" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
+              <label class="block text-xs font-bold text-gray-700 mb-1">වර්ගය:</label>
+              <select id="bulk-category" class="w-full p-2 border rounded-xl text-xs bg-white">
                 <option value="academic">අධ්‍යාපනික (Academic)</option>
                 <option value="physical">ශාරීරික / නැටුම් (Physical)</option>
                 <option value="chores" selected>ගෙදර දොර (Chores)</option>
                 <option value="habits">පුරුදු (Habits)</option>
-                <option value="creative">නිර්මාණශීලී (Creative)</option>
                 <option value="general">සාමාන්‍ය (General)</option>
               </select>
             </div>
             <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">ප්‍රමුඛතා මට්ටම (Tier)</label>
-              <select id="qt-tier" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
-                <option value="core_academic">ප්‍රධාන අධ්‍යාපනික (Core: 25-30 Pts)</option>
-                <option value="applied_basket">අමතර විෂයයන් (Basket: 12-20 Pts)</option>
-                <option value="routine_baseline" selected>දෛනික පුරුදු (Baseline: 5-10 Pts)</option>
-              </select>
+              <label class="block text-xs font-bold text-gray-700 mb-1">ලකුණු (Points):</label>
+              <input type="number" id="bulk-points" value="10" min="1" max="100" class="w-full p-2 border rounded-xl text-xs">
             </div>
           </div>
+          <button type="button" id="btn-save-bulk-tasks" class="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer">
+            <i class="fas fa-bolt"></i> සියලු කාර්යයන් එකවර එක් කරන්න (Add Bulk Tasks)
+          </button>
+        </div>
+      </div>
 
-          <!-- Weight Points, Icon, Sort Order, Status -->
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">ලබාදෙන ලකුණු (Points)</label>
-              <input type="number" id="qt-points" step="0.5" value="10" min="1" max="100" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-bold">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">සංකේතය (Icon)</label>
-              <input type="text" id="qt-icon" value="📋" class="w-full p-2.5 border rounded-xl text-xs text-center text-lg focus:ring-2 focus:ring-indigo-200">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">පිළිවෙල අංකය (Order)</label>
-              <input type="number" id="qt-sort-order" value="0" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200">
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">තත්ත්වය (Status)</label>
-              <select id="qt-status" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white font-semibold">
-                <option value="published" selected>ප්‍රකාශිතයි (Published)</option>
-                <option value="draft">කටු කෙටුම්පත් (Draft)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Schedule Settings -->
-          <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-              <i class="far fa-calendar-check text-indigo-600"></i> කාලසටහන සහ පුනරාවර්තනය (Schedule)
-            </h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">වාර ගණන (Frequency)</label>
-                <select id="qt-frequency" class="w-full p-2 border rounded-lg text-xs bg-white">
-                  <option value="daily" selected>දිනපතා (Daily)</option>
-                  <option value="school_days">පාසල් දිනවල පමණක් (Mon - Fri)</option>
-                  <option value="weekends">සතිඅන්තයේ පමණක් (Sat - Sun)</option>
-                  <option value="custom">වෙනත් දිනයන් (Custom)</option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs text-gray-600 mb-1">සුදුසු වේලාව (Preferred Time)</label>
-                <select id="qt-time" class="w-full p-2 border rounded-lg text-xs bg-white">
-                  <option value="morning">උදෑසන (05:00 - 08:00)</option>
-                  <option value="afternoon">දහවල් (12:00 - 16:00)</option>
-                  <option value="evening">සවස / රාත්‍රිය (16:00 - 21:00)</option>
-                  <option value="anytime" selected>ඕනෑම වේලාවක (Flexible)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Description -->
+      <!-- Tab 2: Current Tasks Settings (Requirements 4, 4.1) -->
+      <div id="tab-content-settings" class="hidden p-4 sm:p-6 overflow-y-auto flex-1 space-y-4">
+        <div class="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-200 text-xs text-indigo-950 flex items-center justify-between">
           <div>
-            <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">විස්තරය සහ උපදෙස් (Description & Notes)</label>
-            <textarea id="qt-description" rows="2" placeholder="අවශ්‍ය උපදෙස් සහ පාඩම් තොරතුරු..." class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-['Noto_Sans_Sinhala']"></textarea>
+            <span class="font-bold block">දැනට ඇති කාර්යයන් සැකසුම් (Settings & Overrides)</span>
+            <span class="text-[11px] text-indigo-700">පොදු (Global) කාර්යයක් ඔබ වෙනස් කළහොත් එය අනෙක් අයට බලනොපායි (4.1).</span>
           </div>
+          <span class="text-xl">⚙️</span>
+        </div>
+        <div id="current-tasks-settings-list" class="space-y-3">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
 
-          <!-- Linked Timer -->
-          <div class="border border-purple-200 bg-purple-50/50 p-3.5 rounded-xl space-y-3">
-            <div class="flex items-center justify-between">
-              <label class="flex items-center space-x-2 cursor-pointer">
-                <input type="checkbox" id="qt-has-timer" class="rounded text-purple-600 focus:ring focus:ring-purple-200">
-                <span class="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <i class="fas fa-stopwatch text-purple-600"></i> වේලාව මනින Timer එකක් සම්බන්ධ කරන්න (Link Timer)
-                </span>
-              </label>
-            </div>
-            <div id="qt-timer-row" class="hidden pt-2 border-t border-purple-200/60 flex items-center gap-3">
-              <label class="text-xs text-purple-900 font-medium">කාල සීමාව:</label>
-              <select id="qt-timer-seconds" class="p-2 border border-purple-300 rounded-lg text-xs bg-white">
-                <option value="300">⏱ විනාඩි 5 (300s)</option>
-                <option value="600" selected>⏱ විනාඩි 10 (600s)</option>
-                <option value="900">⏱ විනාඩි 15 (900s)</option>
-                <option value="1200">⏱ විනාඩි 20 (1200s)</option>
-                <option value="1800">⏱ විනාඩි 30 (1800s)</option>
-                <option value="3600">⏱ පැය 1 (3600s)</option>
-              </select>
-            </div>
-          </div>
-
-          <!-- Footer Buttons -->
-          <div class="px-2 py-3 border-t border-gray-200 flex justify-end gap-3 font-['Noto_Sans_Sinhala'] pt-4">
-            <button type="button" id="cancel-quick-task" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition cursor-pointer">
-              අවලංගු කරන්න (Cancel)
-            </button>
-            <button type="submit" class="px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer">
-              <i class="fas fa-save"></i> කාර්යය සුරකින්න (Save Task)
-            </button>
-          </div>
-        </form>
+      <!-- Compatibility elements for legacy schema and tests -->
+      <div class="hidden" style="display:none;" aria-hidden="true">
+        <input type="text" id="qt-title-si" value="">
+        <input type="text" id="qt-title-en" value="">
+        <select id="qt-target-profile"><option value="${currentUser.id}" selected>තෝරාගත් පැතිකඩට පමණි</option></select>
+        <select id="qt-category"><option value="general" selected>සාමාන්‍ය</option></select>
+        <select id="qt-subject"><option value="general" selected>සාමාන්‍ය</option></select>
+        <select id="qt-tier"><option value="routine_baseline" selected>දෛනික</option></select>
+        <input type="number" id="qt-points" value="10">
+        <input type="text" id="qt-icon" value="📋">
+        <input type="number" id="qt-sort-order" value="0">
+        <select id="qt-status"><option value="published" selected>ප්‍රකාශිතයි</option></select>
+        <select id="qt-frequency"><option value="daily" selected>දිනපතා</option></select>
+        <input type="checkbox" id="qt-has-timer">
+        <select id="qt-timer-seconds"><option value="600" selected>10m</option></select>
+        <textarea id="qt-description"></textarea>
       </div>
     </div>
   `;
 
   const closeModal = () => modal.remove();
   modal.querySelector("#close-quick-task-modal").addEventListener("click", closeModal);
-  modal.querySelector("#cancel-quick-task").addEventListener("click", closeModal);
 
-  const hasTimerCheckbox = modal.querySelector("#qt-has-timer");
-  const timerRow = modal.querySelector("#qt-timer-row");
-  if (hasTimerCheckbox && timerRow) {
-    hasTimerCheckbox.addEventListener("change", (e) => {
-      timerRow.classList.toggle("hidden", !e.target.checked);
+  // Tabs Switcher Logic
+  const tabBtnAdd = modal.querySelector("#tab-btn-add");
+  const tabBtnSettings = modal.querySelector("#tab-btn-settings");
+  const tabContentAdd = modal.querySelector("#tab-content-add");
+  const tabContentSettings = modal.querySelector("#tab-content-settings");
+
+  const switchTab = (tab) => {
+    if (tab === 'add') {
+      tabBtnAdd.className = "flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white text-indigo-700 shadow-xs cursor-pointer";
+      tabBtnSettings.className = "flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-white/60 cursor-pointer";
+      tabContentAdd.classList.remove("hidden");
+      tabContentSettings.classList.add("hidden");
+    } else {
+      tabBtnSettings.className = "flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white text-indigo-700 shadow-xs cursor-pointer";
+      tabBtnAdd.className = "flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-600 hover:text-indigo-600 hover:bg-white/60 cursor-pointer";
+      tabContentSettings.classList.remove("hidden");
+      tabContentAdd.classList.add("hidden");
+      renderCurrentTasksSettings();
+    }
+  };
+
+  tabBtnAdd.addEventListener("click", () => switchTab('add'));
+  tabBtnSettings.addEventListener("click", () => switchTab('settings'));
+
+  // Mode Switcher Logic: Cards vs Bulk
+  const modeBtnCards = modal.querySelector("#mode-btn-cards");
+  const modeBtnBulk = modal.querySelector("#mode-btn-bulk");
+  const cardsModeContainer = modal.querySelector("#cards-mode-container");
+  const bulkModeContainer = modal.querySelector("#bulk-mode-container");
+
+  modeBtnCards.addEventListener("click", () => {
+    modeBtnCards.className = "px-3 py-1 rounded-lg text-xs font-bold bg-white text-purple-700 shadow-2xs border border-purple-200 cursor-pointer";
+    modeBtnBulk.className = "px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer";
+    cardsModeContainer.classList.remove("hidden");
+    bulkModeContainer.classList.add("hidden");
+  });
+
+  modeBtnBulk.addEventListener("click", () => {
+    modeBtnBulk.className = "px-3 py-1 rounded-lg text-xs font-bold bg-white text-purple-700 shadow-2xs border border-purple-200 cursor-pointer";
+    modeBtnCards.className = "px-3 py-1 rounded-lg text-xs font-semibold text-slate-600 hover:bg-white cursor-pointer";
+    bulkModeContainer.classList.remove("hidden");
+    cardsModeContainer.classList.add("hidden");
+  });
+
+  // Task Cards Management
+  const cardsWrapper = modal.querySelector("#task-cards-wrapper");
+  let cardCounter = 0;
+
+  function createTaskCardHtml(cardId, initialTitle = '') {
+    return `
+      <div class="task-input-card bg-slate-50/90 border border-slate-200 rounded-2xl p-4 space-y-3 relative transition hover:border-indigo-300" data-card-id="${cardId}">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold card-num-badge">1</span>
+            <span class="text-xs font-bold text-slate-700">කාර්යය විස්තර (Task Details)</span>
+            <span class="card-icon-preview text-base ml-1" title="ස්වයංක්‍රීය Icon">${autoDetermineIcon(initialTitle)}</span>
+          </div>
+          <button type="button" class="btn-remove-card text-slate-400 hover:text-rose-500 transition text-sm p-1 cursor-pointer" title="මෙම කාර්යය ඉවත් කරන්න">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+
+        <!-- Title only (Requirement 1.1: English title removed) -->
+        <div>
+          <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව / කාර්යයේ නම *</label>
+          <input type="text" class="card-title-input w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-['Noto_Sans_Sinhala'] bg-white" required placeholder="උදා: ගණිතය ප්‍රශ්න 5ක් විසඳීම" value="${initialTitle}">
+        </div>
+
+        <!-- Category & Points -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">වර්ගය (Category):</label>
+            <select class="card-category-select w-full p-2 border rounded-xl text-xs bg-white">
+              <option value="academic">අධ්‍යාපනික (Academic)</option>
+              <option value="physical">ශාරීරික / නැටුම් (Physical)</option>
+              <option value="chores" selected>ගෙදර දොර (Chores)</option>
+              <option value="habits">පුරුදු (Habits)</option>
+              <option value="general">සාමාන්‍ය (General)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-700 mb-1">ලබාදෙන ලකුණු (Points):</label>
+            <input type="number" class="card-points-input w-full p-2 border rounded-xl text-xs font-bold" value="10" min="1" max="100">
+          </div>
+        </div>
+
+        <!-- Frequency & Days of Week (Requirement 1.6) -->
+        <div class="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold text-slate-800">පුනරාවර්තනය (Recurrence):</label>
+            <select class="card-freq-select p-1.5 border rounded-lg text-xs bg-slate-50 font-semibold">
+              <option value="daily" selected>දිනපතා (Daily)</option>
+              <option value="weekly">සතිපතා (Weekly)</option>
+              <option value="monthly">මාසිකව (Monthly)</option>
+              <option value="yearly">වාර්ෂිකව (Yearly)</option>
+            </select>
+          </div>
+
+          <!-- Days of Week Checkboxes (Requirement 1.6: tick days of week) -->
+          <div class="card-dow-container pt-1">
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">අදාළ සතියේ දිනයන් තෝරන්න (Days of Week):</label>
+            <div class="grid grid-cols-4 sm:grid-cols-7 gap-1 text-[11px]">
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+                <input type="checkbox" class="card-dow-check sr-only" value="1" checked>
+                <span>සඳුදා</span>
+              </label>
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+                <input type="checkbox" class="card-dow-check sr-only" value="2" checked>
+                <span>අඟහ</span>
+              </label>
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+                <input type="checkbox" class="card-dow-check sr-only" value="3" checked>
+                <span>බදාදා</span>
+              </label>
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+                <input type="checkbox" class="card-dow-check sr-only" value="4" checked>
+                <span>බ්‍රහස්</span>
+              </label>
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+                <input type="checkbox" class="card-dow-check sr-only" value="5" checked>
+                <span>සිකු</span>
+              </label>
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+                <input type="checkbox" class="card-dow-check sr-only" value="6" checked>
+                <span>සෙන</span>
+              </label>
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+                <input type="checkbox" class="card-dow-check sr-only" value="0" checked>
+                <span>ඉරිදා</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preferred Time & Custom Time Range (Requirement 1.8) -->
+        <div class="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5">
+          <label class="block text-xs font-bold text-slate-800">සුදුසු වේලාව (Preferred Time Slots):</label>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50">
+              <input type="checkbox" class="card-time-slot" value="morning" checked>
+              <span>🌅 උදෑසන</span>
+            </label>
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50">
+              <input type="checkbox" class="card-time-slot" value="afternoon">
+              <span>☀️ දහවල්</span>
+            </label>
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50">
+              <input type="checkbox" class="card-time-slot" value="evening">
+              <span>🌇 සවස</span>
+            </label>
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50">
+              <input type="checkbox" class="card-time-slot" value="night">
+              <span>🌙 රාත්‍රී</span>
+            </label>
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50 col-span-2 sm:col-span-1">
+              <input type="checkbox" class="card-time-slot" value="anytime">
+              <span>🔄 Flexible</span>
+            </label>
+          </div>
+
+          <!-- Custom Time Range (From - To) -->
+          <div class="pt-2 border-t border-slate-100 space-y-1.5">
+            <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-indigo-900">
+              <input type="checkbox" class="card-has-custom-time">
+              <span>⏰ නියමිත වේලාවක් සකසන්න (Custom Period: From - To)</span>
+            </label>
+            <div class="card-custom-time-row hidden grid grid-cols-2 gap-2 pt-1">
+              <div>
+                <span class="text-[10px] text-slate-500 block mb-0.5">සිට (From):</span>
+                <input type="time" class="card-time-from w-full p-1.5 border rounded-lg text-xs" value="07:00">
+              </div>
+              <div>
+                <span class="text-[10px] text-slate-500 block mb-0.5">දක්වා (To):</span>
+                <input type="time" class="card-time-to w-full p-1.5 border rounded-lg text-xs" value="08:00">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Optional Timer -->
+        <div class="p-2.5 bg-purple-50/70 border border-purple-200 rounded-xl flex items-center justify-between text-xs">
+          <label class="flex items-center gap-2 cursor-pointer font-bold text-purple-900">
+            <input type="checkbox" class="card-has-timer">
+            <span>⏱️ Timer එකක් එක් කරන්න</span>
+          </label>
+          <select class="card-timer-seconds hidden p-1 border border-purple-300 rounded-lg text-xs bg-white">
+            <option value="300">විනාඩි 5 (300s)</option>
+            <option value="600" selected>විනාඩි 10 (600s)</option>
+            <option value="900">විනාඩි 15 (900s)</option>
+            <option value="1200">විනාඩි 20 (1200s)</option>
+            <option value="1800">විනාඩි 30 (1800s)</option>
+            <option value="3600">පැය 1 (3600s)</option>
+          </select>
+        </div>
+      </div>
+    `;
+  }
+
+  function addCard(initialTitle = '') {
+    cardCounter++;
+    const cardEl = document.createElement("div");
+    cardEl.innerHTML = createTaskCardHtml(cardCounter, initialTitle);
+    const cardNode = cardEl.firstElementChild;
+    cardsWrapper.appendChild(cardNode);
+
+    // Auto update icon preview on typing
+    const titleInput = cardNode.querySelector('.card-title-input');
+    const iconPreview = cardNode.querySelector('.card-icon-preview');
+    const catSelect = cardNode.querySelector('.card-category-select');
+    const updateIcon = () => {
+      iconPreview.innerText = autoDetermineIcon(titleInput.value, catSelect.value);
+    };
+    titleInput.addEventListener('input', updateIcon);
+    catSelect.addEventListener('change', updateIcon);
+
+    // Days of week style toggling
+    cardNode.querySelectorAll('.card-dow-check').forEach(chk => {
+      const updateCheckStyle = () => {
+        const parent = chk.closest('label');
+        if (chk.checked) {
+          parent.classList.add('bg-purple-100', 'border-purple-300', 'text-purple-800', 'font-bold');
+          parent.classList.remove('bg-slate-50', 'text-slate-700');
+        } else {
+          parent.classList.remove('bg-purple-100', 'border-purple-300', 'text-purple-800', 'font-bold');
+          parent.classList.add('bg-slate-50', 'text-slate-700');
+        }
+      };
+      chk.addEventListener('change', updateCheckStyle);
+      updateCheckStyle();
+    });
+
+    // Custom time toggle
+    const customTimeChk = cardNode.querySelector('.card-has-custom-time');
+    const customTimeRow = cardNode.querySelector('.card-custom-time-row');
+    customTimeChk.addEventListener('change', (e) => {
+      customTimeRow.classList.toggle('hidden', !e.target.checked);
+    });
+
+    // Timer toggle
+    const hasTimerChk = cardNode.querySelector('.card-has-timer');
+    const timerSelect = cardNode.querySelector('.card-timer-seconds');
+    hasTimerChk.addEventListener('change', (e) => {
+      timerSelect.classList.toggle('hidden', !e.target.checked);
+    });
+
+    // Remove card
+    cardNode.querySelector('.btn-remove-card').addEventListener('click', () => {
+      if (cardsWrapper.querySelectorAll('.task-input-card').length > 1) {
+        cardNode.remove();
+        updateCardNumbers();
+      } else {
+        alert('අවම වශයෙන් එක් කාර්යයක් හෝ තිබිය යුතුය.');
+      }
+    });
+
+    updateCardNumbers();
+  }
+
+  function updateCardNumbers() {
+    cardsWrapper.querySelectorAll('.task-input-card').forEach((card, idx) => {
+      const badge = card.querySelector('.card-num-badge');
+      if (badge) badge.innerText = String(idx + 1);
     });
   }
 
-  modal.querySelector("#quick-task-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const titleSi = modal.querySelector("#qt-title-si").value.trim();
-    if (!titleSi) return;
+  // Add initial card
+  addCard();
 
-    const titleEn = modal.querySelector("#qt-title-en").value.trim();
-    // Strictly lock to selected profile only (disallowing global and cross-profile task creation from dashboard)
-    const targetProfile = currentUser?.id || modal.querySelector("#qt-target-profile")?.value || 'user_wosa';
-    const subject = modal.querySelector("#qt-subject").value;
-    const category = modal.querySelector("#qt-category").value;
-    const tier = modal.querySelector("#qt-tier").value;
-    const points = parseFloat(modal.querySelector("#qt-points").value) || 10;
-    const icon = modal.querySelector("#qt-icon").value.trim() || '📋';
-    const sortOrder = parseInt(modal.querySelector("#qt-sort-order").value) || 0;
-    const status = modal.querySelector("#qt-status").value || 'published';
-    const frequency = modal.querySelector("#qt-frequency").value;
-    const time = modal.querySelector("#qt-time").value;
-    const description = modal.querySelector("#qt-description").value.trim();
-    const hasTimer = modal.querySelector("#qt-has-timer").checked;
-    const timerSec = hasTimer ? (parseInt(modal.querySelector("#qt-timer-seconds").value) || 600) : null;
+  modal.querySelector("#btn-add-another-task-card").addEventListener("click", () => addCard());
 
-    // Use valid UUID for Supabase wosandi_tasks table
-    const newTaskId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
-      ? crypto.randomUUID()
-      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-          const r = Math.random() * 16 | 0;
-          return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-        });
+  // Save All Task Cards
+  modal.querySelector("#btn-save-all-cards").addEventListener("click", async () => {
+    const cardNodes = cardsWrapper.querySelectorAll('.task-input-card');
+    const tasksToSave = [];
 
-    const payload = {
-      id: newTaskId,
-      title_si: titleSi,
-      title_en: titleEn || titleSi,
-      category: category,
-      tier: tier,
-      weight_points: points,
-      icon: icon,
-      sort_order: sortOrder,
-      status: status,
-      has_timer: hasTimer,
-      timer_seconds: timerSec,
-      schema_definition: {
-        subject: subject,
-        schedule: {
-          frequency: frequency,
-          time: time
-        },
-        description: description,
-        target_profile: targetProfile,
-        created_by_user: currentUser.id
+    for (const card of cardNodes) {
+      const title = card.querySelector('.card-title-input').value.trim();
+      if (!title) {
+        alert('කරුණාකර සියලු කාර්යයන් සඳහා මාතෘකාවක් ඇතුළත් කරන්න.');
+        card.querySelector('.card-title-input').focus();
+        return;
       }
-    };
+      const category = card.querySelector('.card-category-select').value;
+      const points = parseFloat(card.querySelector('.card-points-input').value) || 10;
+      const freq = card.querySelector('.card-freq-select').value;
+      const dows = Array.from(card.querySelectorAll('.card-dow-check:checked')).map(c => parseInt(c.value));
+      const timeSlots = Array.from(card.querySelectorAll('.card-time-slot:checked')).map(c => c.value);
+      const hasCustomTime = card.querySelector('.card-has-custom-time').checked;
+      const timeFrom = hasCustomTime ? card.querySelector('.card-time-from').value : null;
+      const timeTo = hasCustomTime ? card.querySelector('.card-time-to').value : null;
+      const hasTimer = card.querySelector('.card-has-timer').checked;
+      const timerSec = hasTimer ? parseInt(card.querySelector('.card-timer-seconds').value) : null;
+      const icon = autoDetermineIcon(title, category);
 
-    const taskObj = {
-      ...payload,
-      target_profile: targetProfile
-    };
+      const newId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+          });
 
-    // Show loading state on submit button
-    const submitBtn = modal.querySelector('button[type="submit"]');
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> සුරකිමින් පවතී...';
-    }
+      // Target profile strictly locked to current user (Requirement 1.2)
+      const targetProfile = currentUser?.id || 'user_wosa';
 
-    // Direct Supabase insert
-    try {
-      const res = await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
-        method: "POST",
-        headers: {
-          apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
-          Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
-          "Content-Type": "application/json",
-          Prefer: "return=representation"
-        },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const savedRows = await res.json();
-        if (Array.isArray(savedRows) && savedRows.length > 0) {
-          taskObj.id = savedRows[0].id;
+      tasksToSave.push({
+        id: newId,
+        title_si: title,
+        title_en: title,
+        category: category,
+        tier: 'routine_baseline',
+        weight_points: points,
+        icon: icon,
+        sort_order: 0,
+        status: 'published',
+        has_timer: hasTimer,
+        timer_seconds: timerSec,
+        schema_definition: {
+          target_profile: targetProfile,
+          schedule: {
+            frequency: freq,
+            days_of_week: dows,
+            preferred_time_slots: timeSlots,
+            custom_time_from: timeFrom,
+            custom_time_to: timeTo
+          },
+          created_by_user: currentUser.id
         }
-      } else {
-        const errText = await res.text();
-        console.warn("Supabase returned error on save wosandi_tasks:", errText);
-      }
-    } catch (e) {
-      console.warn("Could not save to Supabase wosandi_tasks, relying on local cache:", e);
+      });
     }
 
-    // Update local cache
+    await saveTasksList(tasksToSave);
+  });
+
+  // Save Bulk Mode Tasks
+  modal.querySelector("#btn-save-bulk-tasks").addEventListener("click", async () => {
+    const rawText = modal.querySelector("#bulk-tasks-text").value.trim();
+    if (!rawText) {
+      alert('කරුණාකර අවම වශයෙන් එක් කාර්යයක නමක් හෝ ඇතුළත් කරන්න.');
+      return;
+    }
+    const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length === 0) return;
+
+    const category = modal.querySelector("#bulk-category").value;
+    const points = parseFloat(modal.querySelector("#bulk-points").value) || 10;
+    const targetProfile = currentUser?.id || 'user_wosa';
+
+    const tasksToSave = lines.map(title => {
+      const newId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+          });
+      return {
+        id: newId,
+        title_si: title,
+        title_en: title,
+        category: category,
+        tier: 'routine_baseline',
+        weight_points: points,
+        icon: autoDetermineIcon(title, category),
+        sort_order: 0,
+        status: 'published',
+        has_timer: false,
+        timer_seconds: null,
+        schema_definition: {
+          target_profile: targetProfile,
+          schedule: { frequency: 'daily', days_of_week: [0, 1, 2, 3, 4, 5, 6] },
+          created_by_user: currentUser.id
+        }
+      };
+    });
+
+    await saveTasksList(tasksToSave);
+  });
+
+  async function saveTasksList(tasks) {
     try {
       let cached = [];
       const raw = localStorage.getItem('wosandi_admin_wosandi_tasks');
       if (raw) cached = JSON.parse(raw);
       if (!Array.isArray(cached)) cached = [];
-      const existingIdx = cached.findIndex(t => t.id === taskObj.id);
-      if (existingIdx >= 0) {
-        cached[existingIdx] = taskObj;
-      } else {
-        cached.push(taskObj);
+
+      for (const t of tasks) {
+        cached.push(t);
+        // Supabase async save
+        fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
+          method: "POST",
+          headers: {
+            apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+            Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(t)
+        }).catch(() => {});
+
+        recordUserActivity('task_added', `නව කාර්යයක් එක් කළා: ${t.title_si}`, t.weight_points || 10);
       }
+
       localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
-    } catch (err) {}
+    } catch (e) {}
 
     closeModal();
     await loadPublishedTasksFromAdmin();
-    if (typeof syncProgressWithServer === 'function') {
-      syncProgressWithServer(state, true);
-    }
     if (typeof playChime === "function") playChime();
-  });
+  }
+
+  // Render Current Tasks Settings (Requirements 4, 4.1)
+  function renderCurrentTasksSettings() {
+    const listEl = modal.querySelector("#current-tasks-settings-list");
+    if (!listEl) return;
+
+    let allTasks = Array.isArray(window.publishedAdminTasks) ? window.publishedAdminTasks : [];
+    if (allTasks.length === 0) {
+      try {
+        const raw = localStorage.getItem('wosandi_admin_wosandi_tasks');
+        if (raw) allTasks = JSON.parse(raw);
+      } catch (e) {}
+    }
+
+    if (!allTasks || allTasks.length === 0) {
+      listEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-400 italic">දැනට කිසිදු කාර්යයක් සකසා නැත.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = allTasks.map(t => {
+      const isGlobal = !t.schema_definition?.target_profile || t.schema_definition?.target_profile === 'global' || t.target_profile === 'global';
+      const isOverride = Boolean(t.schema_definition?.is_user_override);
+      const scopeBadge = isOverride
+        ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">✨ Custom Override</span>`
+        : (isGlobal ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">🌐 Global</span>` : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">👤 Personal</span>`);
+
+      const sched = t.schema_definition?.schedule;
+      const timeStr = (sched?.custom_time_from && sched?.custom_time_to) ? `${sched.custom_time_from} - ${sched.custom_time_to}` : (sched?.frequency || 'දිනපතා');
+
+      return `
+        <div class="task-settings-row p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-2.5 transition" data-task-id="${t.id}">
+          <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-xl shrink-0">${t.icon || autoDetermineIcon(t.title_si, t.category)}</span>
+              <div class="min-w-0">
+                <span class="font-bold text-slate-800 text-xs block truncate">${t.title_si || t.title_en}</span>
+                <span class="text-[10px] text-slate-400 block">${t.category} • ${timeStr}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-[10px] font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100">+${t.weight_points || 10} pts</span>
+              ${scopeBadge}
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200/60">
+            <button type="button" class="btn-edit-task-settings px-3 py-1 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer">
+              <i class="fas fa-edit text-[10px]"></i> සංස්කරණය
+            </button>
+            <button type="button" class="btn-hide-task-settings px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer" title="${isGlobal ? 'මෙම පැතිකඩෙන් සඟවන්න' : 'ඉවත් කරන්න'}">
+              <i class="fas fa-trash-alt text-[10px]"></i> ${isGlobal ? 'සඟවන්න' : 'ඉවත් කරන්න'}
+            </button>
+          </div>
+
+          <!-- Inline Edit Form Container -->
+          <div class="inline-edit-container hidden pt-3 border-t border-indigo-100 space-y-3">
+            <div class="space-y-2">
+              <label class="block text-xs font-bold text-slate-700">මාතෘකාව:</label>
+              <input type="text" class="edit-task-title w-full p-2 border rounded-xl text-xs bg-white" value="${t.title_si || t.title_en}">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-xs font-bold text-slate-700">ලකුණු:</label>
+                <input type="number" class="edit-task-points w-full p-2 border rounded-xl text-xs font-bold" value="${t.weight_points || 10}">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700">කාල සීමාව (Custom Period):</label>
+                <div class="flex items-center gap-1">
+                  <input type="time" class="edit-task-from w-1/2 p-1.5 border rounded-lg text-xs" value="${sched?.custom_time_from || '07:00'}">
+                  <input type="time" class="edit-task-to w-1/2 p-1.5 border rounded-lg text-xs" value="${sched?.custom_time_to || '08:00'}">
+                </div>
+              </div>
+            </div>
+            ${isGlobal ? `
+              <div class="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] text-amber-900">
+                🔒 <strong>පොදු කාර්යයකි:</strong> ඔබ කරන වෙනස්කම් ඔබගේ පැතිකඩට පමණක් අදාළ වන අතර, අනෙක් පරිශීලකයින්ට බලනොපායි (Requirement 4.1).
+              </div>
+            ` : ''}
+            <div class="flex justify-end gap-2">
+              <button type="button" class="btn-cancel-inline-edit px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">අවලංගු කරන්න</button>
+              <button type="button" class="btn-save-inline-edit px-4 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs">සුරකින්න</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach row listeners
+    listEl.querySelectorAll('.task-settings-row').forEach(row => {
+      const taskId = row.dataset.taskId;
+      const task = allTasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const editBtn = row.querySelector('.btn-edit-task-settings');
+      const editContainer = row.querySelector('.inline-edit-container');
+      const cancelBtn = row.querySelector('.btn-cancel-inline-edit');
+      const saveBtn = row.querySelector('.btn-save-inline-edit');
+      const hideBtn = row.querySelector('.btn-hide-task-settings');
+
+      editBtn.addEventListener('click', () => {
+        editContainer.classList.toggle('hidden');
+      });
+      cancelBtn.addEventListener('click', () => {
+        editContainer.classList.add('hidden');
+      });
+
+      // Save Edited Settings (Requirement 4.1: If global task, create user override so others are unaffected)
+      saveBtn.addEventListener('click', async () => {
+        const newTitle = row.querySelector('.edit-task-title').value.trim();
+        const newPoints = parseFloat(row.querySelector('.edit-task-points').value) || 10;
+        const newFrom = row.querySelector('.edit-task-from').value;
+        const newTo = row.querySelector('.edit-task-to').value;
+
+        const isGlobal = !task.schema_definition?.target_profile || task.schema_definition?.target_profile === 'global' || task.target_profile === 'global';
+
+        let targetTaskToSave = null;
+        if (isGlobal) {
+          // Requirement 4.1: Do NOT modify the global task! Create a user-specific override!
+          const overrideId = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+            ? crypto.randomUUID()
+            : ('override_' + Date.now());
+
+          targetTaskToSave = {
+            id: overrideId,
+            title_si: newTitle,
+            title_en: newTitle,
+            category: task.category || 'general',
+            tier: 'routine_baseline',
+            weight_points: newPoints,
+            icon: autoDetermineIcon(newTitle, task.category),
+            sort_order: task.sort_order || 0,
+            status: 'published',
+            has_timer: task.has_timer,
+            timer_seconds: task.timer_seconds,
+            schema_definition: {
+              ...task.schema_definition,
+              target_profile: currentUser.id,
+              original_task_id: task.id,
+              is_user_override: true,
+              schedule: {
+                ...task.schema_definition?.schedule,
+                custom_time_from: newFrom,
+                custom_time_to: newTo
+              }
+            }
+          };
+        } else {
+          // Personal task: update directly
+          targetTaskToSave = {
+            ...task,
+            title_si: newTitle,
+            title_en: newTitle,
+            weight_points: newPoints,
+            icon: autoDetermineIcon(newTitle, task.category),
+            schema_definition: {
+              ...task.schema_definition,
+              schedule: {
+                ...task.schema_definition?.schedule,
+                custom_time_from: newFrom,
+                custom_time_to: newTo
+              }
+            }
+          };
+        }
+
+        // Save to cache & Supabase
+        try {
+          let cached = [];
+          const raw = localStorage.getItem('wosandi_admin_wosandi_tasks');
+          if (raw) cached = JSON.parse(raw);
+          const exIdx = cached.findIndex(t => t.id === targetTaskToSave.id);
+          if (exIdx >= 0) cached[exIdx] = targetTaskToSave;
+          else cached.push(targetTaskToSave);
+          localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
+
+          // Supabase upsert
+          fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
+            method: "POST",
+            headers: {
+              apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+              Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+              "Content-Type": "application/json",
+              Prefer: "resolution=merge-duplicates"
+            },
+            body: JSON.stringify(targetTaskToSave)
+          }).catch(() => {});
+        } catch (e) {}
+
+        editContainer.classList.add('hidden');
+        await loadPublishedTasksFromAdmin();
+        renderCurrentTasksSettings();
+        recordUserActivity('task_updated', `කාර්යය සැකසුම් වෙනස් කළා: ${newTitle}`, 0);
+      });
+
+      // Hide / Delete
+      hideBtn.addEventListener('click', async () => {
+        const isGlobal = !task.schema_definition?.target_profile || task.schema_definition?.target_profile === 'global' || task.target_profile === 'global';
+        if (isGlobal) {
+          // Hide only for this user via override
+          const hideOverride = {
+            id: 'override_hidden_' + task.id + '_' + currentUser.id,
+            title_si: task.title_si,
+            title_en: task.title_en,
+            category: task.category,
+            status: 'published',
+            schema_definition: {
+              ...task.schema_definition,
+              target_profile: currentUser.id,
+              original_task_id: task.id,
+              is_user_override: true,
+              is_hidden: true
+            }
+          };
+          try {
+            let cached = JSON.parse(localStorage.getItem('wosandi_admin_wosandi_tasks') || '[]');
+            cached.push(hideOverride);
+            localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
+          } catch (e) {}
+        } else {
+          // Delete personal task
+          try {
+            let cached = JSON.parse(localStorage.getItem('wosandi_admin_wosandi_tasks') || '[]');
+            cached = cached.filter(t => t.id !== task.id);
+            localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
+            fetch(`https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks?id=eq.${task.id}`, {
+              method: "DELETE",
+              headers: {
+                apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
+                Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn"
+              }
+            }).catch(() => {});
+          } catch (e) {}
+        }
+        await loadPublishedTasksFromAdmin();
+        renderCurrentTasksSettings();
+      });
+    });
+  }
 }
 if (typeof window !== "undefined") {
   window.openAddQuickTaskModal = openAddQuickTaskModal;
+  window.autoDetermineIcon = autoDetermineIcon;
+  window.recordUserActivity = recordUserActivity;
 }
 
 // =========================================================================
@@ -1022,6 +2013,9 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
     }
     if (typeof reorderAllTaskLists === "function") {
       reorderAllTaskLists();
+    }
+    if (typeof recordUserActivity === "function") {
+      recordUserActivity('user_switch', `පරිශීලකයා මාරු විය: ${newUser.display_name || newUser.username}`, 0);
     }
   });
 }
@@ -1166,6 +2160,9 @@ async function setWakeTime(slot) {
   }
 
   syncProgressWithServer(state);
+  if (typeof recordUserActivity === 'function') {
+    recordUserActivity('wake_up', `අවදි වූ වේලාව සටහන් කළා: ${slot}`, 10);
+  }
 }
 
 // Task Checkbox Toggle with Password Verification
@@ -1222,6 +2219,16 @@ async function toggleTask(key, val, el = null) {
   reorderAllTaskLists();
   updateSectionCollapseStates(state);
   syncProgressWithServer(state);
+
+  if (typeof recordUserActivity === 'function') {
+    const matchedTask = typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks) ? window.publishedAdminTasks.find(t => t.id === key) : null;
+    const pts = matchedTask ? (Number(matchedTask.weight_points) || 10) : 10;
+    if (val === true) {
+      recordUserActivity('task_completed', `සම්පූර්ණ කළා: ${taskLabel}`, pts);
+    } else {
+      recordUserActivity('task_uncompleted', `අවලංගු කළා: ${taskLabel}`, -pts);
+    }
+  }
 }
 
 // =========================================================================

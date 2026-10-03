@@ -1,5 +1,35 @@
-// taskManager.js - Task Management CRUD & Debounced Autosave (Phase 2)
 import { DEFAULT_USERS } from './userManager.js';
+
+export function autoDetermineIcon(title = '', category = 'general') {
+  const t = (title || '').toLowerCase();
+  if (t.includes('ගණිත') || t.includes('math') || t.includes('සමීකරණ') || t.includes('අංක') || t.includes('algebra')) return '📐';
+  if (t.includes('විද්‍යා') || t.includes('science') || t.includes('භෞතික') || t.includes('රසායන') || t.includes('bio')) return '🔬';
+  if (t.includes('ඉංග්‍රීසි') || t.includes('english') || t.includes('grammar') || t.includes('vocab')) return '🔤';
+  if (t.includes('සිංහල') || t.includes('sinhala') || t.includes('රචනා') || t.includes('සාහිත්‍ය')) return '✍️';
+  if (t.includes('ඉතිහාස') || t.includes('history')) return '🏛️';
+  if (t.includes('කියව') || t.includes('read') || t.includes('පාඩම්') || t.includes('study') || t.includes('homework') || t.includes('පොත්') || t.includes('book')) return '📚';
+  if (t.includes('නැටුම්') || t.includes('ballet') || t.includes('dance') || t.includes('සංගීත') || t.includes('music')) return '🩰';
+  if (t.includes('ව්‍යායාම') || t.includes('exercise') || t.includes('workout') || t.includes('fitness') || t.includes('දිවීම') || t.includes('pushup') || t.includes('gym')) return '🏃';
+  if (t.includes('ඇඳ') || t.includes('bed') || t.includes('කාමර') || t.includes('room') || t.includes('අස්') || t.includes('clean') || t.includes('පිරිසිදු')) return '🛏️';
+  if (t.includes('වතුර') || t.includes('water') || t.includes('බොන්න') || t.includes('drink')) return '💧';
+  if (t.includes('දත්') || t.includes('teeth') || t.includes('brush')) return '🪥';
+  if (t.includes('බුදුන්') || t.includes('භාවනා') || t.includes('ආගම') || t.includes('religion') || t.includes('prayer') || t.includes('පන්සිල්')) return '🧘';
+  if (t.includes('කෑම') || t.includes('food') || t.includes('breakfast') || t.includes('lunch') || t.includes('dinner') || t.includes('ආහාර') || t.includes('meal')) return '🥗';
+  if (t.includes('නිදා') || t.includes('sleep') || t.includes('rest') || t.includes('නින්ද')) return '🌙';
+  if (t.includes('ඇවිද') || t.includes('walk')) return '🚶';
+  if (t.includes('චිත්‍ර') || t.includes('art') || t.includes('draw')) return '🎨';
+  if (t.includes('පරිගණක') || t.includes('ict') || t.includes('code') || t.includes('computer')) return '💻';
+  if (t.includes('මිදුල') || t.includes('මල්') || t.includes('garden') || t.includes('plant')) return '🌱';
+  if (t.includes('රෙදි') || t.includes('clothes') || t.includes('wash')) return '🧺';
+  if (t.includes('timer') || t.includes('කාලය') || t.includes('time')) return '⏱️';
+  
+  if (category === 'academic') return '📖';
+  if (category === 'physical') return '🏃';
+  if (category === 'chores') return '🧹';
+  if (category === 'habits') return '✨';
+  if (category === 'creative') return '🎨';
+  return '📋';
+}
 
 export class TaskManager {
     constructor(containerEl, api, toastFn) {
@@ -482,6 +512,9 @@ export class TaskManager {
                                         <label class="block text-xs text-gray-600 mb-1">නිතර සිදුවන වාර ගණන (Frequency)</label>
                                         <select id="schedule_frequency" class="w-full p-2 border rounded-lg text-xs bg-white">
                                             <option value="daily" ${currentSchedule.frequency === 'daily' ? 'selected' : ''}>දිනපතා (Daily)</option>
+                                            <option value="weekly" ${currentSchedule.frequency === 'weekly' ? 'selected' : ''}>සතිපතා (Weekly)</option>
+                                            <option value="monthly" ${currentSchedule.frequency === 'monthly' ? 'selected' : ''}>මාසිකව (Monthly)</option>
+                                            <option value="yearly" ${currentSchedule.frequency === 'yearly' ? 'selected' : ''}>වාර්ෂිකව (Yearly)</option>
                                             <option value="school_days" ${currentSchedule.frequency === 'school_days' ? 'selected' : ''}>පාසල් දිනවල පමණක් (Mon - Fri)</option>
                                             <option value="weekends" ${currentSchedule.frequency === 'weekends' ? 'selected' : ''}>සතිඅන්තයේ පමණක් (Sat - Sun)</option>
                                             <option value="custom" ${currentSchedule.frequency === 'custom' ? 'selected' : ''}>වෙනත් දිනයන් (Custom)</option>
@@ -495,6 +528,40 @@ export class TaskManager {
                                             <option value="evening" ${currentSchedule.time === 'evening' ? 'selected' : ''}>සවස / රාත්‍රිය (16:00 - 21:00)</option>
                                             <option value="anytime" ${currentSchedule.time === 'anytime' ? 'selected' : ''}>ඕනෑම වේලාවක (Flexible)</option>
                                         </select>
+                                    </div>
+                                </div>
+                                <!-- Days of Week checkboxes (Requirement 1.6) -->
+                                <div class="pt-2 border-t border-slate-200">
+                                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">සතියේ දිනයන් (Days of Week):</label>
+                                    <div class="grid grid-cols-4 sm:grid-cols-7 gap-1 text-[11px]">
+                                        ${[
+                                            { val: 1, name: 'සඳුදා' },
+                                            { val: 2, name: 'අඟහ' },
+                                            { val: 3, name: 'බදාදා' },
+                                            { val: 4, name: 'බ්‍රහස්' },
+                                            { val: 5, name: 'සිකු' },
+                                            { val: 6, name: 'සෙන' },
+                                            { val: 0, name: 'ඉරිදා' }
+                                        ].map(d => {
+                                            const isChecked = !currentSchedule.days_of_week || currentSchedule.days_of_week.includes(d.val);
+                                            return `
+                                                <label class="flex items-center justify-center p-1 rounded-lg border border-slate-200 cursor-pointer bg-white text-center font-medium">
+                                                    <input type="checkbox" class="admin-dow-check mr-1" value="${d.val}" ${isChecked ? 'checked' : ''}>
+                                                    <span>${d.name}</span>
+                                                </label>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                </div>
+                                <!-- Custom Time Period (Requirement 1.8) -->
+                                <div class="pt-2 border-t border-slate-200 grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">සිට (From):</label>
+                                        <input type="time" id="schedule_custom_from" value="${currentSchedule.custom_time_from || ''}" class="w-full p-1.5 border rounded-lg text-xs bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">දක්වා (To):</label>
+                                        <input type="time" id="schedule_custom_to" value="${currentSchedule.custom_time_to || ''}" class="w-full p-1.5 border rounded-lg text-xs bg-white">
                                     </div>
                                 </div>
                             </div>
@@ -660,11 +727,15 @@ export class TaskManager {
         }
 
         // Merge custom form fields into schema_definition
+        const dows = Array.from(document.querySelectorAll('.admin-dow-check:checked')).map(c => parseInt(c.value));
         schemaDef.subject = document.getElementById('task_subject').value;
         schemaDef.description = document.getElementById('task_description').value;
         schemaDef.schedule = {
             frequency: document.getElementById('schedule_frequency').value,
-            time: document.getElementById('schedule_time').value
+            time: document.getElementById('schedule_time').value,
+            days_of_week: dows.length > 0 ? dows : [0, 1, 2, 3, 4, 5, 6],
+            custom_time_from: document.getElementById('schedule_custom_from')?.value || null,
+            custom_time_to: document.getElementById('schedule_custom_to')?.value || null
         };
         if (linkedTimerId) {
             schemaDef.linked_timer_id = linkedTimerId;

@@ -64,6 +64,18 @@ export const DEFAULT_USERS = [
     points: 65,
     is_active: true,
     created_at: "2026-09-26T22:49:00Z"
+  },
+  {
+    id: "user_admin",
+    username: "Admin",
+    display_name: "Admin (පරිපාලක)",
+    avatar: "🛡️",
+    pin: "340800",
+    role: "admin",
+    points: 0,
+    is_active: true,
+    is_admin_profile: true,
+    created_at: "2026-10-03T00:00:00Z"
   }
 ];
 
@@ -123,6 +135,12 @@ class UserManagerClient {
       this.users.unshift(DEFAULT_USERS[0]);
     }
 
+    // Ensure Admin profile is present (initial PIN 340800)
+    const adminUserDef = DEFAULT_USERS.find(u => u.id === "user_admin" || u.role === "admin");
+    if (adminUserDef && !this.users.some(u => u.id === "user_admin" || u.role === "admin")) {
+      this.users.push(adminUserDef);
+    }
+
     // SYNC currentUser if it was already selected/cached
     if (this.currentUser && this.users && this.users.length > 0) {
       const found = this.users.find(u => u.id === this.currentUser.id || u.username === this.currentUser.username);
@@ -139,7 +157,7 @@ class UserManagerClient {
   }
 
   getTop5Users() {
-    const active = this.users.filter(u => u.is_active !== false);
+    const active = this.users.filter(u => u.is_active !== false && u.role !== 'admin');
     active.sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0));
     return active.slice(0, 5);
   }
@@ -299,6 +317,29 @@ class UserManagerClient {
       lockEl.className = isEditor ? "fa-solid fa-lock-open text-[10px] text-emerald-500" : "fa-solid fa-eye text-[10px] text-amber-500";
       lockEl.title = isEditor ? "සංස්කරණ අවසර ඇත (Editing rights active)" : "නැරඹුම් ප්‍රකාරය (View-Only Mode)";
     }
+
+    // Requirement 6: Links for Wosandi O/L and Admin on top show ONLY to Wosandi profile
+    const isWosandi = user && (user.username === "Wosa" || user.username === "Wosandi" || user.id === "user_wosa");
+    const wosandiLink = document.getElementById("header-wosandi-link");
+    const adminLink = document.getElementById("header-admin-link");
+    if (wosandiLink) {
+      if (isWosandi) {
+        wosandiLink.classList.remove("hidden");
+        wosandiLink.style.display = "";
+      } else {
+        wosandiLink.classList.add("hidden");
+        wosandiLink.style.display = "none";
+      }
+    }
+    if (adminLink) {
+      if (isWosandi) {
+        adminLink.classList.remove("hidden");
+        adminLink.style.display = "";
+      } else {
+        adminLink.classList.add("hidden");
+        adminLink.style.display = "none";
+      }
+    }
   }
 
   renderPermissionBanner() {
@@ -352,10 +393,12 @@ class UserManagerClient {
    * Allows:
    * - Anyone to VIEW progress with 1 click (no password needed!)
    * - Relevant user to EDIT by entering their PIN/Password!
+   * - Admin to log in to the Live Monitoring & Activity Logs Hub with initial PIN "340800"
    */
   openUserLoginModal(onSuccessCallback = null) {
     const top5 = this.getTop5Users();
     const currentUser = this.getCurrentUser();
+    const adminUser = this.users.find(u => u.id === 'user_admin' || u.role === 'admin') || DEFAULT_USERS.find(u => u.id === 'user_admin');
 
     let modal = document.getElementById("user-login-modal");
     if (!modal) {
@@ -363,6 +406,8 @@ class UserManagerClient {
       modal.id = "user-login-modal";
       document.body.appendChild(modal);
     }
+
+    const isAdminSelected = currentUser?.id === 'user_admin' || currentUser?.role === 'admin';
 
     modal.className = "fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 font-['Poppins']";
     modal.innerHTML = `
@@ -408,6 +453,29 @@ class UserManagerClient {
               }).join('')}
             </div>
 
+            <!-- Admin Profile Access Card (Requirement 7: password 340800) -->
+            ${adminUser ? `
+              <div class="pt-2 border-t border-purple-100">
+                <div class="p-3.5 rounded-2xl border-2 transition-all duration-200 flex items-center justify-between gap-3 cursor-pointer ${isAdminSelected ? 'border-indigo-600 bg-indigo-950 text-white shadow-md ring-2 ring-indigo-300' : 'border-slate-800 bg-gradient-to-r from-slate-900 to-indigo-950 text-white hover:border-indigo-400 hover:shadow-lg'} active:scale-[0.99]" data-user-id="${adminUser.id}">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-2xl shrink-0 shadow-inner">
+                      ${adminUser.avatar || '🛡️'}
+                    </div>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-sm text-white">${adminUser.display_name || 'Admin Profile'}</span>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950">Security</span>
+                      </div>
+                      <span class="text-xs text-slate-300 block truncate font-['Noto_Sans_Sinhala'] mt-0.5">සජීවී නිරීක්ෂණය සහ ක්‍රියාකාරකම් සටහන් (Monitoring & Logs)</span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 text-xs font-bold ${isAdminSelected ? 'text-emerald-300 bg-white/10' : 'text-amber-300 bg-white/10'} px-3 py-1.5 rounded-xl border border-white/10 shrink-0 font-['Noto_Sans_Sinhala']">
+                    ${isAdminSelected ? '✓ සක්‍රීයයි' : '<i class="fas fa-lock text-[10px]"></i> පිවිසෙන්න'}
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
             <div class="p-3 bg-purple-50 rounded-xl border border-purple-200 text-purple-800 text-[11px] font-['Noto_Sans_Sinhala'] text-center">
               <i class="fas fa-info-circle text-purple-600 mr-1"></i>
               ඕනෑම පරිශීලකයෙකුගේ කාඩ්පත මත ක්ලික් කළ සැණින් ඔවුන්ගේ සජීවී ප්‍රගති පුවරුව විවෘත වේ.
@@ -423,12 +491,27 @@ class UserManagerClient {
       const closeBtn = modal.querySelector("#close-user-login-modal");
       if (closeBtn) closeBtn.addEventListener("click", closeModal);
 
-      // Click ANY user card to open profile instantly
+      // Click user or admin card
       modal.querySelectorAll("[data-user-id]").forEach(card => {
         card.addEventListener("click", () => {
           const userId = card.dataset.userId;
-          const targetUser = this.users.find(u => u.id === userId);
+          const targetUser = this.users.find(u => u.id === userId) || (adminUser && adminUser.id === userId ? adminUser : null);
           if (!targetUser) return;
+
+          // Requirement 7: Admin Profile initial password verification "340800"
+          if (targetUser.role === 'admin' || targetUser.id === 'user_admin') {
+            this.promptUserPassword(
+              targetUser,
+              () => {
+                this.setCurrentUser(targetUser, true);
+                closeModal();
+                if (onSuccessCallback) onSuccessCallback(targetUser);
+              },
+              "Admin Profile (සජීවී නිරීක්ෂණ පුවරුව) වෙත පිවිසීම"
+            );
+            return;
+          }
+
           this.setCurrentUser(targetUser, false); // Instant profile switch
           closeModal();
           if (onSuccessCallback) onSuccessCallback(targetUser);

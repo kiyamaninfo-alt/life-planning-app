@@ -41,15 +41,19 @@ CREATE TABLE IF NOT EXISTS public.wosandi_tasks (
     status VARCHAR(20) NOT NULL DEFAULT 'draft'
         CHECK (status IN ('draft', 'published', 'archived')),
     schema_definition JSONB NOT NULL DEFAULT '{}'::jsonb,
-    -- schema_definition example:
+    -- schema_definition enhanced structure:
     -- {
-    --   "input_type": "checkbox",         -- checkbox | toggle | number_input
-    --   "required": false,
-    --   "linked_state_key": "maths_practice",
-    --   "sub_tasks": [
-    --     {"id": "sub_1", "label_si": "...", "points": 5}
-    --   ],
-    --   "visibility_rules": {"day_of_week": [1,2,3,4,5]}
+    --   "target_profile": "user_id" | "global",
+    --   "original_task_id": "uuid",          -- When user modifies a global task, preserves original
+    --   "is_user_override": true,            -- Guarantees user changes do NOT affect other users
+    --   "is_hidden": false,                  -- Per-user visibility toggle
+    --   "schedule": {
+    --     "frequency": "daily" | "weekly" | "monthly" | "yearly" | "school_days" | "weekends" | "custom",
+    --     "days_of_week": [1, 2, 3, 4, 5],   -- 0=Sun, 1=Mon, ..., 6=Sat
+    --     "preferred_time_slots": ["morning", "evening"],
+    --     "custom_time_from": "07:00",
+    --     "custom_time_to": "08:30"
+    --   }
     -- }
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
