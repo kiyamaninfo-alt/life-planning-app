@@ -731,27 +731,45 @@ function renderAdminMonitoringDashboard() {
             } catch (e) {}
 
             return `
-              <div class="p-3.5 bg-slate-50/80 border border-slate-200 rounded-2xl space-y-2 hover:bg-slate-100/60 transition">
+              <div class="admin-user-card p-4 bg-slate-50/90 border border-slate-200 rounded-2xl space-y-3 hover:bg-slate-100/70 hover:border-purple-300 transition cursor-pointer shadow-2xs" data-user-id="${u.id}">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2.5">
-                    <span class="w-10 h-10 rounded-xl bg-white shadow-2xs border border-slate-200 flex items-center justify-center text-xl">
+                    <span class="w-11 h-11 rounded-2xl bg-white shadow-xs border border-slate-200 flex items-center justify-center text-2xl">
                       ${u.avatar || '👤'}
                     </span>
                     <div>
-                      <span class="font-bold text-slate-800 text-xs block">${u.username}</span>
-                      <span class="text-[10px] text-slate-400 block">${u.display_name || u.username}</span>
+                      <div class="flex items-center gap-1.5">
+                        <span class="font-bold text-slate-800 text-sm">${u.username}</span>
+                        ${u.role === 'primary' ? '<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-pink-100 text-pink-600">Primary</span>' : ''}
+                      </div>
+                      <span class="text-xs text-slate-400 block">${u.display_name || u.username}</span>
                     </div>
                   </div>
-                  <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${latestLog ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}">
-                    ${latestLog ? 'Active' : 'Offline'}
-                  </span>
+                  <div class="flex flex-col items-end gap-1">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${latestLog ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}">
+                      ${latestLog ? '● Active' : 'Offline'}
+                    </span>
+                    <span class="text-[10px] text-pink-600 font-bold bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100">${u.points || 0} pts</span>
+                  </div>
                 </div>
-                <div class="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60 text-slate-600">
+
+                <div class="flex items-center justify-between text-xs pt-1.5 border-t border-slate-200/60 text-slate-600">
                   <span>අද සම්පූර්ණ කළ කාර්යයන්:</span>
                   <span class="font-bold text-purple-700">${uCompletedCount} Tasks</span>
                 </div>
-                <div class="text-[10px] text-slate-500 bg-white p-2 rounded-xl border border-slate-100 truncate">
+
+                <div class="text-[11px] text-slate-500 bg-white p-2 rounded-xl border border-slate-100 truncate">
                   ${latestLog ? `⚡ ${latestLog.timeStr}: ${latestLog.details}` : 'අද ක්‍රියාකාරකම් සටහන් වී නැත'}
+                </div>
+
+                <!-- Quick Action Buttons for Admin (Requirements 3 & 4) -->
+                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/50">
+                  <button type="button" class="btn-inspect-user-logs py-1.5 px-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-[11px] transition flex items-center justify-center gap-1 cursor-pointer" data-user-id="${u.id}">
+                    <i class="fas fa-list-ol"></i> ක්‍රියාකාරකම් (Logs)
+                  </button>
+                  <button type="button" class="btn-open-user-full-dashboard py-1.5 px-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-[11px] shadow-xs transition flex items-center justify-center gap-1 cursor-pointer" data-user-id="${u.id}">
+                    <i class="fas fa-external-link-alt"></i> Dashboard බලන්න
+                  </button>
                 </div>
               </div>
             `;
@@ -759,7 +777,7 @@ function renderAdminMonitoringDashboard() {
         </div>
       </div>
 
-      <!-- Live Activity Logs Feed (Requirement 7) -->
+      <!-- Live Activity Logs Feed (Requirement 7 & 6) -->
       <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-purple-100 space-y-3">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div class="flex items-center gap-2">
@@ -791,6 +809,40 @@ function renderAdminMonitoringDashboard() {
       </div>
     </div>
   `;
+
+  // Remove admin-master-bar if returning to monitoring dashboard
+  const masterBar = document.getElementById('admin-master-bar');
+  if (masterBar) masterBar.remove();
+
+  // Attach card and button listeners for User Inspector and Full Dashboard (Requirements 3 & 4)
+  container.querySelectorAll('.btn-inspect-user-logs').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const uId = btn.dataset.userId;
+      const targetUser = users.find(u => u.id === uId);
+      if (targetUser) openAdminUserInspectorModal(targetUser);
+    });
+  });
+
+  container.querySelectorAll('.btn-open-user-full-dashboard').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const uId = btn.dataset.userId;
+      const targetUser = users.find(u => u.id === uId);
+      if (targetUser) openUserDashboardAsAdminMaster(targetUser);
+    });
+  });
+
+  container.querySelectorAll('.admin-user-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const uId = card.dataset.userId;
+      const targetUser = users.find(u => u.id === uId);
+      if (targetUser) openAdminUserInspectorModal(targetUser);
+    });
+  });
+
+  // Attach listeners for live feed log items (Requirement 6: click log entry to see full details)
+  attachLogsFeedClickListeners(container, logs);
 
   // Attach Listeners
   const testNotifBtn = container.querySelector('#admin-send-test-notif-btn');
@@ -850,7 +902,10 @@ function renderAdminMonitoringDashboard() {
       const f = btn.dataset.filter;
       const filtered = f === 'all' ? logs : logs.filter(l => l.actionType === f);
       const feed = container.querySelector('#admin-logs-feed');
-      if (feed) feed.innerHTML = renderLogsListHtml(filtered);
+      if (feed) {
+        feed.innerHTML = renderLogsListHtml(filtered);
+        attachLogsFeedClickListeners(container, filtered);
+      }
     });
   });
 
@@ -861,8 +916,12 @@ function renderAdminMonitoringDashboard() {
       if (activeU?.role === 'admin' || activeU?.id === 'user_admin') {
         const raw = localStorage.getItem('wosandi_activity_logs');
         if (raw) {
+          const parsed = JSON.parse(raw);
           const feed = document.getElementById('admin-logs-feed');
-          if (feed) feed.innerHTML = renderLogsListHtml(JSON.parse(raw));
+          if (feed) {
+            feed.innerHTML = renderLogsListHtml(parsed);
+            attachLogsFeedClickListeners(container, parsed);
+          }
         }
       } else {
         clearInterval(adminPollInterval);
@@ -870,6 +929,17 @@ function renderAdminMonitoringDashboard() {
       }
     }, 8000);
   }
+}
+
+function attachLogsFeedClickListeners(container, logsList) {
+  if (!container || !Array.isArray(logsList)) return;
+  container.querySelectorAll('.admin-log-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const logId = row.dataset.logId;
+      const found = logsList.find(l => l.id === logId);
+      if (found) openLogDetailsModal(found);
+    });
+  });
 }
 
 function renderLogsListHtml(logsList) {
@@ -885,7 +955,7 @@ function renderLogsListHtml(logsList) {
     else if (l.actionType === 'user_switch') badgeColor = 'bg-purple-100 text-purple-800';
 
     return `
-      <div class="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-2.5 text-xs hover:bg-slate-100/70 transition">
+      <div class="admin-log-row p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-2.5 text-xs hover:bg-purple-50/60 hover:border-purple-300 transition cursor-pointer" data-log-id="${l.id}" title="විස්තර බැලීමට ක්ලික් කරන්න (Click to view full details)">
         <div class="flex items-center gap-2 min-w-0">
           <span class="w-7 h-7 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-sm shrink-0">
             ${l.userAvatar || '👤'}
@@ -908,6 +978,367 @@ function renderLogsListHtml(logsList) {
     `;
   }).join('');
 }
+
+/**
+ * Requirement 6: Full Details Modal for Any Activity Log Entry
+ */
+function openLogDetailsModal(log) {
+  if (!log) return;
+  let modal = document.getElementById('activity-log-details-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'activity-log-details-modal';
+    document.body.appendChild(modal);
+  }
+
+  const actionLabels = {
+    task_completed: '✅ කාර්යය සම්පූර්ණ කිරීම (Task Completed)',
+    task_uncompleted: '↩️ කාර්යය අස්ථාපනය (Task Uncompleted)',
+    timer_started: '⏱️ කාලගණකය ආරම්භ කිරීම (Timer Started)',
+    wake_up: '🌅 අවදි වූ වේලාව සටහන් කිරීම (Wake Up Logged)',
+    user_switch: '👤 පරිශීලක මාරුව (User Switched)',
+    task_created: '➕ නව කාර්යයක් එක් කිරීම (Task Created)',
+    task_updated: '⚙️ කාර්ය සැකසුම් වෙනස් කිරීම (Task Settings Updated)',
+    task_hidden: '🗑️ කාර්යය සඟවීම/ඉවත් කිරීම (Task Hidden)'
+  };
+
+  const actionName = actionLabels[log.actionType] || log.actionType;
+
+  modal.className = "fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100000] flex items-center justify-center p-3 sm:p-4 font-['Noto_Sans_Sinhala']";
+  modal.style.zIndex = "100000";
+  modal.innerHTML = `
+    <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-purple-100 animate-in fade-in zoom-in-95 duration-200">
+      <!-- Modal Header -->
+      <div class="bg-gradient-to-r from-purple-700 via-indigo-700 to-slate-900 p-4 sm:p-5 text-white flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <span class="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-xl shadow-inner">
+            ${log.userAvatar || '📋'}
+          </span>
+          <div>
+            <h3 class="text-sm sm:text-base font-extrabold text-white">ක්‍රියාකාරකම් සවිස්තර වාර්තාව</h3>
+            <span class="text-xs text-purple-200 block mt-0.5">${log.userDisplayName || log.userName} • ${log.dateStr}</span>
+          </div>
+        </div>
+        <button type="button" id="close-log-details-modal" class="text-white/80 hover:text-white text-2xl font-bold transition p-1 cursor-pointer">&times;</button>
+      </div>
+
+      <!-- Details Body -->
+      <div class="p-5 sm:p-6 space-y-3.5 text-xs max-h-[75vh] overflow-y-auto">
+        <!-- Main Description -->
+        <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
+          <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">සිදු වූ ක්‍රියාව (Action & Details):</span>
+          <span class="text-sm font-bold text-slate-800 block">${log.details}</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl">
+            <span class="text-[10px] font-bold text-indigo-700 block">ක්‍රියාකාරකම් වර්ගය:</span>
+            <span class="font-bold text-slate-800 text-xs block mt-1">${actionName}</span>
+          </div>
+          <div class="p-3 bg-pink-50/60 border border-pink-100 rounded-xl">
+            <span class="text-[10px] font-bold text-pink-700 block">ලකුණු වෙනස (Points Delta):</span>
+            <span class="font-bold text-sm block mt-1 ${log.pointsDelta > 0 ? 'text-emerald-600' : 'text-slate-700'}">
+              ${log.pointsDelta > 0 ? '+' : ''}${log.pointsDelta || 0} pts
+            </span>
+          </div>
+        </div>
+
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="text-slate-500 font-semibold">සටහන් වූ වේලාව:</span>
+            <span class="font-mono font-bold text-slate-700">${log.timeStr || ''} (${log.dateStr || ''})</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
+            <span class="text-slate-500 font-semibold">පරිශීලක ID:</span>
+            <span class="font-mono text-slate-600 text-[10px]">${log.userId || 'N/A'}</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px] pt-1 border-t border-slate-200/60">
+            <span class="text-slate-500 font-semibold">Log ID:</span>
+            <span class="font-mono text-slate-400 text-[10px] truncate max-w-[180px]">${log.id || 'N/A'}</span>
+          </div>
+        </div>
+
+        <!-- Metadata JSON if present -->
+        ${log.metadata && Object.keys(log.metadata).length > 0 ? `
+          <div class="space-y-1.5">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">අමතර තාක්ෂණික දත්ත (Metadata):</span>
+            <pre class="bg-slate-900 text-purple-200 p-3 rounded-xl text-[10px] font-mono overflow-x-auto max-h-36">${JSON.stringify(log.metadata, null, 2)}</pre>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- Footer Button -->
+      <div class="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <button type="button" id="btn-close-log-details" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer">
+          වසන්න (Close)
+        </button>
+      </div>
+    </div>
+  `;
+
+  const close = () => modal.remove();
+  const cBtn = modal.querySelector('#close-log-details-modal');
+  if (cBtn) cBtn.addEventListener('click', close);
+  const bBtn = modal.querySelector('#btn-close-log-details');
+  if (bBtn) bBtn.addEventListener('click', close);
+}
+
+/**
+ * Requirement 3: User Inspector Modal showing last 10 activities per page with Next/Prev pagination
+ */
+function openAdminUserInspectorModal(user) {
+  if (!user) return;
+  let modal = document.getElementById('admin-user-inspector-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'admin-user-inspector-modal';
+    document.body.appendChild(modal);
+  }
+
+  // Requirement 3: Only load logs when hit the user
+  let allLogs = [];
+  try {
+    const raw = localStorage.getItem('wosandi_activity_logs');
+    if (raw) allLogs = JSON.parse(raw);
+  } catch (e) {}
+  if (!Array.isArray(allLogs)) allLogs = [];
+
+  const userLogs = allLogs.filter(l => l.userId === user.id || l.userName === user.username);
+
+  let currentLogsPage = 1;
+  const pageSize = 10;
+
+  modal.className = "fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[99990] flex items-center justify-center p-3 sm:p-4 font-['Noto_Sans_Sinhala']";
+  modal.style.zIndex = "99990";
+  modal.innerHTML = `
+    <div class="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-purple-100 animate-in fade-in zoom-in-95 duration-200">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 p-4 sm:p-5 text-white relative shrink-0">
+        <button type="button" id="close-user-inspector-modal" class="absolute top-4 right-4 text-white/80 hover:text-white text-2xl font-bold transition p-1 cursor-pointer">&times;</button>
+        <div class="flex items-center gap-3">
+          <span class="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-2xl shadow-inner shrink-0">
+            ${user.avatar || '👤'}
+          </span>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-base sm:text-lg font-bold text-white">${user.username}</h2>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/30 text-purple-200 border border-purple-400/30">${user.role || 'member'}</span>
+            </div>
+            <span class="text-xs text-slate-300 block mt-0.5">${user.display_name || user.username} • ලකුණු: ${user.points || 0} pts</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Bar (Requirement 4: Tab or link to see full dashboard) -->
+      <div class="flex border-b border-slate-200 bg-slate-100/90 p-2 gap-2 shrink-0">
+        <button type="button" id="inspector-tab-logs" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white text-indigo-700 shadow-xs cursor-pointer">
+          <i class="fas fa-list-ol text-indigo-600"></i> ක්‍රියාකාරකම් සටහන් (${userLogs.length})
+        </button>
+        <button type="button" id="inspector-btn-open-dashboard" class="flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-xs cursor-pointer">
+          <i class="fas fa-external-link-alt"></i> සම්පූර්ණ Dashboard එක (Full View)
+        </button>
+      </div>
+
+      <!-- Logs Container -->
+      <div class="p-4 sm:p-5 flex-1 overflow-y-auto space-y-3">
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <span>අවසන් ක්‍රියාකාරකම් (10 බැගින්):</span>
+          <span id="user-inspector-page-indicator" class="font-bold text-purple-700">පිටුව 1</span>
+        </div>
+
+        <div id="user-inspector-logs-list" class="space-y-2">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Pagination Controls (Requirement 3: next button to see next 10 and previous) -->
+        <div class="pt-3 border-t border-slate-200 flex items-center justify-between gap-2">
+          <button type="button" id="btn-inspector-prev" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer">
+            <i class="fas fa-chevron-left text-[10px]"></i> පෙර 10 (Previous)
+          </button>
+          <span id="user-inspector-page-count" class="text-xs text-slate-500 font-semibold text-center"></span>
+          <button type="button" id="btn-inspector-next" class="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 cursor-pointer">
+            මීළඟ 10 (Next) <i class="fas fa-chevron-right text-[10px]"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const closeModal = () => modal.remove();
+  const closeBtn = modal.querySelector('#close-user-inspector-modal');
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+  // Requirement 4: Open full dashboard of this user in Admin Master Mode
+  const openDashboardBtn = modal.querySelector('#inspector-btn-open-dashboard');
+  if (openDashboardBtn) {
+    openDashboardBtn.addEventListener('click', () => {
+      closeModal();
+      openUserDashboardAsAdminMaster(user);
+    });
+  }
+
+  const logsListEl = modal.querySelector('#user-inspector-logs-list');
+  const pageIndicator = modal.querySelector('#user-inspector-page-indicator');
+  const pageCountEl = modal.querySelector('#user-inspector-page-count');
+  const prevBtn = modal.querySelector('#btn-inspector-prev');
+  const nextBtn = modal.querySelector('#btn-inspector-next');
+
+  function renderPage(page) {
+    currentLogsPage = page;
+    const totalPages = Math.ceil(userLogs.length / pageSize) || 1;
+    const startIndex = (currentLogsPage - 1) * pageSize;
+    const pagedLogs = userLogs.slice(startIndex, startIndex + pageSize);
+
+    if (pageIndicator) pageIndicator.innerText = `පිටුව ${currentLogsPage} / ${totalPages}`;
+    if (pageCountEl) {
+      pageCountEl.innerText = userLogs.length > 0
+        ? `සටහන් ${startIndex + 1} - ${Math.min(startIndex + pageSize, userLogs.length)} (${userLogs.length} න්)`
+        : 'සටහන් නොමැත';
+    }
+
+    if (prevBtn) prevBtn.disabled = currentLogsPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentLogsPage >= totalPages;
+
+    if (pagedLogs.length === 0) {
+      logsListEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-400 italic">මෙම පරිශීලකයා සඳහා ක්‍රියාකාරකම් සටහන් වී නොමැත.</div>`;
+      return;
+    }
+
+    logsListEl.innerHTML = pagedLogs.map(l => {
+      let badgeColor = 'bg-slate-100 text-slate-700';
+      if (l.actionType === 'task_completed') badgeColor = 'bg-emerald-100 text-emerald-800';
+      else if (l.actionType === 'task_uncompleted') badgeColor = 'bg-rose-100 text-rose-800';
+      else if (l.actionType === 'timer_started') badgeColor = 'bg-blue-100 text-blue-800';
+      else if (l.actionType === 'wake_up') badgeColor = 'bg-amber-100 text-amber-800';
+      else if (l.actionType === 'user_switch') badgeColor = 'bg-purple-100 text-purple-800';
+
+      return `
+        <div class="user-paged-log-item p-3 bg-slate-50 hover:bg-purple-50/70 border border-slate-200 hover:border-purple-300 rounded-2xl flex items-center justify-between gap-3 text-xs transition cursor-pointer" data-log-id="${l.id}">
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}">${l.actionType}</span>
+              <span class="font-mono text-[10px] text-slate-400">${l.timeStr || ''} • ${l.dateStr || ''}</span>
+            </div>
+            <span class="font-bold text-slate-800 block mt-1 truncate">${l.details}</span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            ${l.pointsDelta ? `<span class="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full border border-pink-100">+${l.pointsDelta} pts</span>` : ''}
+            <span class="text-slate-400 text-xs">ℹ️</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Requirement 6: When clicked log entry show full details
+    logsListEl.querySelectorAll('.user-paged-log-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const logId = item.dataset.logId;
+        const foundLog = userLogs.find(l => l.id === logId);
+        if (foundLog) openLogDetailsModal(foundLog);
+      });
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      if (currentLogsPage > 1) renderPage(currentLogsPage - 1);
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      const totalPages = Math.ceil(userLogs.length / pageSize) || 1;
+      if (currentLogsPage < totalPages) renderPage(currentLogsPage + 1);
+    });
+  }
+
+  renderPage(1);
+}
+
+/**
+ * Requirement 4: Load full dashboard of any user clicked and make changes without password or user knowledge
+ */
+function openUserDashboardAsAdminMaster(user) {
+  if (!user) return;
+
+  // 1. Authorize user without PIN or user knowledge
+  if (typeof sessionStorage !== 'undefined') {
+    sessionStorage.setItem(`wosandi_auth_user_${user.id}`, "true");
+    sessionStorage.setItem("wosandi_admin_master_active", user.id);
+  }
+
+  // 2. Switch to this user
+  if (window.userManagerClient) {
+    window.userManagerClient.setCurrentUser(user, true);
+  }
+
+  // 3. Hide admin monitoring container & show standard dashboard elements
+  const adminContainer = document.getElementById('admin-monitoring-container');
+  if (adminContainer) adminContainer.classList.add('hidden');
+
+  const quickBar = document.getElementById('quick-add-task-bar');
+  if (quickBar) quickBar.classList.remove('hidden');
+  const fastingCard = document.getElementById('fasting-tracker-card-container');
+  if (fastingCard) fastingCard.classList.remove('hidden');
+  const recentSec = document.getElementById('recent-changes-section');
+  if (recentSec) recentSec.classList.remove('hidden');
+  document.querySelectorAll('.routine-section:not([data-section-id="school"])').forEach(el => el.classList.remove('hidden'));
+
+  // 4. Inject top Admin Master Bar
+  let masterBar = document.getElementById('admin-master-bar');
+  if (!masterBar) {
+    masterBar = document.createElement('div');
+    masterBar.id = 'admin-master-bar';
+    const mainContent = document.querySelector('main') || document.querySelector('header');
+    if (mainContent && mainContent.parentNode) {
+      mainContent.parentNode.insertBefore(masterBar, mainContent.nextSibling);
+    } else {
+      document.body.prepend(masterBar);
+    }
+  }
+
+  masterBar.className = "max-w-md mx-auto px-4 pt-2";
+  masterBar.innerHTML = `
+    <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-3.5 rounded-2xl shadow-xl border-2 border-amber-400 flex items-center justify-between gap-3 font-['Noto_Sans_Sinhala'] animate-in fade-in duration-200">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span class="w-9 h-9 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-lg shrink-0 shadow-inner">🛡️</span>
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span class="font-extrabold text-amber-300 text-xs truncate">පරිපාලක පාලන ප්‍රකාරය (Admin Master Mode)</span>
+          </div>
+          <span class="text-slate-300 text-[11px] block truncate">ඔබ සංස්කරණය කරන්නේ <strong>${user.display_name || user.username}</strong> ගේ Dashboard එකයි (මුරපද අවශ්‍ය නැත).</span>
+        </div>
+      </div>
+      <button type="button" id="btn-return-admin-hub" class="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-extrabold rounded-xl transition flex items-center gap-1.5 text-xs shadow-md cursor-pointer shrink-0">
+        <i class="fas fa-shield-alt"></i> ආපසු
+      </button>
+    </div>
+  `;
+
+  const returnBtn = masterBar.querySelector('#btn-return-admin-hub');
+  if (returnBtn) {
+    returnBtn.addEventListener('click', () => {
+      masterBar.remove();
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem("wosandi_admin_master_active");
+      }
+      const adminUser = window.userManagerClient?.users?.find(u => u.role === 'admin' || u.id === 'user_admin');
+      if (adminUser) {
+        window.userManagerClient.setCurrentUser(adminUser, true);
+        renderAdminMonitoringDashboard();
+      }
+    });
+  }
+
+  // Load published tasks for this user
+  if (typeof loadPublishedTasksFromAdmin === 'function') {
+    loadPublishedTasksFromAdmin();
+  }
+}
+
+window.openLogDetailsModal = openLogDetailsModal;
+window.openAdminUserInspectorModal = openAdminUserInspectorModal;
+window.openUserDashboardAsAdminMaster = openUserDashboardAsAdminMaster;
 
 // =========================================================================
 // Dynamic Published Tasks from Admin Panel (wosandi_tasks)
@@ -1720,33 +2151,130 @@ async function openAddQuickTaskModal() {
             </button>
           </div>
 
-          <!-- Inline Edit Form Container -->
-          <div class="inline-edit-container hidden pt-3 border-t border-indigo-100 space-y-3">
-            <div class="space-y-2">
-              <label class="block text-xs font-bold text-slate-700">මාතෘකාව:</label>
-              <input type="text" class="edit-task-title w-full p-2 border rounded-xl text-xs bg-white" value="${t.title_si || t.title_en}">
+          <!-- Inline Edit Form Container (Requirement 1 & 1.1: Full Settings Panel matching creation) -->
+          <div class="inline-edit-container hidden pt-3 border-t border-indigo-100 space-y-3.5 bg-white p-4 rounded-2xl border shadow-xs mt-2 font-['Noto_Sans_Sinhala']">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <span class="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
+                <i class="fas fa-sliders-h text-indigo-600"></i> සියලු සැකසුම් සංස්කරණය (Full Settings Panel)
+              </span>
+              <span class="edit-icon-preview text-xl" title="Icon Preview">${t.icon || autoDetermineIcon(t.title_si, t.category)}</span>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+
+            <!-- Title -->
+            <div>
+              <label class="block text-xs font-bold text-gray-700 mb-1">මාතෘකාව / කාර්යයේ නම *</label>
+              <input type="text" class="edit-task-title w-full p-2.5 border rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-200" value="${t.title_si || t.title_en}">
+            </div>
+
+            <!-- Category & Points -->
+            <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-xs font-bold text-slate-700">ලකුණු:</label>
-                <input type="number" class="edit-task-points w-full p-2 border rounded-xl text-xs font-bold" value="${t.weight_points || 10}">
+                <label class="block text-xs font-bold text-gray-700 mb-1">වර්ගය (Category):</label>
+                <select class="edit-task-category w-full p-2 border rounded-xl text-xs bg-slate-50 focus:bg-white">
+                  <option value="academic" ${t.category === 'academic' ? 'selected' : ''}>අධ්‍යාපනික (Academic)</option>
+                  <option value="physical" ${t.category === 'physical' ? 'selected' : ''}>ශාරීරික / නැටුම් (Physical)</option>
+                  <option value="chores" ${t.category === 'chores' ? 'selected' : ''}>ගෙදර දොර (Chores)</option>
+                  <option value="habits" ${t.category === 'habits' ? 'selected' : ''}>පුරුදු (Habits)</option>
+                  <option value="general" ${!t.category || t.category === 'general' ? 'selected' : ''}>සාමාන්‍ය (General)</option>
+                </select>
               </div>
               <div>
-                <label class="block text-xs font-bold text-slate-700">කාල සීමාව (Custom Period):</label>
-                <div class="flex items-center gap-1">
-                  <input type="time" class="edit-task-from w-1/2 p-1.5 border rounded-lg text-xs" value="${sched?.custom_time_from || '07:00'}">
-                  <input type="time" class="edit-task-to w-1/2 p-1.5 border rounded-lg text-xs" value="${sched?.custom_time_to || '08:00'}">
+                <label class="block text-xs font-bold text-gray-700 mb-1">ලබාදෙන ලකුණු (Points):</label>
+                <input type="number" class="edit-task-points w-full p-2 border rounded-xl text-xs font-bold bg-slate-50 focus:bg-white" value="${t.weight_points || 10}" min="1" max="100">
+              </div>
+            </div>
+
+            <!-- Recurrence & Days of Week -->
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+              <div class="flex items-center justify-between">
+                <label class="block text-xs font-bold text-slate-800">පුනරාවර්තනය (Recurrence):</label>
+                <select class="edit-task-freq p-1.5 border rounded-lg text-xs bg-white font-semibold">
+                  <option value="daily" ${sched?.frequency === 'daily' || !sched?.frequency ? 'selected' : ''}>දිනපතා (Daily)</option>
+                  <option value="weekly" ${sched?.frequency === 'weekly' ? 'selected' : ''}>සතිපතා (Weekly)</option>
+                  <option value="monthly" ${sched?.frequency === 'monthly' ? 'selected' : ''}>මාසිකව (Monthly)</option>
+                  <option value="yearly" ${sched?.frequency === 'yearly' ? 'selected' : ''}>වාර්ෂිකව (Yearly)</option>
+                </select>
+              </div>
+
+              <!-- Days of Week Checkboxes -->
+              <div class="pt-1">
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1">අදාළ සතියේ දිනයන් (Days of Week):</label>
+                <div class="grid grid-cols-4 sm:grid-cols-7 gap-1 text-[11px]">
+                  ${[
+                    { d: 1, label: 'සඳුදා' },
+                    { d: 2, label: 'අඟහ' },
+                    { d: 3, label: 'බදාදා' },
+                    { d: 4, label: 'බ්‍රහස්' },
+                    { d: 5, label: 'සිකු' },
+                    { d: 6, label: 'සෙන' },
+                    { d: 0, label: 'ඉරිදා' }
+                  ].map(day => {
+                    const isChecked = !sched?.days_of_week || (Array.isArray(sched.days_of_week) && sched.days_of_week.includes(day.d));
+                    return `
+                      <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-white">
+                        <input type="checkbox" class="edit-task-dow sr-only" value="${day.d}" ${isChecked ? 'checked' : ''}>
+                        <span class="dow-label-text ${isChecked ? 'font-bold text-purple-700' : 'text-slate-500'}">${day.label}</span>
+                      </label>
+                    `;
+                  }).join('')}
                 </div>
               </div>
             </div>
+
+            <!-- Preferred Time Slots -->
+            <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+              <label class="block text-xs font-bold text-slate-800">සුදුසු වේලාව (Preferred Time Slots):</label>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
+                ${[
+                  { id: 'morning', label: '🌅 උදෑසන' },
+                  { id: 'afternoon', label: '☀️ දහවල්' },
+                  { id: 'evening', label: '🌇 සවස' },
+                  { id: 'night', label: '🌙 රාත්‍රී' },
+                  { id: 'anytime', label: '🔄 Flexible' }
+                ].map(slot => {
+                  const isChecked = !sched?.preferred_slots || (Array.isArray(sched.preferred_slots) && sched.preferred_slots.includes(slot.id));
+                  return `
+                    <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-white">
+                      <input type="checkbox" class="edit-task-slot" value="${slot.id}" ${isChecked ? 'checked' : ''}>
+                      <span>${slot.label}</span>
+                    </label>
+                  `;
+                }).join('')}
+              </div>
+
+              <!-- Custom Time Range -->
+              <div class="pt-2 border-t border-slate-200/60 space-y-1.5">
+                <label class="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-indigo-900">
+                  <input type="checkbox" class="edit-task-has-custom" ${sched?.custom_time_from && sched?.custom_time_to ? 'checked' : ''}>
+                  <span>නියමිත කාල සීමාවක් (From - To) සකසන්න</span>
+                </label>
+                <div class="edit-custom-time-fields ${sched?.custom_time_from && sched?.custom_time_to ? '' : 'hidden'} grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label class="block text-[10px] text-gray-500 mb-0.5">ආරම්භක වේලාව (From):</label>
+                    <input type="time" class="edit-task-from w-full p-2 border rounded-xl text-xs bg-white font-mono" value="${sched?.custom_time_from || '07:00'}">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] text-gray-500 mb-0.5">අවසන් වේලාව (To):</label>
+                    <input type="time" class="edit-task-to w-full p-2 border rounded-xl text-xs bg-white font-mono" value="${sched?.custom_time_to || '08:00'}">
+                  </div>
+                </div>
+              </div>
+            </div>
+
             ${isGlobal ? `
-              <div class="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] text-amber-900">
-                🔒 <strong>පොදු කාර්යයකි:</strong> ඔබ කරන වෙනස්කම් ඔබගේ පැතිකඩට පමණක් අදාළ වන අතර, අනෙක් පරිශීලකයින්ට බලනොපායි (Requirement 4.1).
+              <div class="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
+                <span class="text-base shrink-0">🔒</span>
+                <div>
+                  <strong>පොදු කාර්යයකි (Global Task):</strong> ඔබ කරන මෙම වෙනස්කම් ඔබගේ පැතිකඩට පමණක් සුරැකෙන අතර, අනෙක් පරිශීලකයින්ට කිසිදු බලපෑමක් ඇති නොකරයි (Requirement 4.1).
+                </div>
               </div>
             ` : ''}
-            <div class="flex justify-end gap-2">
-              <button type="button" class="btn-cancel-inline-edit px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">අවලංගු කරන්න</button>
-              <button type="button" class="btn-save-inline-edit px-4 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-xs">සුරකින්න</button>
+
+            <div class="flex justify-end gap-2 pt-1">
+              <button type="button" class="btn-cancel-inline-edit px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer">අවලංගු කරන්න</button>
+              <button type="button" class="btn-save-inline-edit px-5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-xs font-bold shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                <i class="fas fa-check"></i> සැකසුම් සුරකින්න (Save Settings)
+              </button>
             </div>
           </div>
         </div>
@@ -1765,6 +2293,46 @@ async function openAddQuickTaskModal() {
       const saveBtn = row.querySelector('.btn-save-inline-edit');
       const hideBtn = row.querySelector('.btn-hide-task-settings');
 
+      const editTitle = row.querySelector('.edit-task-title');
+      const editCategory = row.querySelector('.edit-task-category');
+      const editIconPreview = row.querySelector('.edit-icon-preview');
+      const editHasCustom = row.querySelector('.edit-task-has-custom');
+      const editCustomFields = row.querySelector('.edit-custom-time-fields');
+
+      // Update Icon Preview live
+      const updateIcon = () => {
+        if (editIconPreview && editTitle && editCategory) {
+          editIconPreview.innerText = autoDetermineIcon(editTitle.value, editCategory.value);
+        }
+      };
+      if (editTitle) editTitle.addEventListener('input', updateIcon);
+      if (editCategory) editCategory.addEventListener('change', updateIcon);
+
+      // Toggle custom time fields
+      if (editHasCustom && editCustomFields) {
+        editHasCustom.addEventListener('change', () => {
+          if (editHasCustom.checked) {
+            editCustomFields.classList.remove('hidden');
+          } else {
+            editCustomFields.classList.add('hidden');
+          }
+        });
+      }
+
+      // Checkbox visual styling for days of week
+      row.querySelectorAll('.edit-task-dow').forEach(check => {
+        check.addEventListener('change', () => {
+          const labelSpan = check.parentElement?.querySelector('.dow-label-text');
+          if (labelSpan) {
+            if (check.checked) {
+              labelSpan.className = 'dow-label-text font-bold text-purple-700';
+            } else {
+              labelSpan.className = 'dow-label-text text-slate-500';
+            }
+          }
+        });
+      });
+
       editBtn.addEventListener('click', () => {
         editContainer.classList.toggle('hidden');
       });
@@ -1772,12 +2340,20 @@ async function openAddQuickTaskModal() {
         editContainer.classList.add('hidden');
       });
 
-      // Save Edited Settings (Requirement 4.1: If global task, create user override so others are unaffected)
+      // Save Edited Settings (Requirement 1.1 & 4.1: If global task, create user override so others are unaffected)
       saveBtn.addEventListener('click', async () => {
-        const newTitle = row.querySelector('.edit-task-title').value.trim();
-        const newPoints = parseFloat(row.querySelector('.edit-task-points').value) || 10;
-        const newFrom = row.querySelector('.edit-task-from').value;
-        const newTo = row.querySelector('.edit-task-to').value;
+        const newTitle = editTitle ? editTitle.value.trim() : (task.title_si || task.title_en);
+        const newCategory = editCategory ? editCategory.value : (task.category || 'general');
+        const newPoints = parseFloat(row.querySelector('.edit-task-points')?.value) || 10;
+        const newFreq = row.querySelector('.edit-task-freq')?.value || 'daily';
+
+        const newDows = Array.from(row.querySelectorAll('.edit-task-dow:checked')).map(el => parseInt(el.value));
+        const newSlots = Array.from(row.querySelectorAll('.edit-task-slot:checked')).map(el => el.value);
+
+        const hasCustom = editHasCustom ? editHasCustom.checked : false;
+        const newFrom = hasCustom ? (row.querySelector('.edit-task-from')?.value || '07:00') : null;
+        const newTo = hasCustom ? (row.querySelector('.edit-task-to')?.value || '08:00') : null;
+        const newIcon = autoDetermineIcon(newTitle, newCategory);
 
         const isGlobal = !task.schema_definition?.target_profile || task.schema_definition?.target_profile === 'global' || task.target_profile === 'global';
 
@@ -1792,10 +2368,10 @@ async function openAddQuickTaskModal() {
             id: overrideId,
             title_si: newTitle,
             title_en: newTitle,
-            category: task.category || 'general',
+            category: newCategory,
             tier: 'routine_baseline',
             weight_points: newPoints,
-            icon: autoDetermineIcon(newTitle, task.category),
+            icon: newIcon,
             sort_order: task.sort_order || 0,
             status: 'published',
             has_timer: task.has_timer,
@@ -1807,6 +2383,9 @@ async function openAddQuickTaskModal() {
               is_user_override: true,
               schedule: {
                 ...task.schema_definition?.schedule,
+                frequency: newFreq,
+                days_of_week: newDows,
+                preferred_slots: newSlots,
                 custom_time_from: newFrom,
                 custom_time_to: newTo
               }
@@ -1818,12 +2397,16 @@ async function openAddQuickTaskModal() {
             ...task,
             title_si: newTitle,
             title_en: newTitle,
+            category: newCategory,
             weight_points: newPoints,
-            icon: autoDetermineIcon(newTitle, task.category),
+            icon: newIcon,
             schema_definition: {
               ...task.schema_definition,
               schedule: {
                 ...task.schema_definition?.schedule,
+                frequency: newFreq,
+                days_of_week: newDows,
+                preferred_slots: newSlots,
                 custom_time_from: newFrom,
                 custom_time_to: newTo
               }

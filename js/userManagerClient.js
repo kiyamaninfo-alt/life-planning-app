@@ -518,16 +518,19 @@ class UserManagerClient {
           const targetUser = this.users.find(u => u.id === userId) || (adminUser && adminUser.id === userId ? adminUser : null);
           if (!targetUser) return;
 
-          // Requirement 7: Admin Profile initial password verification "340800"
+          // Requirement 2 & 7: Admin Profile initial password verification "340800"
           if (targetUser.role === 'admin' || targetUser.id === 'user_admin') {
+            closeModal();
             this.promptUserPassword(
               targetUser,
               () => {
                 this.setCurrentUser(targetUser, true);
-                closeModal();
                 if (onSuccessCallback) onSuccessCallback(targetUser);
               },
-              "Admin Profile (සජීවී නිරීක්ෂණ පුවරුව) වෙත පිවිසීම"
+              "Admin Profile (සජීවී නිරීක්ෂණ පුවරුව) වෙත පිවිසීම",
+              () => {
+                this.openUserLoginModal(onSuccessCallback);
+              }
             );
             return;
           }
@@ -734,7 +737,8 @@ class UserManagerClient {
       document.body.appendChild(pinModal);
     }
 
-    pinModal.className = "fixed inset-0 bg-slate-900/80 backdrop-blur-md z-60 flex items-center justify-center p-4 font-['Poppins']";
+    pinModal.className = "fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100000] flex items-center justify-center p-4 font-['Poppins']";
+    pinModal.style.zIndex = "100000";
     pinModal.innerHTML = `
       <div class="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 text-center border border-purple-100 animate-in fade-in zoom-in-95 duration-200 font-['Noto_Sans_Sinhala']">
         <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-purple-100 to-pink-100 text-3xl flex items-center justify-center mx-auto mb-3 shadow-inner border border-purple-200">

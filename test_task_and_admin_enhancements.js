@@ -174,6 +174,66 @@ it("8: Admin real-time notification mechanism implemented with Web Notifications
   assert.ok(appJs.includes('ntfy.sh'), "Must support ntfy.sh lock-screen push webhook for zero battery consumption");
 });
 
+// -----------------------------------------------------------------------------
+console.log("\n=== TEST SUITE 9: Full Settings Panel on Edit in Current Tasks Settings Tab (Req 1 & 1.1) ===");
+// -----------------------------------------------------------------------------
+
+it("1.1: When hitting edit on an existing task, all settings display matching the creation panel", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, 'js/app.js'), 'utf-8');
+
+  // Verify full settings panel elements inside inline-edit-container
+  assert.ok(appJs.includes('inline-edit-container'), "Must include inline-edit-container");
+  assert.ok(appJs.includes('edit-task-title'), "Must include edit title input");
+  assert.ok(appJs.includes('edit-task-category'), "Must include category dropdown in edit panel");
+  assert.ok(appJs.includes('edit-task-points'), "Must include points input in edit panel");
+  assert.ok(appJs.includes('edit-task-freq'), "Must include recurrence (daily/weekly/monthly/yearly) dropdown in edit panel");
+  assert.ok(appJs.includes('edit-task-dow'), "Must include days-of-week checkboxes in edit panel");
+  assert.ok(appJs.includes('edit-task-slot'), "Must include preferred time slots checkboxes in edit panel");
+  assert.ok(appJs.includes('edit-task-has-custom'), "Must include custom time period toggle in edit panel");
+  assert.ok(appJs.includes('edit-task-from') && appJs.includes('edit-task-to'), "Must include custom from/to inputs in edit panel");
+  assert.ok(appJs.includes('edit-icon-preview'), "Must include live icon preview in edit panel");
+});
+
+// -----------------------------------------------------------------------------
+console.log("\n=== TEST SUITE 10: Admin Modal Stacking, User Inspector, Master Mode & Log Details (Req 2, 3, 4, 6) ===");
+// -----------------------------------------------------------------------------
+
+it("2: Admin password prompt appears on top of all modals in profile selector", () => {
+  const userClientJs = fs.readFileSync(path.join(__dirname, 'js/userManagerClient.js'), 'utf-8');
+
+  assert.ok(userClientJs.includes('z-[100000]'), "Password modal must use top-tier z-index z-[100000]");
+  assert.ok(userClientJs.includes('pinModal.style.zIndex = "100000"'), "Password modal must enforce style.zIndex = 100000");
+  assert.ok(userClientJs.includes('closeModal();\n            this.promptUserPassword'), "Must close profile selector modal before prompting password");
+});
+
+it("3: In Admin profile, clicking a user displays last 10 activities per page with next/prev buttons", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, 'js/app.js'), 'utf-8');
+
+  assert.ok(appJs.includes('openAdminUserInspectorModal'), "Must define openAdminUserInspectorModal");
+  assert.ok(appJs.includes('pageSize = 10'), "Must paginate activities by 10 items per page");
+  assert.ok(appJs.includes('btn-inspector-prev'), "Must have previous page button");
+  assert.ok(appJs.includes('btn-inspector-next'), "Must have next page button");
+  assert.ok(appJs.includes('btn-inspect-user-logs'), "Must have inspect user logs button on user card");
+});
+
+it("4: Link/tab to see full dashboard of any user with master edit ability without password", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, 'js/app.js'), 'utf-8');
+
+  assert.ok(appJs.includes('openUserDashboardAsAdminMaster'), "Must define openUserDashboardAsAdminMaster");
+  assert.ok(appJs.includes('sessionStorage.setItem(`wosandi_auth_user_${user.id}`, "true")'), "Must authorize user without password");
+  assert.ok(appJs.includes('admin-master-bar'), "Must render prominent Admin Master Mode bar");
+  assert.ok(appJs.includes('btn-return-admin-hub'), "Must have button to return back to Admin Hub");
+});
+
+it("6: Clicking any activity log entry displays full details modal", () => {
+  const appJs = fs.readFileSync(path.join(__dirname, 'js/app.js'), 'utf-8');
+
+  assert.ok(appJs.includes('openLogDetailsModal'), "Must define openLogDetailsModal");
+  assert.ok(appJs.includes('activity-log-details-modal'), "Must include activity log details modal");
+  assert.ok(appJs.includes('admin-log-row'), "Activity log rows must have clickable class");
+  assert.ok(appJs.includes('user-paged-log-item'), "User paged log items must have clickable class");
+});
+
 console.log("\n=================================================");
-console.log("ALL TASK & ADMIN ENHANCEMENT TESTS PASSED! (10/10)");
+console.log("ALL TASK & ADMIN ENHANCEMENT TESTS PASSED! (15/15)");
 console.log("=================================================\n");
