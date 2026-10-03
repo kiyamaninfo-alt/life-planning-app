@@ -1392,6 +1392,30 @@ async function loadPublishedTasksFromAdmin() {
   if (recentSec) recentSec.classList.remove('hidden');
   document.querySelectorAll('.routine-section:not([data-section-id="school"])').forEach(el => el.classList.remove('hidden'));
 
+  // Always ensure state is synchronized with the latest saved routine state for today
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const userSaveKey = (typeof window !== 'undefined' && window.userManagerClient?.getRoutineStateKey)
+    ? window.userManagerClient.getRoutineStateKey(todayDateStr)
+    : ('wosandi_routine_state_' + todayDateStr);
+
+  try {
+    const rawSaved = (typeof localStorage !== 'undefined')
+      ? (localStorage.getItem(userSaveKey) || localStorage.getItem('wosandi_routine_state_' + todayDateStr))
+      : null;
+    if (rawSaved) {
+      const savedObj = JSON.parse(rawSaved);
+      if (savedObj && typeof savedObj === 'object') {
+        Object.keys(savedObj).forEach(k => {
+          if (state[k] === undefined && savedObj[k] !== undefined) {
+            state[k] = savedObj[k];
+          } else if (savedObj[k] === true) {
+            state[k] = true;
+          }
+        });
+      }
+    }
+  } catch (e) {}
+
   let publishedTasks = [];
   try {
     const res = await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks?status=eq.published&order=sort_order.asc", {
@@ -1407,15 +1431,26 @@ async function loadPublishedTasksFromAdmin() {
     console.warn("Could not fetch published tasks from Supabase, checking local cache", e);
   }
 
-  if (!publishedTasks || publishedTasks.length === 0) {
-    try {
-      const cached = localStorage.getItem('wosandi_admin_wosandi_tasks');
-      if (cached) {
-        const list = JSON.parse(cached);
-        publishedTasks = list.filter(t => t.status === 'published');
+  // Merge with local cache so newly added / offline tasks and overrides are NEVER lost
+  try {
+    const cachedRaw = localStorage.getItem('wosandi_admin_wosandi_tasks');
+    if (cachedRaw) {
+      const cachedList = JSON.parse(cachedRaw);
+      if (Array.isArray(cachedList)) {
+        if (!publishedTasks || publishedTasks.length === 0) {
+          publishedTasks = cachedList.filter(t => t.status === 'published');
+        } else {
+          const publishedMap = new Map(publishedTasks.map(t => [t.id, t]));
+          for (const ct of cachedList) {
+            if (ct && ct.id && ct.status === 'published' && !publishedMap.has(ct.id)) {
+              publishedTasks.push(ct);
+              publishedMap.set(ct.id, ct);
+            }
+          }
+        }
       }
-    } catch(e) {}
-  }
+    }
+  } catch (e) {}
 
   // Remove previously injected dynamic tasks so profile switching or re-render is clean
   document.querySelectorAll('[data-is-dynamic-task="true"]').forEach(el => el.remove());
@@ -1506,11 +1541,20 @@ async function loadPublishedTasksFromAdmin() {
       const container = targetLists[cat] || targetLists.general;
       if (!container) return;
 
-      const key = task.schema_definition?.linked_state_key || task.id;
+      const origId = task.schema_definition?.original_task_id || rawTask.id;
+      const key = task.schema_definition?.linked_state_key || origId || task.id;
       if (state[task.id] === undefined) {
-        state[task.id] = key && state[key] !== undefined ? Boolean(state[key]) : false;
+        state[task.id] = (origId && state[origId] !== undefined)
+          ? Boolean(state[origId])
+          : (key && state[key] !== undefined ? Boolean(state[key]) : false);
       }
-      const isChecked = Boolean(state[task.id] || (key && state[key]));
+      if (origId && state[origId] === true) {
+        state[task.id] = true;
+      }
+      if (state[task.id] === true && origId) {
+        state[origId] = true;
+      }
+      const isChecked = Boolean(state[task.id] || (origId && state[origId]) || (key && state[key]));
 
       // Requirement 3: Time scheduling lifecycle
       const timeFrom = sched?.custom_time_from;
@@ -2215,6 +2259,27 @@ async function openAddQuickTaskModal() {
     await saveTasksList(tasksToSave);
   });
 
+  function sanitizeTaskForSupabase(t) {
+    const schema = { ...(t.schema_definition || {}) };
+    if (t.target_profile && !schema.target_profile) {
+      schema.target_profile = t.target_profile;
+    }
+    return {
+      id: t.id,
+      title_si: t.title_si,
+      title_en: t.title_en || t.title_si,
+      category: t.category || 'general',
+      tier: t.tier || 'routine_baseline',
+      weight_points: Number(t.weight_points) || 10,
+      icon: t.icon || '📋',
+      sort_order: parseInt(t.sort_order) || 0,
+      status: t.status || 'published',
+      has_timer: Boolean(t.has_timer),
+      timer_seconds: t.timer_seconds || null,
+      schema_definition: schema
+    };
+  }
+
   async function saveTasksList(tasks) {
     if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
       const permitted = await window.userManagerClient.requireEditPermission("කාර්යයන් සුරැකීම");
@@ -2227,8 +2292,17 @@ async function openAddQuickTaskModal() {
       if (raw) cached = JSON.parse(raw);
       if (!Array.isArray(cached)) cached = [];
 
-      // Await saving to Supabase REST API (Requirement 4.3: cross-device persistence)
-      const supabaseSaves = tasks.map(t =>
+      // Update or append in local cache immediately
+      for (const t of tasks) {
+        const exIdx = cached.findIndex(x => x.id === t.id);
+        if (exIdx >= 0) cached[exIdx] = t;
+        else cached.push(t);
+      }
+      localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
+
+      // Batch save sanitized tasks to Supabase REST API (Requirement 4.3: cross-device persistence)
+      const cleanTasks = tasks.map(sanitizeTaskForSupabase);
+      const supabaseSaves = tasks.map((t, idx) =>
         fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
           method: "POST",
           headers: {
@@ -2237,17 +2311,16 @@ async function openAddQuickTaskModal() {
             "Content-Type": "application/json",
             Prefer: "resolution=merge-duplicates"
           },
-          body: JSON.stringify(t)
+          body: JSON.stringify(cleanTasks[idx])
         }).catch(err => console.warn("Supabase POST error:", err))
       );
       await Promise.all(supabaseSaves);
 
-      for (const t of tasks) {
-        cached.push(t);
-        recordUserActivity('task_added', `නව කාර්යයක් එක් කළා: ${t.title_si}`, t.weight_points || 10);
+      if (tasks.length === 1) {
+        recordUserActivity('task_added', `නව කාර්යයක් එක් කළා: ${tasks[0].title_si}`, 0);
+      } else {
+        recordUserActivity('task_added', `නව කාර්යයන් ${tasks.length}ක් එකවර එක් කළා`, 0);
       }
-
-      localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
     } catch (e) {
       console.error("Error in saveTasksList:", e);
     }
@@ -2651,7 +2724,7 @@ async function openAddQuickTaskModal() {
               "Content-Type": "application/json",
               Prefer: "resolution=merge-duplicates"
             },
-            body: JSON.stringify(targetTaskToSave)
+            body: JSON.stringify(sanitizeTaskForSupabase(targetTaskToSave))
           }).catch(err => console.warn("Supabase save error:", err));
         } catch (e) {}
 
@@ -2777,6 +2850,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (currentUser?.role === 'admin' || currentUser?.id === 'user_admin') {
     renderAdminMonitoringDashboard();
   } else {
+    // Load today's routine progress for active profile first to prevent race condition
+    if (typeof loadTodayData === "function") {
+      await loadTodayData();
+    }
     // Sync loaded state to UI elements
     syncStateToUI();
     // Load published tasks from Admin panel
@@ -3028,8 +3105,13 @@ async function toggleTask(key, val, el = null) {
   state[key] = val;
   if (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks)) {
     const matched = window.publishedAdminTasks.find(t => t.id === key);
-    if (matched && matched.schema_definition?.linked_state_key) {
-      state[matched.schema_definition.linked_state_key] = val;
+    if (matched) {
+      if (matched.schema_definition?.linked_state_key) {
+        state[matched.schema_definition.linked_state_key] = val;
+      }
+      if (matched.schema_definition?.original_task_id) {
+        state[matched.schema_definition.original_task_id] = val;
+      }
     }
   }
 

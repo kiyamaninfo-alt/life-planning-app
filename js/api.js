@@ -176,8 +176,9 @@ async function loadTodayData() {
  */
 export function evaluateTaskScheduleAndMarks(task, state, now = new Date()) {
   const pts = Number(task.weight_points) || 10;
-  const key = task.schema_definition?.linked_state_key || task.id;
-  const isCompleted = Boolean(state && (state[task.id] === true || (key && state[key] === true)));
+  const origId = task.schema_definition?.original_task_id;
+  const key = task.schema_definition?.linked_state_key || origId || task.id;
+  const isCompleted = Boolean(state && (state[task.id] === true || (origId && state[origId] === true) || (key && state[key] === true)));
 
   const sched = task.schema_definition?.schedule;
   const timeFrom = sched?.custom_time_from;
