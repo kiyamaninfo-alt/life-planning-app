@@ -296,9 +296,13 @@ export function applyRoutineOrderAndDependencies(stateObj) {
       if (el.classList) el.classList.add("hidden");
       if (el.style) el.style.display = "none";
       return;
-    } else if (sec.id === 'flow' && (!window.flowPlayer || !window.flowPlayer.flow)) {
-      // Flow only shows if a published flow exists
-      el.classList.add("hidden");
+    } else if (sec.id === 'flow' && (!window.flowPlayer || !window.flowPlayer.flow || !window.flowPlayer.flow.flow_data || !window.flowPlayer.flow.flow_data.nodes || window.flowPlayer.flow.flow_data.nodes.length === 0)) {
+      // Flow only shows if a published flow exists (Requirement 5)
+      if (el.classList) el.classList.add("hidden");
+      if (el.style) el.style.display = "none";
+      const existingPlaceholder = container.querySelector(`.routine-lock-banner[data-for="${sec.id}"]`);
+      if (existingPlaceholder) existingPlaceholder.remove();
+      return;
     } else if (!isUnlocked) {
       if (config.display_mode === 'locked_banner') {
         el.classList.add("hidden");

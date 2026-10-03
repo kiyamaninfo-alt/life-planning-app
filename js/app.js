@@ -1485,11 +1485,18 @@ async function loadPublishedTasksFromAdmin() {
         return;
       }
 
-      // Check day-of-week schedule if configured
+      // Check day-of-week schedule or next_run_date if configured (Requirement 4.4, 4.4 & 4.5)
       const now = new Date();
       const sched = task.schema_definition?.schedule;
-      if (Array.isArray(sched?.days_of_week) && sched.days_of_week.length > 0 && !sched.days_of_week.includes(now.getDay())) {
-        return;
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (sched) {
+        if (sched.frequency === 'monthly' || sched.frequency === 'yearly') {
+          if (sched.next_run_date && sched.next_run_date !== todayStr) {
+            return;
+          }
+        } else if (Array.isArray(sched?.days_of_week) && sched.days_of_week.length > 0 && !sched.days_of_week.includes(now.getDay())) {
+          return;
+        }
       }
 
       // Add to matchedTasks for this user so it participates in total marks calculation
@@ -1601,6 +1608,14 @@ async function loadPublishedTasksFromAdmin() {
   showEmptyNotice(targetLists.fitness, "ශාරීරික කාර්යයන් සකසා නැත");
   showEmptyNotice(targetLists.chores, "දෛනික පුරුදු සකසා නැත");
 
+  // Requirement 5: Remove interactive questionnaire if no data available
+  const flowSec = document.getElementById('published-flow-section');
+  if (flowSec && (!window.flowPlayer || !window.flowPlayer.flow || !window.flowPlayer.flow.flow_data || !window.flowPlayer.flow.flow_data.nodes || window.flowPlayer.flow.flow_data.nodes.length === 0)) {
+    flowSec.classList.add('hidden');
+    flowSec.style.display = 'none';
+    document.querySelectorAll('.routine-lock-banner[data-for="flow"]').forEach(b => b.remove());
+  }
+
   reorderAllTaskLists();
   syncStateToUI();
   if (typeof syncProgressWithServer === 'function') {
@@ -1612,6 +1627,7 @@ async function loadPublishedTasksFromAdmin() {
 // Quick Add Task Hub & Settings Modal (Requirements 1, 2, 4, 4.1)
 // =========================================================================
 async function openAddQuickTaskModal() {
+  const initialTab = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'add';
   if (typeof document === 'undefined') return;
 
   const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
@@ -1787,6 +1803,10 @@ async function openAddQuickTaskModal() {
   tabBtnAdd.addEventListener("click", () => switchTab('add'));
   tabBtnSettings.addEventListener("click", () => switchTab('settings'));
 
+  if (initialTab === 'settings') {
+    switchTab('settings');
+  }
+
   // Mode Switcher Logic: Cards vs Bulk
   const modeBtnCards = modal.querySelector("#mode-btn-cards");
   const modeBtnBulk = modal.querySelector("#mode-btn-bulk");
@@ -1810,6 +1830,7 @@ async function openAddQuickTaskModal() {
   // Task Cards Management
   const cardsWrapper = modal.querySelector("#task-cards-wrapper");
   let cardCounter = 0;
+  const todayDateStr = new Date().toISOString().split('T')[0];
 
   function createTaskCardHtml(cardId, initialTitle = '') {
     return `
@@ -1849,7 +1870,7 @@ async function openAddQuickTaskModal() {
           </div>
         </div>
 
-        <!-- Frequency & Days of Week (Requirement 1.6) -->
+        <!-- Frequency & Days of Week (Requirement 1.6 & 4.1 - 4.5) -->
         <div class="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5">
           <div class="flex items-center justify-between">
             <label class="block text-xs font-bold text-slate-800">පුනරාවර්තනය (Recurrence):</label>
@@ -1861,64 +1882,70 @@ async function openAddQuickTaskModal() {
             </select>
           </div>
 
-          <!-- Days of Week Checkboxes (Requirement 1.6: tick days of week) -->
+          <!-- Days of Week Checkboxes (Requirement 4.1: default all selected; 4.2: background color when activated) -->
           <div class="card-dow-container pt-1">
             <label class="block text-[11px] font-semibold text-slate-600 mb-1">අදාළ සතියේ දිනයන් තෝරන්න (Days of Week):</label>
             <div class="grid grid-cols-4 sm:grid-cols-7 gap-1 text-[11px]">
-              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer text-center font-medium bg-slate-50 transition-all card-dow-label">
                 <input type="checkbox" class="card-dow-check sr-only" value="1" checked>
                 <span>සඳුදා</span>
               </label>
-              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer text-center font-medium bg-slate-50 transition-all card-dow-label">
                 <input type="checkbox" class="card-dow-check sr-only" value="2" checked>
                 <span>අඟහ</span>
               </label>
-              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer text-center font-medium bg-slate-50 transition-all card-dow-label">
                 <input type="checkbox" class="card-dow-check sr-only" value="3" checked>
                 <span>බදාදා</span>
               </label>
-              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer text-center font-medium bg-slate-50 transition-all card-dow-label">
                 <input type="checkbox" class="card-dow-check sr-only" value="4" checked>
                 <span>බ්‍රහස්</span>
               </label>
-              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer text-center font-medium bg-slate-50 transition-all card-dow-label">
                 <input type="checkbox" class="card-dow-check sr-only" value="5" checked>
                 <span>සිකු</span>
               </label>
-              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer text-center font-medium bg-slate-50 transition-all card-dow-label">
                 <input type="checkbox" class="card-dow-check sr-only" value="6" checked>
                 <span>සෙන</span>
               </label>
-              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-slate-50">
+              <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer text-center font-medium bg-slate-50 transition-all card-dow-label">
                 <input type="checkbox" class="card-dow-check sr-only" value="0" checked>
                 <span>ඉරිදා</span>
               </label>
             </div>
           </div>
+
+          <!-- Next Date Picker for Monthly & Yearly (Requirement 4.4 & 4.5) -->
+          <div class="card-next-date-container hidden pt-2 border-t border-slate-100 space-y-1">
+            <label class="block text-[11px] font-bold text-slate-700">ඊළඟ දිනය (Next Date):</label>
+            <input type="date" class="card-next-date w-full p-2 border rounded-xl text-xs bg-slate-50 focus:bg-white font-mono" value="${todayDateStr}">
+          </div>
         </div>
 
-        <!-- Preferred Time & Custom Time Range (Requirement 1.8) -->
+        <!-- Preferred Time & Custom Time Range (Requirement 3: all 5 checked by default; 4.2: background color when activated) -->
         <div class="p-3 bg-white border border-slate-200 rounded-xl space-y-2.5">
           <label class="block text-xs font-bold text-slate-800">සුදුසු වේලාව (Preferred Time Slots):</label>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
-            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50">
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50 transition-all card-slot-label">
               <input type="checkbox" class="card-time-slot" value="morning" checked>
               <span>🌅 උදෑසන</span>
             </label>
-            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50">
-              <input type="checkbox" class="card-time-slot" value="afternoon">
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50 transition-all card-slot-label">
+              <input type="checkbox" class="card-time-slot" value="afternoon" checked>
               <span>☀️ දහවල්</span>
             </label>
-            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50">
-              <input type="checkbox" class="card-time-slot" value="evening">
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50 transition-all card-slot-label">
+              <input type="checkbox" class="card-time-slot" value="evening" checked>
               <span>🌇 සවස</span>
             </label>
-            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50">
-              <input type="checkbox" class="card-time-slot" value="night">
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50 transition-all card-slot-label">
+              <input type="checkbox" class="card-time-slot" value="night" checked>
               <span>🌙 රාත්‍රී</span>
             </label>
-            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50 col-span-2 sm:col-span-1">
-              <input type="checkbox" class="card-time-slot" value="anytime">
+            <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-slate-50 col-span-2 sm:col-span-1 transition-all card-slot-label">
+              <input type="checkbox" class="card-time-slot" value="anytime" checked>
               <span>🔄 Flexible</span>
             </label>
           </div>
@@ -1978,20 +2005,65 @@ async function openAddQuickTaskModal() {
     titleInput.addEventListener('input', updateIcon);
     catSelect.addEventListener('change', updateIcon);
 
-    // Days of week style toggling
+    // Days of week style toggling (Requirement 4.2: background color when activated)
     cardNode.querySelectorAll('.card-dow-check').forEach(chk => {
       const updateCheckStyle = () => {
         const parent = chk.closest('label');
         if (chk.checked) {
-          parent.classList.add('bg-purple-100', 'border-purple-300', 'text-purple-800', 'font-bold');
-          parent.classList.remove('bg-slate-50', 'text-slate-700');
+          parent.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-900', 'font-bold', 'shadow-2xs');
+          parent.classList.remove('bg-slate-50', 'text-slate-600', 'border-slate-200', 'font-medium');
         } else {
-          parent.classList.remove('bg-purple-100', 'border-purple-300', 'text-purple-800', 'font-bold');
-          parent.classList.add('bg-slate-50', 'text-slate-700');
+          parent.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-900', 'font-bold', 'shadow-2xs');
+          parent.classList.add('bg-slate-50', 'text-slate-600', 'border-slate-200', 'font-medium');
         }
       };
       chk.addEventListener('change', updateCheckStyle);
       updateCheckStyle();
+    });
+
+    // Time slots style toggling (Requirement 4.2: background color when activated)
+    cardNode.querySelectorAll('.card-time-slot').forEach(chk => {
+      const updateSlotStyle = () => {
+        const parent = chk.closest('label');
+        if (chk.checked) {
+          parent.classList.add('bg-indigo-100', 'border-indigo-300', 'text-indigo-900', 'font-bold', 'shadow-2xs');
+          parent.classList.remove('bg-slate-50', 'text-slate-600', 'border-slate-200', 'font-medium');
+        } else {
+          parent.classList.remove('bg-indigo-100', 'border-indigo-300', 'text-indigo-900', 'font-bold', 'shadow-2xs');
+          parent.classList.add('bg-slate-50', 'text-slate-600', 'border-slate-200', 'font-medium');
+        }
+      };
+      chk.addEventListener('change', updateSlotStyle);
+      updateSlotStyle();
+    });
+
+    // Frequency & Days of Week relationship (Requirement 4.4, 4.4/4.5)
+    const freqSelect = cardNode.querySelector('.card-freq-select');
+    const nextDateContainer = cardNode.querySelector('.card-next-date-container');
+    const dowChecks = cardNode.querySelectorAll('.card-dow-check');
+
+    freqSelect.addEventListener('change', () => {
+      const val = freqSelect.value;
+      if (val === 'weekly' || val === 'monthly' || val === 'yearly') {
+        // Only Monday should be selected (Requirement 4.4)
+        dowChecks.forEach(chk => {
+          chk.checked = (chk.value === '1');
+          chk.dispatchEvent(new Event('change'));
+        });
+      } else if (val === 'daily') {
+        // All 7 days selected
+        dowChecks.forEach(chk => {
+          chk.checked = true;
+          chk.dispatchEvent(new Event('change'));
+        });
+      }
+
+      // Next date for monthly and yearly (Requirement 4.4 & 4.5)
+      if (val === 'monthly' || val === 'yearly') {
+        nextDateContainer.classList.remove('hidden');
+      } else {
+        nextDateContainer.classList.add('hidden');
+      }
     });
 
     // Custom time toggle
@@ -2053,6 +2125,7 @@ async function openAddQuickTaskModal() {
       const hasCustomTime = card.querySelector('.card-has-custom-time').checked;
       const timeFrom = hasCustomTime ? card.querySelector('.card-time-from').value : null;
       const timeTo = hasCustomTime ? card.querySelector('.card-time-to').value : null;
+      const nextDate = (freq === 'monthly' || freq === 'yearly') ? (card.querySelector('.card-next-date')?.value || todayDateStr) : null;
       const hasTimer = card.querySelector('.card-has-timer').checked;
       const timerSec = hasTimer ? parseInt(card.querySelector('.card-timer-seconds').value) : null;
       const icon = autoDetermineIcon(title, category);
@@ -2084,9 +2157,11 @@ async function openAddQuickTaskModal() {
           schedule: {
             frequency: freq,
             days_of_week: dows,
+            preferred_slots: timeSlots,
             preferred_time_slots: timeSlots,
             custom_time_from: timeFrom,
-            custom_time_to: timeTo
+            custom_time_to: timeTo,
+            next_run_date: nextDate
           },
           created_by_user: currentUser.id
         }
@@ -2152,24 +2227,30 @@ async function openAddQuickTaskModal() {
       if (raw) cached = JSON.parse(raw);
       if (!Array.isArray(cached)) cached = [];
 
-      for (const t of tasks) {
-        cached.push(t);
-        // Supabase async save
+      // Await saving to Supabase REST API (Requirement 4.3: cross-device persistence)
+      const supabaseSaves = tasks.map(t =>
         fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
           method: "POST",
           headers: {
             apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
             Authorization: "Bearer sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            Prefer: "resolution=merge-duplicates"
           },
           body: JSON.stringify(t)
-        }).catch(() => {});
+        }).catch(err => console.warn("Supabase POST error:", err))
+      );
+      await Promise.all(supabaseSaves);
 
+      for (const t of tasks) {
+        cached.push(t);
         recordUserActivity('task_added', `නව කාර්යයක් එක් කළා: ${t.title_si}`, t.weight_points || 10);
       }
 
       localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
-    } catch (e) {}
+    } catch (e) {
+      console.error("Error in saveTasksList:", e);
+    }
 
     closeModal();
     await loadPublishedTasksFromAdmin();
@@ -2274,7 +2355,7 @@ async function openAddQuickTaskModal() {
                 </select>
               </div>
 
-              <!-- Days of Week Checkboxes -->
+              <!-- Days of Week Checkboxes (Requirement 4.1 & 4.2) -->
               <div class="pt-1">
                 <label class="block text-[11px] font-semibold text-slate-600 mb-1">අදාළ සතියේ දිනයන් (Days of Week):</label>
                 <div class="grid grid-cols-4 sm:grid-cols-7 gap-1 text-[11px]">
@@ -2289,17 +2370,23 @@ async function openAddQuickTaskModal() {
                   ].map(day => {
                     const isChecked = !sched?.days_of_week || (Array.isArray(sched.days_of_week) && sched.days_of_week.includes(day.d));
                     return `
-                      <label class="flex items-center justify-center p-1.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-purple-50 text-center font-medium bg-white">
+                      <label class="flex items-center justify-center p-1.5 rounded-lg border cursor-pointer text-center font-medium transition-all edit-dow-label ${isChecked ? 'bg-indigo-100 border-indigo-300 text-indigo-900 font-bold shadow-2xs' : 'bg-white border-slate-200 text-slate-600'}">
                         <input type="checkbox" class="edit-task-dow sr-only" value="${day.d}" ${isChecked ? 'checked' : ''}>
-                        <span class="dow-label-text ${isChecked ? 'font-bold text-purple-700' : 'text-slate-500'}">${day.label}</span>
+                        <span class="dow-label-text">${day.label}</span>
                       </label>
                     `;
                   }).join('')}
                 </div>
               </div>
+
+              <!-- Next Date Picker for Monthly & Yearly (Requirement 4.4 & 4.5) -->
+              <div class="edit-next-date-container ${sched?.frequency === 'monthly' || sched?.frequency === 'yearly' ? '' : 'hidden'} pt-2 border-t border-slate-200/60 space-y-1">
+                <label class="block text-[11px] font-bold text-slate-700">ඊළඟ දිනය (Next Date):</label>
+                <input type="date" class="edit-task-next-date w-full p-2 border rounded-xl text-xs bg-white font-mono" value="${sched?.next_run_date || todayDateStr}">
+              </div>
             </div>
 
-            <!-- Preferred Time Slots -->
+            <!-- Preferred Time Slots (Requirement 3: all 5 checked by default; 4.2: background color when activated) -->
             <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
               <label class="block text-xs font-bold text-slate-800">සුදුසු වේලාව (Preferred Time Slots):</label>
               <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-[11px]">
@@ -2310,9 +2397,11 @@ async function openAddQuickTaskModal() {
                   { id: 'night', label: '🌙 රාත්‍රී' },
                   { id: 'anytime', label: '🔄 Flexible' }
                 ].map(slot => {
-                  const isChecked = !sched?.preferred_slots || (Array.isArray(sched.preferred_slots) && sched.preferred_slots.includes(slot.id));
+                  const isChecked = !sched?.preferred_slots && !sched?.preferred_time_slots
+                    ? true
+                    : ((Array.isArray(sched?.preferred_slots) && sched.preferred_slots.includes(slot.id)) || (Array.isArray(sched?.preferred_time_slots) && sched.preferred_time_slots.includes(slot.id)));
                   return `
-                    <label class="flex items-center gap-1.5 p-1.5 rounded-lg border border-slate-200 cursor-pointer bg-white">
+                    <label class="flex items-center gap-1.5 p-1.5 rounded-lg border cursor-pointer transition-all edit-slot-label ${isChecked ? 'bg-indigo-100 border-indigo-300 text-indigo-900 font-bold shadow-2xs' : 'bg-white border-slate-200 text-slate-600'}">
                       <input type="checkbox" class="edit-task-slot" value="${slot.id}" ${isChecked ? 'checked' : ''}>
                       <span>${slot.label}</span>
                     </label>
@@ -2376,6 +2465,10 @@ async function openAddQuickTaskModal() {
       const editIconPreview = row.querySelector('.edit-icon-preview');
       const editHasCustom = row.querySelector('.edit-task-has-custom');
       const editCustomFields = row.querySelector('.edit-custom-time-fields');
+      const editFreq = row.querySelector('.edit-task-freq');
+      const editNextDateContainer = row.querySelector('.edit-next-date-container');
+      const editDowChecks = row.querySelectorAll('.edit-task-dow');
+      const editSlotChecks = row.querySelectorAll('.edit-task-slot');
 
       // Update Icon Preview live
       const updateIcon = () => {
@@ -2397,19 +2490,61 @@ async function openAddQuickTaskModal() {
         });
       }
 
-      // Checkbox visual styling for days of week
-      row.querySelectorAll('.edit-task-dow').forEach(check => {
-        check.addEventListener('change', () => {
-          const labelSpan = check.parentElement?.querySelector('.dow-label-text');
-          if (labelSpan) {
-            if (check.checked) {
-              labelSpan.className = 'dow-label-text font-bold text-purple-700';
-            } else {
-              labelSpan.className = 'dow-label-text text-slate-500';
-            }
+      // Checkbox visual styling for days of week (Requirement 4.2)
+      editDowChecks.forEach(check => {
+        const updateDowStyle = () => {
+          const parent = check.closest('label');
+          if (!parent) return;
+          if (check.checked) {
+            parent.className = 'flex items-center justify-center p-1.5 rounded-lg border cursor-pointer text-center font-medium transition-all edit-dow-label bg-indigo-100 border-indigo-300 text-indigo-900 font-bold shadow-2xs';
+          } else {
+            parent.className = 'flex items-center justify-center p-1.5 rounded-lg border cursor-pointer text-center font-medium transition-all edit-dow-label bg-white border-slate-200 text-slate-600';
+          }
+        };
+        check.addEventListener('change', updateDowStyle);
+        updateDowStyle();
+      });
+
+      // Checkbox visual styling for time slots (Requirement 4.2)
+      editSlotChecks.forEach(check => {
+        const updateSlotStyle = () => {
+          const parent = check.closest('label');
+          if (!parent) return;
+          if (check.checked) {
+            parent.className = 'flex items-center gap-1.5 p-1.5 rounded-lg border cursor-pointer transition-all edit-slot-label bg-indigo-100 border-indigo-300 text-indigo-900 font-bold shadow-2xs';
+          } else {
+            parent.className = 'flex items-center gap-1.5 p-1.5 rounded-lg border cursor-pointer transition-all edit-slot-label bg-white border-slate-200 text-slate-600';
+          }
+        };
+        check.addEventListener('change', updateSlotStyle);
+        updateSlotStyle();
+      });
+
+      // Recurrence frequency listener (Requirement 4.4, 4.4 & 4.5)
+      if (editFreq) {
+        editFreq.addEventListener('change', () => {
+          const val = editFreq.value;
+          if (val === 'weekly' || val === 'monthly' || val === 'yearly') {
+            // Only Monday should be selected (Requirement 4.4)
+            editDowChecks.forEach(chk => {
+              chk.checked = (chk.value === '1');
+              chk.dispatchEvent(new Event('change'));
+            });
+          } else if (val === 'daily') {
+            // All 7 days selected
+            editDowChecks.forEach(chk => {
+              chk.checked = true;
+              chk.dispatchEvent(new Event('change'));
+            });
+          }
+
+          if (val === 'monthly' || val === 'yearly') {
+            editNextDateContainer?.classList.remove('hidden');
+          } else {
+            editNextDateContainer?.classList.add('hidden');
           }
         });
-      });
+      }
 
       editBtn.addEventListener('click', () => {
         editContainer.classList.toggle('hidden');
@@ -2423,7 +2558,7 @@ async function openAddQuickTaskModal() {
         const newTitle = editTitle ? editTitle.value.trim() : (task.title_si || task.title_en);
         const newCategory = editCategory ? editCategory.value : (task.category || 'general');
         const newPoints = parseFloat(row.querySelector('.edit-task-points')?.value) || 10;
-        const newFreq = row.querySelector('.edit-task-freq')?.value || 'daily';
+        const newFreq = editFreq?.value || 'daily';
 
         const newDows = Array.from(row.querySelectorAll('.edit-task-dow:checked')).map(el => parseInt(el.value));
         const newSlots = Array.from(row.querySelectorAll('.edit-task-slot:checked')).map(el => el.value);
@@ -2431,6 +2566,7 @@ async function openAddQuickTaskModal() {
         const hasCustom = editHasCustom ? editHasCustom.checked : false;
         const newFrom = hasCustom ? (row.querySelector('.edit-task-from')?.value || '07:00') : null;
         const newTo = hasCustom ? (row.querySelector('.edit-task-to')?.value || '08:00') : null;
+        const newNextDate = (newFreq === 'monthly' || newFreq === 'yearly') ? (row.querySelector('.edit-task-next-date')?.value || todayDateStr) : null;
         const newIcon = autoDetermineIcon(newTitle, newCategory);
 
         const isGlobal = !task.schema_definition?.target_profile || task.schema_definition?.target_profile === 'global' || task.target_profile === 'global';
@@ -2464,8 +2600,10 @@ async function openAddQuickTaskModal() {
                 frequency: newFreq,
                 days_of_week: newDows,
                 preferred_slots: newSlots,
+                preferred_time_slots: newSlots,
                 custom_time_from: newFrom,
-                custom_time_to: newTo
+                custom_time_to: newTo,
+                next_run_date: newNextDate
               }
             }
           };
@@ -2485,14 +2623,16 @@ async function openAddQuickTaskModal() {
                 frequency: newFreq,
                 days_of_week: newDows,
                 preferred_slots: newSlots,
+                preferred_time_slots: newSlots,
                 custom_time_from: newFrom,
-                custom_time_to: newTo
+                custom_time_to: newTo,
+                next_run_date: newNextDate
               }
             }
           };
         }
 
-        // Save to cache & Supabase
+        // Save to cache & Supabase (await for cross-device persistence - Requirement 4.3)
         try {
           let cached = [];
           const raw = localStorage.getItem('wosandi_admin_wosandi_tasks');
@@ -2502,8 +2642,8 @@ async function openAddQuickTaskModal() {
           else cached.push(targetTaskToSave);
           localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(cached));
 
-          // Supabase upsert
-          fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
+          // Supabase upsert (await)
+          await fetch("https://rxwopsfjnlzlzzazgnvq.supabase.co/rest/v1/wosandi_tasks", {
             method: "POST",
             headers: {
               apikey: "sb_publishable_T_OzlimdV3-2UhuHSvj5kA_GFTH9nbn",
@@ -2512,7 +2652,7 @@ async function openAddQuickTaskModal() {
               Prefer: "resolution=merge-duplicates"
             },
             body: JSON.stringify(targetTaskToSave)
-          }).catch(() => {});
+          }).catch(err => console.warn("Supabase save error:", err));
         } catch (e) {}
 
         editContainer.classList.add('hidden');

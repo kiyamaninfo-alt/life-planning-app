@@ -40,7 +40,7 @@
         <a href="/admin/" id="header-admin-link" class="hidden text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-600 px-2.5 py-1 rounded-full transition items-center gap-1 shadow-xs" style="display: none;">
           <i class="fa-solid fa-shield-halved"></i> Admin
         </a>
-        <button id="header-settings-btn" onclick="openAdminModal()" class="text-slate-400 hover:text-slate-600 transition p-1 cursor-pointer" title="සැකසුම් (Settings)"><i class="fa-solid fa-gear text-base"></i></button>
+        <button id="header-settings-btn" onclick="if(typeof openAddQuickTaskModal === 'function') openAddQuickTaskModal('settings');" class="text-slate-400 hover:text-slate-600 transition p-1 cursor-pointer" title="සැකසුම් (Settings)"><i class="fa-solid fa-gear text-base"></i></button>
       </div>
     </div>
 

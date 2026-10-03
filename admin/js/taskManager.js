@@ -43,6 +43,7 @@ export class TaskManager {
         this.availableTimers = [];
         this.debounceTimers = {};
         this.modalAutosaveTimer = null;
+        this.selectedTaskIds = new Set();
     }
 
     async render() {
@@ -92,6 +93,29 @@ export class TaskManager {
                     ${this.users.map(u => `<option value="${u.id}">${u.avatar || '👤'} ${u.display_name || u.username}</option>`).join('')}
                 </select>
             </div>
+
+            <!-- Bulk Actions Bar (Requirement 1: Multi-Select) -->
+            <div id="taskBulkActionsBar" class="hidden mb-3 p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs font-['Noto_Sans_Sinhala'] transition-all">
+                <div class="flex items-center gap-2">
+                    <span class="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-bold" id="selectedTasksCount">0</span>
+                    <span class="font-bold text-indigo-900">කාර්යයන් තෝරාගෙන ඇත (Tasks Selected)</span>
+                </div>
+                <div class="flex items-center flex-wrap gap-2">
+                    <button id="bulkPublishBtn" type="button" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs">
+                        <i class="fas fa-eye"></i> ප්‍රකාශ කරන්න (Publish)
+                    </button>
+                    <button id="bulkDraftBtn" type="button" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs">
+                        <i class="fas fa-eye-slash"></i> කෙටුම්පත් කරන්න (Draft)
+                    </button>
+                    <button id="bulkDeleteBtn" type="button" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs">
+                        <i class="fas fa-trash-alt"></i> මකා දමන්න (Delete)
+                    </button>
+                    <button id="bulkClearBtn" type="button" class="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg font-semibold flex items-center gap-1 transition cursor-pointer">
+                        <i class="fas fa-times"></i> තේරීම ඉවත් කරන්න (Clear)
+                    </button>
+                </div>
+            </div>
+
             <div id="tasksTableContainer" class="bg-white rounded-xl shadow-xs overflow-x-auto border border-slate-200">
                 <!-- Table will be rendered here -->
             </div>
@@ -190,17 +214,21 @@ export class TaskManager {
 
         if (filteredTasks.length === 0) {
             tableContainer.innerHTML = `<div class="p-8 text-center text-gray-500 font-['Noto_Sans_Sinhala'] text-xs">කිසිදු කාර්යයක් හමු නොවීය. නව කාර්යයක් සෑදීමට "නව කාර්යයක් එක් කරන්න" ක්ලික් කරන්න.</div>`;
+            this.updateBulkActionsBar([]);
             return;
         }
 
         let tableHtml = `
             <div class="sm:hidden flex items-center justify-between px-3 py-2 bg-indigo-50/70 border-b border-indigo-100 text-[11px] text-indigo-700 font-semibold table-scroll-hint">
                 <span><i class="fas fa-arrows-left-right text-indigo-500 mr-1.5"></i>දෙපසට Scroll කරන්න (Swipe horizontally)</span>
-                <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold">8 තීරු</span>
+                <span class="bg-indigo-100 text-indigo-800 text-[10px] px-2 py-0.5 rounded-full font-bold">9 තීරු</span>
             </div>
             <table class="min-w-[850px] w-full divide-y divide-gray-200 font-['Noto_Sans_Sinhala']">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="w-10 px-3 sm:px-4 py-3 text-center">
+                            <input type="checkbox" id="selectAllTasksCheckbox" class="w-4 h-4 text-indigo-600 rounded cursor-pointer" title="සියල්ල තෝරන්න">
+                        </th>
                         <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">කාර්යය (Task)</th>
                         <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">විෂය සහ වර්ගය</th>
                         <th class="px-4 sm:px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">පැවරුම (Scope)</th>
@@ -240,6 +268,9 @@ export class TaskManager {
 
             tableHtml += `
                 <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="w-10 px-3 sm:px-4 py-4 whitespace-nowrap text-center">
+                        <input type="checkbox" class="task-row-checkbox w-4 h-4 text-indigo-600 rounded cursor-pointer" data-id="${task.id}" ${this.selectedTaskIds.has(task.id) ? 'checked' : ''}>
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                             <span class="text-2xl mr-3">${task.icon || '📋'}</span>
@@ -304,7 +335,57 @@ export class TaskManager {
         `;
         tableContainer.innerHTML = tableHtml;
 
-        // Attach event listeners
+        // Update bulk actions bar state
+        this.updateBulkActionsBar(filteredTasks);
+
+        // Attach Select All listener
+        const selectAllCheck = document.getElementById('selectAllTasksCheckbox');
+        if (selectAllCheck) {
+            selectAllCheck.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    filteredTasks.forEach(t => this.selectedTaskIds.add(t.id));
+                } else {
+                    filteredTasks.forEach(t => this.selectedTaskIds.delete(t.id));
+                }
+                tableContainer.querySelectorAll('.task-row-checkbox').forEach(chk => {
+                    chk.checked = this.selectedTaskIds.has(chk.dataset.id);
+                });
+                this.updateBulkActionsBar(filteredTasks);
+            });
+        }
+
+        // Attach individual row checkbox listeners
+        tableContainer.querySelectorAll('.task-row-checkbox').forEach(chk => {
+            chk.addEventListener('change', (e) => {
+                const id = e.target.dataset.id;
+                if (e.target.checked) {
+                    this.selectedTaskIds.add(id);
+                } else {
+                    this.selectedTaskIds.delete(id);
+                }
+                this.updateBulkActionsBar(filteredTasks);
+            });
+        });
+
+        // Attach bulk action buttons
+        const bulkPublishBtn = document.getElementById('bulkPublishBtn');
+        if (bulkPublishBtn) {
+            bulkPublishBtn.onclick = () => this.bulkUpdateStatus('published');
+        }
+        const bulkDraftBtn = document.getElementById('bulkDraftBtn');
+        if (bulkDraftBtn) {
+            bulkDraftBtn.onclick = () => this.bulkUpdateStatus('draft');
+        }
+        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        if (bulkDeleteBtn) {
+            bulkDeleteBtn.onclick = () => this.bulkDelete();
+        }
+        const bulkClearBtn = document.getElementById('bulkClearBtn');
+        if (bulkClearBtn) {
+            bulkClearBtn.onclick = () => this.clearSelection();
+        }
+
+        // Attach standard action listeners
         tableContainer.querySelectorAll('.edit-task-btn').forEach(btn => {
             btn.addEventListener('click', (e) => this.openEditModal(e.currentTarget.dataset.id));
         });
@@ -316,6 +397,122 @@ export class TaskManager {
         });
         tableContainer.querySelectorAll('.task-point-input').forEach(input => {
             input.addEventListener('input', (e) => this.handlePointEdit(e.target.dataset.id, e.target.value));
+        });
+    }
+
+    updateBulkActionsBar(filteredTasks = []) {
+        if (typeof document === 'undefined') return;
+        const bar = document.getElementById('taskBulkActionsBar');
+        const countEl = document.getElementById('selectedTasksCount');
+        const selectAllCheck = document.getElementById('selectAllTasksCheckbox');
+        if (!bar) return;
+
+        const count = this.selectedTaskIds.size;
+        if (countEl) countEl.textContent = String(count);
+
+        if (count > 0) {
+            bar.classList.remove('hidden');
+        } else {
+            bar.classList.add('hidden');
+        }
+
+        if (selectAllCheck && filteredTasks.length > 0) {
+            selectAllCheck.checked = filteredTasks.every(t => this.selectedTaskIds.has(t.id));
+            selectAllCheck.indeterminate = (!selectAllCheck.checked && filteredTasks.some(t => this.selectedTaskIds.has(t.id)));
+        } else if (selectAllCheck) {
+            selectAllCheck.checked = false;
+            selectAllCheck.indeterminate = false;
+        }
+    }
+
+    clearSelection() {
+        this.selectedTaskIds.clear();
+        const selectAllCheck = document.getElementById('selectAllTasksCheckbox');
+        if (selectAllCheck) {
+            selectAllCheck.checked = false;
+            selectAllCheck.indeterminate = false;
+        }
+        const container = document.getElementById('tasksTableContainer');
+        if (container) {
+            container.querySelectorAll('.task-row-checkbox').forEach(chk => {
+                chk.checked = false;
+            });
+        }
+        this.updateBulkActionsBar([]);
+    }
+
+    async bulkUpdateStatus(newStatus) {
+        if (this.selectedTaskIds.size === 0) return;
+        const ids = Array.from(this.selectedTaskIds);
+        try {
+            await Promise.all(ids.map(id => this.api.update(this.tableName, id, { status: newStatus })));
+            this.tasks.forEach(t => {
+                if (this.selectedTaskIds.has(t.id)) {
+                    t.status = newStatus;
+                }
+            });
+            try {
+                localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(this.tasks));
+            } catch (e) {}
+            this.toastFn(`කාර්යයන් ${ids.length}ක් සාර්ථකව ${newStatus === 'published' ? 'ප්‍රකාශයට පත් කරන ලදී' : 'කටු කෙටුම්පත් කරන ලදී'}`, 'success');
+            this.clearSelection();
+            this.renderTable();
+        } catch (e) {
+            console.error('Error updating multiple tasks:', e);
+            this.toastFn('කාර්යයන් යාවත්කාලීන කිරීම අසාර්ථක විය', 'error');
+        }
+    }
+
+    async bulkDelete() {
+        if (this.selectedTaskIds.size === 0) return;
+        const ids = Array.from(this.selectedTaskIds);
+        const deleteContainer = document.getElementById('deleteModalContainer');
+        if (!deleteContainer) return;
+
+        deleteContainer.innerHTML = `
+            <div class="fixed inset-0 bg-gray-900 bg-opacity-50 z-50 flex items-center justify-center p-4 font-['Noto_Sans_Sinhala']">
+                <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center shadow-2xl">
+                    <div class="w-14 h-14 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4 shadow-inner">
+                        <i class="fas fa-trash-alt"></i>
+                    </div>
+                    <h3 class="text-base font-bold text-gray-900 mb-2">කාර්යයන් ${ids.length}ක් මකාදැමීම තහවුරු කරන්න</h3>
+                    <p class="text-xs text-gray-600 mb-4">
+                        ඔබ තෝරාගත් කාර්යයන් <strong class="text-gray-900 font-bold">${ids.length}</strong> ස්ථිරවම මකා දැමීමට අවශ්‍ය බව තහවුරු කරන්නද?
+                    </p>
+                    <div class="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 text-left mb-4">
+                        <i class="fas fa-exclamation-circle mr-1"></i> මෙම ක්‍රියාව ආපසු හැරවිය නොහැක. සියලුම තෝරාගත් කාර්යයන් සම්පූර්ණයෙන්ම ඉවත් කෙරේ.
+                    </div>
+                    <div class="flex justify-center gap-3">
+                        <button id="cancelBulkDeleteBtn" type="button" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold rounded-xl transition cursor-pointer">
+                            අවලංගු කරන්න
+                        </button>
+                        <button id="confirmBulkDeleteBtn" type="button" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow transition flex items-center gap-1.5 cursor-pointer">
+                            <i class="fas fa-trash-alt"></i> ස්ථිරවම මකන්න
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('cancelBulkDeleteBtn').addEventListener('click', () => {
+            deleteContainer.innerHTML = '';
+        });
+
+        document.getElementById('confirmBulkDeleteBtn').addEventListener('click', async () => {
+            try {
+                await Promise.all(ids.map(id => this.api.delete(this.tableName, id)));
+                this.tasks = this.tasks.filter(t => !this.selectedTaskIds.has(t.id));
+                try {
+                    localStorage.setItem('wosandi_admin_wosandi_tasks', JSON.stringify(this.tasks));
+                } catch (e) {}
+                this.selectedTaskIds.clear();
+                deleteContainer.innerHTML = '';
+                this.toastFn(`කාර්යයන් ${ids.length}ක් සාර්ථකව මකා දමන ලදී`, 'success');
+                this.renderTable();
+            } catch (error) {
+                console.error('Error deleting tasks:', error);
+                this.toastFn('කාර්යයන් මැකීම අසාර්ථක විය', 'error');
+            }
         });
     }
 
@@ -528,6 +725,11 @@ export class TaskManager {
                                         <input type="time" id="schedule_custom_to" value="${currentSchedule.custom_time_to || ''}" class="w-full p-1.5 border rounded-lg text-xs bg-white">
                                     </div>
                                 </div>
+                                <!-- Next Date for Monthly & Yearly (Requirement 4.4 & 4.5) -->
+                                <div id="schedule_next_date_container" class="${currentSchedule.frequency === 'monthly' || currentSchedule.frequency === 'yearly' ? '' : 'hidden'} pt-2 border-t border-slate-200">
+                                    <label class="block text-[11px] font-semibold text-slate-700 mb-0.5">ඊළඟ දිනය (Next Date):</label>
+                                    <input type="date" id="schedule_next_date" value="${currentSchedule.next_run_date || new Date().toISOString().split('T')[0]}" class="w-full p-1.5 border rounded-lg text-xs bg-white font-mono">
+                                </div>
                             </div>
 
                             <!-- Description -->
@@ -675,6 +877,34 @@ export class TaskManager {
                 input.addEventListener('input', triggerAutosave);
                 input.addEventListener('change', triggerAutosave);
             });
+
+            // Recurrence Frequency change logic (Requirement 4.4, 4.4 & 4.5)
+            const scheduleFreqSelect = document.getElementById('schedule_frequency');
+            const scheduleNextDateContainer = document.getElementById('schedule_next_date_container');
+            const adminDowCheckboxes = modalContainer.querySelectorAll('.admin-dow-check');
+
+            if (scheduleFreqSelect) {
+                scheduleFreqSelect.addEventListener('change', () => {
+                    const freqVal = scheduleFreqSelect.value;
+                    if (freqVal === 'weekly' || freqVal === 'monthly' || freqVal === 'yearly') {
+                        // Only Monday selected (Requirement 4.4)
+                        adminDowCheckboxes.forEach(chk => {
+                            chk.checked = (chk.value === '1');
+                        });
+                    } else if (freqVal === 'daily') {
+                        // All 7 days selected
+                        adminDowCheckboxes.forEach(chk => {
+                            chk.checked = true;
+                        });
+                    }
+
+                    if (freqVal === 'monthly' || freqVal === 'yearly') {
+                        scheduleNextDateContainer?.classList.remove('hidden');
+                    } else {
+                        scheduleNextDateContainer?.classList.add('hidden');
+                    }
+                });
+            }
         }
 
         document.getElementById('saveTaskBtn').addEventListener('click', async () => {
@@ -703,14 +933,20 @@ export class TaskManager {
 
         // Merge custom form fields into schema_definition
         const dows = Array.from(document.querySelectorAll('.admin-dow-check:checked')).map(c => parseInt(c.value));
+        const freqVal = document.getElementById('schedule_frequency').value;
+        const nextRunDate = (freqVal === 'monthly' || freqVal === 'yearly')
+            ? (document.getElementById('schedule_next_date')?.value || new Date().toISOString().split('T')[0])
+            : null;
+
         schemaDef.subject = document.getElementById('task_subject').value;
         schemaDef.description = document.getElementById('task_description').value;
         schemaDef.schedule = {
-            frequency: document.getElementById('schedule_frequency').value,
+            frequency: freqVal,
             time: document.getElementById('schedule_time').value,
             days_of_week: dows.length > 0 ? dows : [0, 1, 2, 3, 4, 5, 6],
             custom_time_from: document.getElementById('schedule_custom_from')?.value || null,
-            custom_time_to: document.getElementById('schedule_custom_to')?.value || null
+            custom_time_to: document.getElementById('schedule_custom_to')?.value || null,
+            next_run_date: nextRunDate
         };
         if (linkedTimerId) {
             schemaDef.linked_timer_id = linkedTimerId;

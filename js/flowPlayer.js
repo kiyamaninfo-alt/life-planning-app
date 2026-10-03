@@ -85,12 +85,21 @@ class FlowPlayer {
 
     if (flowRecord && flowRecord.flow_data && Array.isArray(flowRecord.flow_data.nodes) && flowRecord.flow_data.nodes.length > 0) {
       this.flow = flowRecord;
-      if (this.sectionEl) this.sectionEl.classList.remove("hidden");
+      if (this.sectionEl) {
+        this.sectionEl.classList.remove("hidden");
+        this.sectionEl.style.display = "";
+      }
       this.startFlow();
     } else {
       this.flow = null;
       if (this.containerEl) this.containerEl.innerHTML = '';
-      if (this.sectionEl) this.sectionEl.classList.add("hidden");
+      if (this.sectionEl) {
+        this.sectionEl.classList.add("hidden");
+        this.sectionEl.style.display = "none";
+      }
+      if (typeof document !== 'undefined') {
+        document.querySelectorAll('.routine-lock-banner[data-for="flow"]').forEach(b => b.remove());
+      }
     }
   }
 
