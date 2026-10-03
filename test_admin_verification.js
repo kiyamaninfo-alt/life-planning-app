@@ -121,6 +121,8 @@ async function runTests() {
   await api.publish('wosandi_tasks', insertTaskRes.id);
   const publishedTasks = await api.getPublished('wosandi_tasks');
   assert(publishedTasks.some(t => t.id === insertTaskRes.id), 'Task status toggled to published');
+  // Clean up test task immediately to avoid polluting database
+  await api.delete('wosandi_tasks', insertTaskRes.id);
 
   console.log('\n=== TEST 5: Timer Presets & Granular Duration Support ===');
   const newTimer = {
@@ -146,6 +148,8 @@ async function runTests() {
   assert(insertTimerRes.duration_hours === 1, 'Duration hours saved as 1');
   assert(insertTimerRes.duration_minutes === 15, 'Duration minutes saved as 15');
   assert(insertTimerRes.trigger_config.alert_intervals.length === 2, 'Trigger config alert intervals saved');
+  // Clean up test timer immediately
+  await api.delete('wosandi_timers', insertTimerRes.id);
 
   console.log('\n=== TEST 6: Flow Builder DAG Structure ===');
   const flow = flowsResult[0];

@@ -227,6 +227,18 @@ export function applyRoutineOrderAndDependencies(stateObj) {
   const container = document.getElementById("routine-main-container") || document.querySelector("main.space-y-4");
   if (!container) return;
 
+  // Requirement 1: Admin profile is strictly for monitoring all other users (no routine sections)
+  const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+    ? window.userManagerClient.getCurrentUser()
+    : null;
+  if (currentUser?.role === 'admin' || currentUser?.id === 'user_admin') {
+    if (typeof document !== 'undefined') {
+      document.querySelectorAll('.routine-section').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.routine-lock-banner').forEach(el => el.classList.add('hidden'));
+    }
+    return;
+  }
+
   let config = null;
   try {
     const raw = localStorage.getItem('wosandi_routine_order_config');

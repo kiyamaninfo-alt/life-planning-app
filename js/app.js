@@ -382,6 +382,13 @@ function toggleSectionCollapse(sectionId) {
 // UI Synchronization from Current State
 // =========================================================================
 function syncStateToUI() {
+  if (typeof window !== 'undefined') {
+    const currentUser = window.userManagerClient?.getCurrentUser?.();
+    if (currentUser?.role === 'admin' || currentUser?.id === 'user_admin') {
+      renderAdminMonitoringDashboard();
+      return;
+    }
+  }
   if (!state) return;
 
   // 1. Wake buttons
@@ -586,7 +593,13 @@ function renderAdminMonitoringDashboard() {
   const container = document.getElementById('admin-monitoring-container');
   if (!container) return;
 
-  // Hide standard routine containers (Requirement 7: no tasks and other features needed in admin profile dashboard)
+  // Hide circular progress ring and rank badges (Requirement 1: Admin profile is to monitor every other user)
+  const progressRing = document.querySelector('.relative.w-44.h-44');
+  if (progressRing) progressRing.classList.add('hidden');
+  const badgeContainer = document.getElementById('badge-container');
+  if (badgeContainer) badgeContainer.classList.add('hidden');
+
+  // Hide standard routine containers (Requirement 1: no wake-up, study, ballet, workout in admin profile)
   const quickBar = document.getElementById('quick-add-task-bar');
   if (quickBar) quickBar.classList.add('hidden');
   const fastingCard = document.getElementById('fasting-tracker-card-container');
@@ -596,6 +609,7 @@ function renderAdminMonitoringDashboard() {
   const recentSec = document.getElementById('recent-changes-section');
   if (recentSec) recentSec.classList.add('hidden');
   document.querySelectorAll('.routine-section').forEach(el => el.classList.add('hidden'));
+  document.querySelectorAll('.routine-lock-banner').forEach(el => el.classList.add('hidden'));
 
   container.classList.remove('hidden');
 
@@ -928,6 +942,9 @@ function renderAdminMonitoringDashboard() {
         adminPollInterval = null;
       }
     }, 8000);
+    if (adminPollInterval && typeof adminPollInterval.unref === 'function') {
+      adminPollInterval.unref();
+    }
   }
 }
 
@@ -1276,6 +1293,10 @@ function openUserDashboardAsAdminMaster(user) {
   const adminContainer = document.getElementById('admin-monitoring-container');
   if (adminContainer) adminContainer.classList.add('hidden');
 
+  const progressRing = document.querySelector('.relative.w-44.h-44');
+  if (progressRing) progressRing.classList.remove('hidden');
+  const badgeContainer = document.getElementById('badge-container');
+  if (badgeContainer) badgeContainer.classList.remove('hidden');
   const quickBar = document.getElementById('quick-add-task-bar');
   if (quickBar) quickBar.classList.remove('hidden');
   const fastingCard = document.getElementById('fasting-tracker-card-container');
@@ -1359,6 +1380,10 @@ async function loadPublishedTasksFromAdmin() {
   // Restore dashboard elements for non-admin profiles
   const adminContainer = document.getElementById('admin-monitoring-container');
   if (adminContainer) adminContainer.classList.add('hidden');
+  const progressRing = document.querySelector('.relative.w-44.h-44');
+  if (progressRing) progressRing.classList.remove('hidden');
+  const badgeContainer = document.getElementById('badge-container');
+  if (badgeContainer) badgeContainer.classList.remove('hidden');
   const quickBar = document.getElementById('quick-add-task-bar');
   if (quickBar) quickBar.classList.remove('hidden');
   const fastingCard = document.getElementById('fasting-tracker-card-container');
@@ -1460,6 +1485,14 @@ async function loadPublishedTasksFromAdmin() {
         return;
       }
 
+      // Check day-of-week schedule if configured
+      const now = new Date();
+      const sched = task.schema_definition?.schedule;
+      if (Array.isArray(sched?.days_of_week) && sched.days_of_week.length > 0 && !sched.days_of_week.includes(now.getDay())) {
+        return;
+      }
+
+      // Add to matchedTasks for this user so it participates in total marks calculation
       matchedTasks.push(task);
 
       const cat = (task.category || 'general').toLowerCase();
@@ -1469,6 +1502,61 @@ async function loadPublishedTasksFromAdmin() {
       const key = task.schema_definition?.linked_state_key || task.id;
       if (state[task.id] === undefined) {
         state[task.id] = key && state[key] !== undefined ? Boolean(state[key]) : false;
+      }
+      const isChecked = Boolean(state[task.id] || (key && state[key]));
+
+      // Requirement 3: Time scheduling lifecycle
+      const timeFrom = sched?.custom_time_from;
+      const timeTo = sched?.custom_time_to;
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      let hasStarted = true;
+      let hasEnded = false;
+
+      if (timeFrom) {
+        const [fromH, fromM] = timeFrom.split(':').map(Number);
+        const fromMinutes = (isNaN(fromH) ? 0 : fromH) * 60 + (isNaN(fromM) ? 0 : fromM);
+        hasStarted = currentMinutes >= fromMinutes;
+      }
+
+      if (timeTo) {
+        const [toH, toM] = timeTo.split(':').map(Number);
+        const toMinutes = (isNaN(toH) ? 0 : toH) * 60 + (isNaN(toM) ? 0 : toM);
+        hasEnded = currentMinutes > toMinutes;
+      }
+
+      // Requirement 3: If scheduled time window has passed today (e.g. ended at 13:00, now is 13:01):
+      // "if the play cricket task end at 1300hrs then the play cricket taks not display but total at 1301hrs still 35"
+      if (hasEnded) {
+        return; // Do NOT display expired task in active checklist
+      }
+
+      const scopeBadge = isGlobal ? '' : `<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 ml-1.5">🔒 Personal</span>`;
+
+      // If scheduled start time has not arrived yet and not checked:
+      // Display as an upcoming scheduled preview without active checkbox so denominator is not affected until start time
+      if (!hasStarted && !isChecked) {
+        const upcomingRow = document.createElement('div');
+        upcomingRow.setAttribute('data-upcoming-task-id', task.id);
+        upcomingRow.className = 'flex items-center justify-between p-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 text-slate-500 font-["Noto_Sans_Sinhala"] transition-all';
+        upcomingRow.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold">${task.icon || autoDetermineIcon(task.title_si || task.title_en, task.category)} ${task.title_si || task.title_en}</span>
+            <span class="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">⏳ ${timeFrom} ට ආරම්භ වේ</span>
+            ${scopeBadge}
+          </div>
+          <span class="text-[10px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">+${task.weight_points || 10}</span>
+        `;
+        container.appendChild(upcomingRow);
+        return;
+      }
+
+      // Active task row (started and not ended, or checked)
+      let timeSubtitle = '';
+      if (timeFrom && timeTo) {
+        timeSubtitle = `<span class="text-[10px] text-slate-400 block font-sans">⏰ ${timeFrom} - ${timeTo}</span>`;
+      } else if (timeFrom) {
+        timeSubtitle = `<span class="text-[10px] text-slate-400 block font-sans">⏰ ආරම්භය: ${timeFrom}</span>`;
       }
 
       const row = document.createElement('label');
@@ -1480,16 +1568,6 @@ async function loadPublishedTasksFromAdmin() {
           ⏱ විනාඩි ${Math.round((task.timer_seconds || 600) / 60)} Timer එක දමන්න
         </button>
       ` : '';
-
-      const isChecked = Boolean(state[task.id] || (key && state[key]));
-      const scopeBadge = isGlobal ? '' : `<span class="text-[9px] font-bold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100 ml-1.5">🔒 Personal</span>`;
-
-      // Schedule time subtitle if configured
-      let timeSubtitle = '';
-      const sched = task.schema_definition?.schedule;
-      if (sched?.custom_time_from && sched?.custom_time_to) {
-        timeSubtitle = `<span class="text-[10px] text-slate-400 block font-sans">⏰ ${sched.custom_time_from} - ${sched.custom_time_to}</span>`;
-      }
 
       row.innerHTML = `
         <div class="flex flex-col">
@@ -2548,23 +2626,53 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // Sync loaded state to UI elements
-  syncStateToUI();
-
-  // Load published tasks from Admin panel
-  await loadPublishedTasksFromAdmin();
-
-  // Initialize Multi-User Management (Default: Wosa)
+  // Initialize Multi-User Management first (Default: Wosa)
+  let currentUser = null;
   if (typeof window !== "undefined" && window.userManagerClient) {
-    await window.userManagerClient.init();
+    currentUser = await window.userManagerClient.init();
     window.userManagerClient.updateUserHeaderPill();
   }
+
+  // Requirement 1: If current user is Admin, render only monitoring hub
+  if (currentUser?.role === 'admin' || currentUser?.id === 'user_admin') {
+    renderAdminMonitoringDashboard();
+  } else {
+    // Sync loaded state to UI elements
+    syncStateToUI();
+    // Load published tasks from Admin panel
+    await loadPublishedTasksFromAdmin();
+  }
 });
+
+// Periodic schedule checker to transition tasks at scheduled start/end times (Requirement 3)
+if (typeof window !== "undefined" && !window._taskScheduleInterval) {
+  window._taskScheduleInterval = setInterval(() => {
+    const currentUser = window.userManagerClient?.getCurrentUser?.();
+    if (currentUser?.role !== 'admin' && currentUser?.id !== 'user_admin') {
+      if (typeof loadPublishedTasksFromAdmin === 'function') {
+        loadPublishedTasksFromAdmin();
+      }
+    }
+  }, 30000);
+  if (window._taskScheduleInterval && typeof window._taskScheduleInterval.unref === 'function') {
+    window._taskScheduleInterval.unref();
+  }
+}
 
 // Multi-User Switch Handler (Requirement 3: Separate dashboard for each user)
 if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
   window.addEventListener("wosandi-user-changed", async (e) => {
     const newUser = e.detail;
+
+    // Requirement 1: If switching to Admin, render monitoring dashboard only
+    if (newUser?.role === 'admin' || newUser?.id === 'user_admin') {
+      renderAdminMonitoringDashboard();
+      if (typeof recordUserActivity === "function") {
+        recordUserActivity('user_switch', `පරිශීලකයා මාරු විය: ${newUser.display_name || newUser.username}`, 0);
+      }
+      return;
+    }
+
     // Reset state to empty base
     const defaultState = {
       wake_up: null,

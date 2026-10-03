@@ -167,7 +167,72 @@ async function loadTodayData() {
 }
 
 // 2. ඔබගේ ගතික (Dynamic) ලකුණු ගණනය කිරීමේ ක්‍රියාවලිය
+/**
+ * Evaluates whether a task's marks count towards the day's total denominator
+ * and its active display lifecycle (Requirement 3):
+ * 1. Flexible / all-day tasks count throughout the day.
+ * 2. Scheduled tasks with start time count once start time has arrived today or completed.
+ * 3. Once counted, even after scheduled end time has finished, marks remain counted for the whole day.
+ */
+export function evaluateTaskScheduleAndMarks(task, state, now = new Date()) {
+  const pts = Number(task.weight_points) || 10;
+  const key = task.schema_definition?.linked_state_key || task.id;
+  const isCompleted = Boolean(state && (state[task.id] === true || (key && state[key] === true)));
+
+  const sched = task.schema_definition?.schedule;
+  const timeFrom = sched?.custom_time_from;
+  const timeTo = sched?.custom_time_to;
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  let hasStarted = true;
+  let hasEnded = false;
+  let countInTotal = false;
+
+  if (!timeFrom) {
+    // All-day / flexible task throughout the day (e.g. music = 15)
+    countInTotal = true;
+  } else {
+    // Scheduled start time (e.g. 12:00)
+    const [fromH, fromM] = timeFrom.split(':').map(Number);
+    const fromMinutes = (isNaN(fromH) ? 0 : fromH) * 60 + (isNaN(fromM) ? 0 : fromM);
+    hasStarted = currentMinutes >= fromMinutes;
+
+    // Count once scheduled start time arrives, OR if already completed
+    // Once counted, marks remain counted for the whole day even after scheduled time finishes
+    if (hasStarted || isCompleted) {
+      countInTotal = true;
+    }
+  }
+
+  if (timeTo) {
+    const [toH, toM] = timeTo.split(':').map(Number);
+    const toMinutes = (isNaN(toH) ? 0 : toH) * 60 + (isNaN(toM) ? 0 : toM);
+    hasEnded = currentMinutes > toMinutes;
+  }
+
+  return {
+    points: pts,
+    isCompleted,
+    countInTotal,
+    hasStarted,
+    hasEnded,
+    shouldDisplay: !hasEnded && (hasStarted || isCompleted),
+    isUpcoming: !hasStarted && !hasEnded && !isCompleted,
+    timeFrom,
+    timeTo
+  };
+}
+
 async function syncProgressWithServer(state, skipSave = false) {
+  // Admin profile: strictly monitoring only, no student routine points calculation
+  const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
+    ? window.userManagerClient.getCurrentUser()
+    : null;
+  if (currentUser?.role === 'admin' || currentUser?.id === 'user_admin') {
+    return;
+  }
+
   if (!skipSave && typeof playChime === "function") playChime();
 
   const todayObj = new Date();
@@ -207,13 +272,15 @@ async function syncProgressWithServer(state, skipSave = false) {
   }
 
   // 3. Dynamic Published Tasks from Admin Panel (wosandi_tasks: global + user-specific)
+  // Requirement 3: Cumulative scheduled time points calculation
   if (typeof window !== 'undefined' && Array.isArray(window.publishedAdminTasks)) {
     window.publishedAdminTasks.forEach(task => {
-      const pts = Number(task.weight_points) || 10;
-      totalPossiblePoints += pts;
-      const key = task.schema_definition?.linked_state_key || task.id;
-      if (state[task.id] === true || (key && state[key] === true)) {
-        earnedPoints += pts;
+      const evalRes = evaluateTaskScheduleAndMarks(task, state, todayObj);
+      if (evalRes.countInTotal) {
+        totalPossiblePoints += evalRes.points;
+        if (evalRes.isCompleted) {
+          earnedPoints += evalRes.points;
+        }
       }
     });
   }
@@ -397,12 +464,14 @@ function updateUI(percent, earned, total, rank) {
   }
 }
 
-// පිටුව Load වන විට දත්ත කැඳවීම
-document.addEventListener("DOMContentLoaded", () => {
-  loadTodayData();
-});
+if (typeof document !== "undefined") {
+  document.addEventListener("DOMContentLoaded", () => {
+    loadTodayData();
+  });
+}
 
 if (typeof window !== "undefined") {
   window.syncProgressWithServer = syncProgressWithServer;
   window.loadTodayData = loadTodayData;
+  window.evaluateTaskScheduleAndMarks = evaluateTaskScheduleAndMarks;
 }
