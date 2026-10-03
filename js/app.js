@@ -1105,12 +1105,6 @@ async function loadPublishedTasksFromAdmin() {
 async function openAddQuickTaskModal() {
   if (typeof document === 'undefined') return;
 
-  // Requirement 1: Only relevant user can edit / add data
-  if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
-    const permitted = await window.userManagerClient.requireEditPermission("කාර්යයන් කළමනාකරණය");
-    if (!permitted) return;
-  }
-
   const currentUser = (typeof window !== 'undefined' && window.userManagerClient?.getCurrentUser)
     ? window.userManagerClient.getCurrentUser()
     : { id: 'user_wosa', username: 'Wosa' };
@@ -1638,6 +1632,11 @@ async function openAddQuickTaskModal() {
   });
 
   async function saveTasksList(tasks) {
+    if (typeof window !== "undefined" && window.userManagerClient?.requireEditPermission) {
+      const permitted = await window.userManagerClient.requireEditPermission("කාර්යයන් සුරැකීම");
+      if (!permitted) return;
+    }
+
     try {
       let cached = [];
       const raw = localStorage.getItem('wosandi_admin_wosandi_tasks');

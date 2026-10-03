@@ -29,7 +29,7 @@ export const DEFAULT_ROUTINE_CONFIG = {
       title_si: '2. පාසල් පැමිණීම සහ විෂයන් (School & Subjects)',
       icon: 'fa-solid fa-school text-indigo-500',
       order: 3,
-      enabled: true,
+      enabled: false,
       depends_on: 'none'
     },
     {
@@ -280,8 +280,10 @@ export function applyRoutineOrderAndDependencies(stateObj) {
     // 2. Evaluate progressive unlocking condition
     const isUnlocked = isConditionSatisfied(sec.depends_on, stateObj);
 
-    if (sec.enabled === false) {
-      el.classList.add("hidden");
+    if (sec.id === 'school' || sec.enabled === false) {
+      if (el.classList) el.classList.add("hidden");
+      if (el.style) el.style.display = "none";
+      return;
     } else if (sec.id === 'flow' && (!window.flowPlayer || !window.flowPlayer.flow)) {
       // Flow only shows if a published flow exists
       el.classList.add("hidden");

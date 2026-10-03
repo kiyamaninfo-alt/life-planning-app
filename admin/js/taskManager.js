@@ -393,71 +393,46 @@ export class TaskManager {
 
                     <div class="p-6 overflow-y-auto flex-1 space-y-4">
                         <form id="taskForm" class="space-y-4">
-                            <!-- Titles -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (සිංහලෙන්) *</label>
-                                    <input type="text" id="title_si" value="${task?.title_si || ''}" required placeholder="උදා: ගණිතය ප්‍රශ්න 5ක් විසඳීම" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-['Noto_Sans_Sinhala']">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">මාතෘකාව (English)</label>
-                                    <input type="text" id="title_en" value="${task?.title_en || ''}" placeholder="e.g. Solve 5 Math Problems" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200">
-                                </div>
-                            </div>
-
-                            <!-- Target Profile / Scope (Requirement: One profile by default, or Global for all) -->
-                            <div class="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2 font-['Noto_Sans_Sinhala']">
+                            <!-- Simplified Task Title (Requirement 1.1: English removed, 1.5: Auto icon preview) -->
+                            <div class="space-y-1.5 font-['Noto_Sans_Sinhala']">
                                 <div class="flex items-center justify-between">
-                                    <label class="block text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                                        <i class="fas fa-user-tag text-indigo-600"></i> අදාළ පැතිකඩ / පරිශීලකයා (Target Profile / Scope) *
-                                    </label>
-                                    <span class="text-[11px] text-indigo-600 font-bold bg-white px-2 py-0.5 rounded-full border border-indigo-200">
-                                        ${!isEdit ? 'පෙරනිමි: එක් පැතිකඩකට පමණි' : 'පැවරුම'}
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider">මාතෘකාව / කාර්යයේ නම *</label>
+                                    <span class="text-xs font-bold px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1.5 shadow-2xs">
+                                        Icon: <span id="admin-auto-icon-badge" class="text-base">${autoDetermineIcon(task?.title_si || '')}</span>
+                                        <span class="text-[10px] text-indigo-500 font-normal">(ස්වයංක්‍රීයව තීරණය වේ)</span>
                                     </span>
                                 </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                                    <div>
-                                        <select id="target_profile" class="w-full p-2.5 border border-indigo-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-indigo-200">
-                                            <optgroup label="පැතිකඩ අනුව (Individual Profile - Default)">
-                                                ${this.users.map(u => `
-                                                    <option value="${u.id}" ${currentTargetProfile === u.id || currentTargetProfile === u.username ? 'selected' : ''}>
-                                                        ${u.avatar || '👤'} ${u.display_name || u.username} (මෙම පැතිකඩට පමණි)
-                                                    </option>
-                                                `).join('')}
-                                            </optgroup>
-                                            <optgroup label="පොදු / සියලු දෙනාට (Global)">
-                                                <option value="global" ${currentTargetProfile === 'global' || currentTargetProfile === 'all' ? 'selected' : ''}>
-                                                    🌐 සියලු දෙනාටම පෙන්වන්න (Global - All Profiles)
-                                                </option>
-                                            </optgroup>
-                                        </select>
-                                    </div>
-                                    <p class="text-[11px] text-slate-500 leading-tight">
-                                        තෝරාගත් පරිශීලකයාගේ ඩෑෂ්බෝඩ් එකට පමණක් මෙම කාර්යය දිස්වේ. සියලු දෙනාටම එකවර පෙන්වීමට අවශ්‍ය නම් <strong>Global</strong> තෝරන්න.
-                                    </p>
-                                </div>
+                                <input type="text" id="title_si" value="${task?.title_si || ''}" required placeholder="උදා: ගණිතය ප්‍රශ්න 5ක් විසඳීම" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 font-['Noto_Sans_Sinhala'] bg-white">
                             </div>
 
-                            <!-- Subject, Category & Tier -->
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">විෂය (Subject)</label>
-                                    <select id="task_subject" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
-                                        <option value="maths" ${currentSubject === 'maths' ? 'selected' : ''}>ගණිතය (Mathematics)</option>
-                                        <option value="science" ${currentSubject === 'science' ? 'selected' : ''}>විද්‍යාව (Science)</option>
-                                        <option value="sinhala" ${currentSubject === 'sinhala' ? 'selected' : ''}>සිංහල (Sinhala)</option>
-                                        <option value="english" ${currentSubject === 'english' ? 'selected' : ''}>ඉංග්‍රීසි (English)</option>
-                                        <option value="history" ${currentSubject === 'history' ? 'selected' : ''}>ඉතිහාසය (History)</option>
-                                        <option value="religion" ${currentSubject === 'religion' ? 'selected' : ''}>බුද්ධාගම / ආගම (Religion)</option>
-                                        <option value="commerce" ${currentSubject === 'commerce' ? 'selected' : ''}>වාණිජ්‍ය (Commerce)</option>
-                                        <option value="ict" ${currentSubject === 'ict' ? 'selected' : ''}>තොරතුරු තාක්ෂණය (ICT)</option>
-                                        <option value="eastern_music" ${currentSubject === 'eastern_music' ? 'selected' : ''}>නැටුම් / සංගීතය</option>
-                                        <option value="art" ${currentSubject === 'art' ? 'selected' : ''}>චිත්‍ර කලාව</option>
-                                        <option value="civics" ${currentSubject === 'civics' ? 'selected' : ''}>පුරවැසි අධ්‍යාපනය</option>
-                                        <option value="tamil" ${currentSubject === 'tamil' ? 'selected' : ''}>දෙමළ (Tamil)</option>
-                                        <option value="general" ${currentSubject === 'general' ? 'selected' : ''}>සාමාන්‍ය පුරුදු (General)</option>
-                                    </select>
+                            <!-- Target Profile / Scope (Requirement 1.2: One profile by default, or Global for all) -->
+                            <div class="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 font-['Noto_Sans_Sinhala']">
+                                <div class="flex items-center justify-between">
+                                    <label class="block text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                                        <i class="fas fa-user-tag text-indigo-600"></i> අදාළ පැතිකඩ (Target Profile)
+                                    </label>
+                                    <span class="text-[10px] text-indigo-600 font-bold bg-white px-2 py-0.5 rounded-full border border-indigo-200">
+                                        🔒 පෙරනිමි: මෙම පැතිකඩට පමණි
+                                    </span>
                                 </div>
+                                <select id="target_profile" class="w-full p-2 border border-indigo-300 rounded-xl text-xs font-semibold bg-white focus:ring-2 focus:ring-indigo-200">
+                                    <optgroup label="පැතිකඩ අනුව (Individual Profile - Default)">
+                                        ${this.users.map(u => `
+                                            <option value="${u.id}" ${currentTargetProfile === u.id || currentTargetProfile === u.username ? 'selected' : ''}>
+                                                ${u.avatar || '👤'} ${u.display_name || u.username} (මෙම පැතිකඩට පමණි)
+                                            </option>
+                                        `).join('')}
+                                    </optgroup>
+                                    <optgroup label="පොදු / සියලු දෙනාට (Global)">
+                                        <option value="global" ${currentTargetProfile === 'global' || currentTargetProfile === 'all' ? 'selected' : ''}>
+                                            🌐 සියලු දෙනාටම පෙන්වන්න (Global - All Profiles)
+                                        </option>
+                                    </optgroup>
+                                </select>
+                            </div>
+
+                            <!-- Category, Points & Status (Requirements 1.3: Subject removed, 1.4: Tier removed, 1.7: Order removed) -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 font-['Noto_Sans_Sinhala']">
                                 <div>
                                     <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">වර්ගය (Category)</label>
                                     <select id="category" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
@@ -470,36 +445,25 @@ export class TaskManager {
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">ප්‍රමුඛතා මට්ටම (Tier)</label>
-                                    <select id="tier" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
-                                        <option value="core_academic" ${task?.tier === 'core_academic' ? 'selected' : ''}>ප්‍රධාන අධ්‍යාපනික (Core: 25-30 Pts)</option>
-                                        <option value="applied_basket" ${task?.tier === 'applied_basket' ? 'selected' : ''}>අමතර විෂයයන් (Basket: 12-20 Pts)</option>
-                                        <option value="routine_baseline" ${task?.tier === 'routine_baseline' ? 'selected' : ''}>දෛනික පුරුදු (Baseline: 5-10 Pts)</option>
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">ලකුණු (Points)</label>
+                                    <input type="number" id="weight_points" step="1" value="${task?.weight_points !== undefined ? task.weight_points : 10}" class="w-full p-2.5 border rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-200 bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">තත්ත්වය (Status)</label>
+                                    <select id="status" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white font-semibold">
+                                        <option value="published" ${task?.status === 'published' ? 'selected' : ''}>ප්‍රකාශිතයි (Published)</option>
+                                        <option value="draft" ${task?.status === 'draft' ? 'selected' : ''}>කටු කෙටුම්පත් (Draft)</option>
                                     </select>
                                 </div>
                             </div>
 
-                            <!-- Weight Points, Icon, Sort Order, Status -->
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">ලබාදෙන ලකුණු (Points)</label>
-                                    <input type="number" id="weight_points" step="0.5" value="${task?.weight_points !== undefined ? task.weight_points : 10}" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">සංකේතය (Icon/Emoji)</label>
-                                    <input type="text" id="icon" value="${task?.icon || '📋'}" class="w-full p-2.5 border rounded-xl text-xs text-center text-lg focus:ring-2 focus:ring-indigo-200">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">පිළිවෙල අංකය (Order)</label>
-                                    <input type="number" id="sort_order" value="${task?.sort_order || 0}" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">තත්ත්වය (Status)</label>
-                                    <select id="status" class="w-full p-2.5 border rounded-xl text-xs focus:ring-2 focus:ring-indigo-200 bg-white">
-                                        <option value="draft" ${task?.status === 'draft' ? 'selected' : ''}>කටු කෙටුම්පත් (Draft)</option>
-                                        <option value="published" ${task?.status === 'published' ? 'selected' : ''}>ප්‍රකාශිතයි (Published)</option>
-                                    </select>
-                                </div>
+                            <!-- Hidden Legacy Compatibility Fields (Subject, Tier, English title, Icon, Sort Order) -->
+                            <div class="hidden" style="display:none;" aria-hidden="true">
+                                <input type="text" id="title_en" value="${task?.title_en || ''}">
+                                <select id="task_subject"><option value="${currentSubject || 'general'}" selected></option></select>
+                                <select id="tier"><option value="${task?.tier || 'routine_baseline'}" selected></option></select>
+                                <input type="text" id="icon" value="${task?.icon || autoDetermineIcon(task?.title_si || '')}">
+                                <input type="number" id="sort_order" value="${task?.sort_order || 0}">
                             </div>
 
                             <!-- Schedule Settings -->
@@ -649,6 +613,17 @@ export class TaskManager {
             }
         });
 
+        const titleSiInput = document.getElementById('title_si');
+        const autoIconBadge = document.getElementById('admin-auto-icon-badge');
+        if (titleSiInput && autoIconBadge) {
+            titleSiInput.addEventListener('input', () => {
+                const icon = autoDetermineIcon(titleSiInput.value.trim());
+                autoIconBadge.textContent = icon;
+                const hiddenIcon = document.getElementById('icon');
+                if (hiddenIcon) hiddenIcon.value = icon;
+            });
+        }
+
         const closeModal = () => { modalContainer.innerHTML = ''; };
         modalContainer.querySelectorAll('.close-modal-btn').forEach(btn => {
             btn.addEventListener('click', closeModal);
@@ -747,15 +722,19 @@ export class TaskManager {
         const targetProfile = document.getElementById('target_profile')?.value || (this.users[0]?.id || 'user_wosa');
         schemaDef.target_profile = targetProfile;
 
+        const titleSi = document.getElementById('title_si')?.value.trim() || '';
+        const categoryVal = document.getElementById('category')?.value || 'general';
+        const autoIcon = autoDetermineIcon(titleSi, categoryVal);
+
         return {
-            title_si: document.getElementById('title_si').value.trim(),
-            title_en: document.getElementById('title_en').value.trim(),
-            category: document.getElementById('category').value,
-            tier: document.getElementById('tier').value,
-            weight_points: parseFloat(document.getElementById('weight_points').value) || 0,
-            icon: document.getElementById('icon').value.trim() || '📋',
-            sort_order: parseInt(document.getElementById('sort_order').value) || 0,
-            status: document.getElementById('status').value,
+            title_si: titleSi,
+            title_en: document.getElementById('title_en')?.value.trim() || titleSi,
+            category: categoryVal,
+            tier: document.getElementById('tier')?.value || 'routine_baseline',
+            weight_points: parseFloat(document.getElementById('weight_points')?.value) || 10,
+            icon: autoIcon,
+            sort_order: parseInt(document.getElementById('sort_order')?.value) || 0,
+            status: document.getElementById('status')?.value || 'published',
             target_profile: targetProfile,
             has_timer: hasTimer,
             timer_seconds: timerSeconds,
